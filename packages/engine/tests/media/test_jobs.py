@@ -13,7 +13,14 @@ from cineforge.contracts.workflow import ProductionState
 from cineforge.media import jobs
 from cineforge.media.render import RenderError
 from cineforge.runtime import Runtime, set_runtime
-from fakes_d import fake_runtime, small_manifest
+from fakes_d import (
+    DATABASE_URL,
+    DEMO_TENANT_ID,
+    PgScratch,
+    db_available,
+    fake_runtime,
+    small_manifest,
+)
 
 PID = "prod_sample0000000001"
 TENANT = "tenant_demo"
@@ -159,6 +166,39 @@ def test_recovers_succeeded_run_without_rendering(
     assert _call() == "asset_prev"
     assert rt.productions.get(PID, TENANT).master_render_asset_id == "asset_prev"
     assert len(rt.queue.jobs) == 1
+
+
+@pytest.mark.integration
+@pytest.mark.ffmpeg
+def test_render_master_with_postgres_assets(require_ffmpeg: None, tmp_path: Path) -> None:
+    if not db_available():
+        pytest.skip("Postgres not reachable")
+    pg = PgScratch()
+    try:
+        pid = pg.add_production()
+        runtime = fake_runtime(
+            Settings(
+                persistence_backend="postgres",
+                database_url=DATABASE_URL,
+                queue_backend="inline",
+                storage_local_root=tmp_path / "media",
+            )
+        )
+        manifest = small_manifest(production_id=pid, tenant_id=pg.tenant_id)
+        manifest.state = ProductionState.ASSEMBLING
+        runtime.productions.create(manifest)
+        set_runtime(runtime)
+        asset_id = jobs.render_master(
+            production_id=pid, tenant_id=pg.tenant_id, idempotency_key=f"{pid}:render"
+        )
+        stored = runtime.assets.get(asset_id, pg.tenant_id)
+        assert stored is not None and stored.kind == AssetKind.RENDER
+        assert stored.license is not None and stored.license.license_type == "rendered"
+        assert runtime.assets.get(asset_id, DEMO_TENANT_ID) is None
+        assert runtime.storage.exists(stored.storage_key)
+    finally:
+        set_runtime(None)
+        pg.cleanup()
 
 
 def test_missing_production(rt: Runtime) -> None:
