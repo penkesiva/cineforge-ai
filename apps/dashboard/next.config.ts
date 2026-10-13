@@ -7,6 +7,8 @@ const monorepoRoot = path.join(__dirname, "..", "..");
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // The repo-level AGENTS.md is the single source of agent guidance.
+  agentRules: false,
   transpilePackages: ["@cineforge/schemas"],
   outputFileTracingRoot: monorepoRoot,
   turbopack: { root: monorepoRoot },
