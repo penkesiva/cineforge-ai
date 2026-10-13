@@ -1,0 +1,56 @@
+---
+description: CineForge AI project overview, contract freeze, ownership and safety rules
+globs:
+alwaysApply: true
+---
+
+# CineForge AI - project rules
+
+Theme-driven, multi-agent cinematic short-video engine. Agents make creative and
+planning decisions through typed artifacts; deterministic code handles budgets,
+rights, state, timing, encoding and jobs.
+
+Read first: [AGENTS.md](mdc:AGENTS.md) and [contracts](mdc:docs/architecture/contracts.md).
+
+## Layout
+
+- `apps/dashboard` - Next.js + TS + Tailwind (port 3000)
+- `services/api` - FastAPI (port 8000), thin routes over the engine
+- `services/worker` - RQ worker, queue `cineforge-agents`
+- `services/media-worker` - RQ worker, queue `cineforge-media` (FFmpeg)
+- `packages/engine` - Python package `cineforge`: contracts + domain logic
+- `packages/schemas` - GENERATED JSON Schema + TS types (`make contracts`)
+- `packages/prompts`, `packages/configurations` - prompts, themes, modes, prices
+- `supabase/` - Postgres migrations + seed (Supabase CLI, port 54322)
+- `infrastructure/docker`, `compose.yaml`, `Makefile` - local stack (`make help`)
+
+## Contract freeze
+
+Do NOT edit without the integrator: `packages/engine/src/cineforge/contracts/`,
+`cineforge/config.py`, `runtime.py`, `db.py`, `configuration.py`, `testing.py`,
+`supabase/migrations/`, `packages/configurations/`, `packages/schemas/`, root
+`pyproject.toml`, `uv.lock`, root `package.json`, `AGENTS.md`, `README.md`,
+`docs/architecture/`. Need a change? Stop and describe it.
+
+## Ownership
+
+Only edit files your workstream owns (table in AGENTS.md). Platform (A) owns
+`infrastructure/`, `compose.yaml`, `Makefile`, `.github/`, `.dockerignore`,
+`.cursor/rules/`, `scripts/` (not `export_contracts.py` / `generate_seed.py`),
+`docs/development/`.
+
+## Safety
+
+- No binary media in Git (video, audio, images, renders). Only tiny approved
+  fixtures under `tests/fixtures/approved/`. `make check-media` enforces it.
+- No secrets in Git. Use `.env` (ignored); `.env.example` holds placeholders only.
+- No paid API calls without explicit human approval. Phase 0 uses mock providers only;
+  keep `PROVIDER_MODE=mock` and `ALLOW_PAID_PROVIDERS=false`.
+- No new dependencies without a stated reason (Python deps are locked by the integrator).
+- Tests are mandatory. Every change ships with tests and the workstream's test command passes.
+
+## Git
+
+- Integration branch `phase0/foundation`. Never commit to `main`; it only gets reviewed PRs.
+- One worktree per workstream: `git worktree add ../cineforge-ai-wt/<x> -b phase0/<x> phase0/foundation`.
+- Small focused commits: `<area>: <imperative summary>`. Never force-push shared branches.
