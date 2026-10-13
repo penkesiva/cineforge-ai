@@ -72,9 +72,9 @@ validated) and providers only through `PaidCallGuard.call` (budget reserved firs
 | From state | Work | Next |
 |---|---|---|
 | `DRAFT` (via `POST /run`) | transition only | `RESEARCHING` |
-| `RESEARCHING` | A1 plan, A4 treatment, A2 research, A3 media discovery (+ `RightsGate`; unknown rights blocked) | `SCRIPTING` |
+| `RESEARCHING` | A1 plan, A4 treatment, A2 research, A3 media discovery; then the orchestrator (not the agent) applies `RightsGate` to every candidate license and rewrites `AssetSelection.selected_ids/blocked` (unknown rights are blocked) | `SCRIPTING` |
 | `SCRIPTING` | A5 script | `STORYBOARDING` |
-| `STORYBOARDING` | A6 scene graph → `manifest.scenes`; A10 cost plan via `CostEstimator`; scene budgets via `set_limit` | `AWAITING_APPROVAL`, or `PAUSED_BUDGET` if estimate > limit |
+| `STORYBOARDING` | A6 scene graph → `manifest.scenes`; orchestrator runs `CostEstimator.estimate` → A10 (`CostPlanningInput.estimate`) → `CostPlan`; per-shot/scene `estimated_cost` and `manifest.budget.estimated` updated; scene budgets via `set_limit` | `AWAITING_APPROVAL`, or `PAUSED_BUDGET` if estimate > limit |
 | `AWAITING_APPROVAL` | gate; if `manifest.approval.auto_approve` continue immediately | `GENERATING` (after `POST /approve`) |
 | `GENERATING` | per shot A7 (bounded attempts = mode `max_attempts_per_shot`, attempts recorded on `Shot.attempts`), A8 audio (narration per scene, music, lip-sync where `lip_sync_required`) | `ASSEMBLING`; `PAUSED_BUDGET` on `BudgetExceededError`; `FAILED` if a shot exhausts attempts |
 | `ASSEMBLING` | if no `master_render_asset_id`: enqueue `JOB_RENDER_MASTER` on `QUEUE_MEDIA` and stop; media job renders, then enqueues advance | `REVIEWING` once master exists |

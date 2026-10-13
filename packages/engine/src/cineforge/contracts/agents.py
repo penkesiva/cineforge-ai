@@ -359,8 +359,12 @@ class ReviewInput(ContractModel):
 
 
 class CostPlanningInput(ContractModel):
+    """The estimate is computed deterministically by ``CostEstimator`` before A10 runs;
+    A10 adds routing advice and the within-budget decision."""
+
     manifest: ProductionManifest
     mode_policy: ProductionModePolicy
+    estimate: CostEstimate
 
 
 # --------------------------------------------------------------------------- #
