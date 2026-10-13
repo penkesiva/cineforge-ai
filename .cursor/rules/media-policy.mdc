@@ -1,0 +1,19 @@
+---
+description: Media storage, provenance and rights policy
+globs:
+alwaysApply: true
+---
+
+# Media policy
+
+- Media binaries (video, audio, images, renders, caches) go to the storage backend
+  only: the `cineforge-media` Docker volume (`/data/media`), `var/media` on the host,
+  or object storage later. Never commit them; `make check-media` and CI enforce this.
+- Store media through `StorageBackend` with keys from `storage_key(...)`
+  (`tenants/<tenant>/productions/<id>/<kind>/<file>`).
+- Every asset needs provenance and license metadata (`AssetRecord`, `LicenseInfo`):
+  source, license, attribution, generator/provider where relevant.
+- Rights fail closed: if license or rights are unknown, `RightsGate` blocks the asset.
+  Never bypass or weaken the gate to make a demo pass.
+- AI-generated content carries the required disclosure in the manifest.
+- Test fixtures must be tiny and live under `tests/fixtures/approved/`.

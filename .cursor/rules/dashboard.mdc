@@ -1,0 +1,19 @@
+---
+description: Dashboard conventions (Next.js App Router, strict TS, generated contract types, dialogs)
+globs: apps/dashboard/**
+alwaysApply: false
+---
+
+# Dashboard (apps/dashboard)
+
+- Next.js App Router, TypeScript `strict`, Tailwind CSS, Vitest for tests.
+- Import contract types from `@cineforge/schemas`. Never hand-copy or redefine them.
+  Regenerate with `make contracts` (never edit `packages/schemas/` by hand).
+- Call the API same-origin (`/api/v1/*`, `/health`); Next rewrites proxy to
+  `API_INTERNAL_URL` (`http://api:8000` in Docker, `http://localhost:8000` on host).
+- Never use `window.alert()` or `window.confirm()`. Use `AppNoticeDialog` for results
+  and `AppConfirmDialog` (variants `default`, `warning`, `danger`) for decisions.
+- Workspace name `@cineforge/dashboard`; scripts `dev`, `build`, `start`, `test`,
+  `lint`, `typecheck` must keep working (CI and Docker use them).
+- `npm run dev` must bind all interfaces (Next default) so Docker can reach port 3000.
+- No binary images in Git (SVG under `public/` is fine).
