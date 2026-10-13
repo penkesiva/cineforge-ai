@@ -701,10 +701,10 @@ def make_runtime(
     **settings_overrides: Any,
 ) -> tuple[Runtime, FakeServices]:
     settings = Settings(
-        persistence_backend="memory",
-        queue_backend="inline",
-        mock_step_delay_sec=0,
-        **settings_overrides,
+        **(
+            {"persistence_backend": "memory", "queue_backend": "inline", "mock_step_delay_sec": 0}
+            | settings_overrides
+        )
     )
     rt = Runtime(settings)
     catalog = FakePriceCatalog.load(settings)
