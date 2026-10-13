@@ -4,10 +4,18 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
+from typing import Any
 
-from pydantic import Field, computed_field
+from pydantic import Field, computed_field, model_validator
 
 from cineforge.contracts.common import ContractModel, new_id, utcnow
+
+
+def _drop_keys(data: Any, *keys: str) -> Any:
+    """Computed fields are emitted on dump; ignore them on load so dumps round-trip."""
+    if isinstance(data, dict) and any(k in data for k in keys):
+        return {k: v for k, v in data.items() if k not in keys}
+    return data
 
 
 class Severity(StrEnum):
@@ -59,6 +67,11 @@ class ReviewFinding(ContractModel):
     retry_scope: RetryScope = RetryScope.NONE
     created_at: datetime = Field(default_factory=utcnow)
 
+    @model_validator(mode="before")
+    @classmethod
+    def _ignore_computed(cls, data: Any) -> Any:
+        return _drop_keys(data, "blocking")
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def blocking(self) -> bool:
@@ -71,6 +84,11 @@ class ReviewReport(ContractModel):
     findings: list[ReviewFinding] = Field(default_factory=list)
     scores: list[ReviewScore] = Field(default_factory=list)
     reviewed_at: datetime = Field(default_factory=utcnow)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _ignore_computed(cls, data: Any) -> Any:
+        return _drop_keys(data, "passed")
 
     @computed_field  # type: ignore[prop-decorator]
     @property

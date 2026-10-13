@@ -124,8 +124,17 @@ def test_no_scenes_and_no_font(
 def test_ffmpeg_failure_raises_render_error(
     require_ffmpeg: None, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    import cineforge.media.render as render_mod
+
+    original = render_mod.build_slate_command
+
+    def broken_command(*args: object, **kwargs: object) -> list[str]:
+        # An unknown encoder fails on every ffmpeg build (odd sizes do not: some pad).
+        cmd = original(*args, **kwargs)
+        return ["cineforge-no-such-encoder" if part == "libx264" else part for part in cmd]
+
+    monkeypatch.setattr(render_mod, "build_slate_command", broken_command)
     m = small_manifest()
-    m.output = m.output.model_copy(update={"width": 181})  # odd width: libx264/yuv420p rejects
     with pytest.raises(RenderError, match="ffmpeg failed"):
         render_master_slate(m, tmp_path / "m.mp4")
     assert not (tmp_path / "m.mp4").exists()

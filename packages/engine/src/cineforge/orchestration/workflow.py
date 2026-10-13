@@ -629,17 +629,7 @@ class WorkflowEngine:
                     scene.status = WorkStatus.COMPLETE
 
             self._ensure_still(m, S.GENERATING)
-            audio: AudioPackage = self._invoke(
-                m,
-                theme,
-                policy,
-                A.AUDIO_PERFORMANCE,
-                AudioInput(
-                    scenes=m.scenes,
-                    script=self._artifact(m, Script),
-                    language=m.creative_brief.language,
-                ),
-            ).output
+            audio = self._produce_audio(m, theme, policy)
             self._sync_costs(m, self._apply_audio(m, audio))
         except Exception:
             self._sync_costs(m)
@@ -734,6 +724,27 @@ class WorkflowEngine:
             shot.artifact_hash = ref.asset_id
             shot.status = WorkStatus.COMPLETE
             return
+
+    def _produce_audio(
+        self, m: ProductionManifest, theme: ThemeProfile, policy: ProductionModePolicy
+    ) -> AudioPackage:
+        """A8 with the same bounded retry policy as shots (transient provider failures)."""
+        payload = AudioInput(
+            scenes=m.scenes, script=self._artifact(m, Script), language=m.creative_brief.language
+        )
+        max_attempts = policy.max_attempts_per_shot
+        for attempt in range(1, max_attempts + 1):
+            try:
+                return self._invoke(
+                    m, theme, policy, A.AUDIO_PERFORMANCE, payload, attempt=attempt
+                ).output
+            except ProviderError as exc:
+                if not exc.retryable or attempt == max_attempts:
+                    raise WorkflowError(f"audio failed after {attempt} attempt(s): {exc}") from exc
+                log.info("audio attempt %s failed (%s); retrying", attempt, exc)
+                self._audit(m, A.AUDIO_PERFORMANCE.value, "audio_retry", {"error": str(exc)})
+                self.rt.productions.save(m)
+        raise WorkflowError("audio produced no result")  # pragma: no cover
 
     @staticmethod
     def _apply_audio(m: ProductionManifest, audio: AudioPackage) -> dict[str, Decimal]:

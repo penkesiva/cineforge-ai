@@ -29,7 +29,9 @@ x-python-service: &python-service
     PROVIDER_MODE: mock
     ALLOW_PAID_PROVIDERS: "false"
     MOCK_STEP_DELAY_SEC: ${MOCK_STEP_DELAY_SEC:-1.0}
-    MOCK_FAILURE_RATE: ${MOCK_FAILURE_RATE:-0.1}
+    # Simulated transient media-provider failures (exercises bounded retries).
+    # 0.05 with 3 attempts per shot => roughly 1 in 700 demo productions ends FAILED.
+    MOCK_FAILURE_RATE: ${MOCK_FAILURE_RATE:-0.05}
     CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
   extra_hosts:
     - "host.docker.internal:host-gateway"

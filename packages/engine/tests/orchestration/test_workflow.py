@@ -245,6 +245,30 @@ def test_retryable_failure_then_success_records_two_attempts() -> None:
     assert sorted(e.status.value for e in ledger) == ["committed", "failed"]
 
 
+def test_transient_audio_failure_is_retried() -> None:
+    rt, fx = make_runtime()
+    fx.provider("mock-lipsync").fail_times["*"] = 1
+    wf = WorkflowEngine(rt)
+    pid = wf.create_production(_req(auto_approve=True), TENANT).production_id
+    wf.start(pid, TENANT)
+    assert rt.productions.get(pid, TENANT).state == S.READY
+    runs = _runs(rt, pid, AgentId.AUDIO_PERFORMANCE)
+    assert [(r.attempt, r.status) for r in runs] == [
+        (1, AgentRunStatus.FAILED),
+        (2, AgentRunStatus.SUCCEEDED),
+    ]
+
+
+def test_audio_exhausting_attempts_fails_production() -> None:
+    rt, fx = make_runtime()
+    fx.provider("mock-lipsync").fail_times["*"] = 99
+    wf = WorkflowEngine(rt)
+    pid = wf.create_production(_req(auto_approve=True), TENANT).production_id
+    wf.start(pid, TENANT)
+    assert rt.productions.get(pid, TENANT).state == S.FAILED
+    assert len(_runs(rt, pid, AgentId.AUDIO_PERFORMANCE)) == 3
+
+
 def test_shot_exhausting_attempts_fails_production() -> None:
     rt, fx = make_runtime()
     fx.provider("mock-video").fail_times["scene_02_shot_01"] = 99

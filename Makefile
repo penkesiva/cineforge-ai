@@ -118,7 +118,8 @@ test-e2e: ## End-to-end tests against the running stack (`make up` first)
 	uv run pytest -q -m e2e tests/e2e
 
 test-docker: ## Run Python tests inside the media-worker image (has ffmpeg)
-	$(COMPOSE) run --rm --no-deps media-worker pytest -q
+	$(COMPOSE) run --rm --no-deps -v ./supabase:/app/supabase:ro -v ./tests:/app/tests:ro \
+		media-worker pytest -q
 
 lint: ## Ruff lint + format check, dashboard lint + typecheck
 	uv run ruff check .

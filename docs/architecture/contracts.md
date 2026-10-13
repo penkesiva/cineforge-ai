@@ -8,6 +8,11 @@ integrator, and do not edit it inside a workstream branch.
 Source of truth: Pydantic models in `cineforge.contracts.*`. JSON Schema and
 TypeScript types are generated (`make contracts`) into `packages/schemas/`.
 
+Change log:
+- `phase0-contracts-frozen` - initial freeze (A10 input carries the deterministic `CostEstimate`).
+- Integration - `ReviewFinding.blocking` / `ReviewReport.passed` (computed) are ignored on
+  input so dumps round-trip. RQ-safe job IDs are derived from the logical IDs below.
+
 ## 1. Modules
 
 | Module | Contents |

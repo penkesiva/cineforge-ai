@@ -40,6 +40,24 @@ def test_manifest_json_round_trip() -> None:
     assert json.loads(payload)["budget"]["limit"] == 10.0  # Money serializes as a JSON number
 
 
+def test_review_models_round_trip_with_computed_fields() -> None:
+    from cineforge.contracts.review import (
+        ReviewFinding,
+        ReviewGate,
+        ReviewReport,
+        ReviewStatus,
+        Severity,
+    )
+
+    finding = ReviewFinding(gate=ReviewGate.MASTER, severity=Severity.CRITICAL, message="bad")
+    report = ReviewReport(production_id="prod_x", status=ReviewStatus.FAILED, findings=[finding])
+    dumped = report.model_dump(mode="json")
+    assert dumped["passed"] is False and dumped["findings"][0]["blocking"] is True
+    assert ReviewReport.model_validate(dumped) == report
+    manifest = sample_manifest().model_copy(update={"review_findings": [finding]})
+    assert ProductionManifest.model_validate_json(manifest.model_dump_json()) == manifest
+
+
 def test_manifest_rejects_unknown_fields() -> None:
     data = sample_manifest().model_dump(mode="json")
     data["surprise"] = True
