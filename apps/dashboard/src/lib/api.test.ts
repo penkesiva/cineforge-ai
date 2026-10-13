@@ -1,6 +1,15 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from "vitest";
 import { ApiError, createApiClient, errorMessage } from "./api";
+import { apiInternalUrl } from "./apiTarget";
+
+describe("apiInternalUrl", () => {
+  it("defaults to localhost and strips trailing slashes", () => {
+    expect(apiInternalUrl({})).toBe("http://localhost:8000");
+    expect(apiInternalUrl({ API_INTERNAL_URL: "  " })).toBe("http://localhost:8000");
+    expect(apiInternalUrl({ API_INTERNAL_URL: "http://api:8000/" })).toBe("http://api:8000");
+  });
+});
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
