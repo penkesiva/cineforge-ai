@@ -16,7 +16,7 @@ import psycopg
 from cineforge.config import Settings
 from cineforge.contracts.agents import AgentRun, AgentRunStatus
 from cineforge.contracts.common import DEMO_TENANT_ID, money, utcnow
-from cineforge.contracts.manifest import ProductionManifest
+from cineforge.contracts.manifest import OutputProfile, ProductionManifest
 from cineforge.contracts.repositories import NotFoundError
 from cineforge.contracts.workflow import ProductionEvent, ProductionState, assert_transition
 from cineforge.db import ping
@@ -31,6 +31,23 @@ DATABASE_URL = os.environ.get(
 
 def db_available() -> bool:
     return ping(DATABASE_URL)
+
+
+SMALL_OUTPUT = OutputProfile(width=180, height=320, fps=24, duration_target_sec=2)
+
+
+def small_manifest(
+    *, with_scenes: bool = True, production_id: str | None = None, tenant_id: str = DEMO_TENANT_ID
+) -> ProductionManifest:
+    """sample_manifest() at 180x320 with 1 s scenes (fast to render)."""
+    kwargs = {"production_id": production_id} if production_id else {}
+    m = sample_manifest(with_scenes=with_scenes, tenant_id=tenant_id, **kwargs)
+    m.output = SMALL_OUTPUT
+    for scene in m.scenes:
+        scene.duration_sec = 1.0
+        for shot in scene.shots:
+            shot.duration_sec = 0.5
+    return ProductionManifest.model_validate(m.model_dump())
 
 
 # --------------------------------------------------------------------------- fakes
@@ -227,10 +244,12 @@ class PgScratch:
 __all__ = [
     "DATABASE_URL",
     "DEMO_TENANT_ID",
+    "SMALL_OUTPUT",
     "FakeAgentRuns",
     "FakeProductions",
     "FakeQueue",
     "PgScratch",
     "db_available",
     "fake_runtime",
+    "small_manifest",
 ]
