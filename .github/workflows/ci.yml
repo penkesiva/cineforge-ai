@@ -1,0 +1,166 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: Python (lint, contracts, tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      CINEFORGE_ENV: test
+      PERSISTENCE_BACKEND: postgres
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      QUEUE_BACKEND: redis
+      REDIS_URL: redis://localhost:6379/0
+      PROVIDER_MODE: mock
+      ALLOW_PAID_PROVIDERS: "false"
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: postgres
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.0"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Ruff lint
+        run: uv run ruff check .
+
+      - name: Ruff format
+        run: uv run ruff format --check .
+
+      - name: Contract schema up to date
+        run: uv run python scripts/export_contracts.py --check
+
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core
+
+      - name: Apply migrations and seed
+        run: |
+          for f in supabase/migrations/*.sql; do
+            echo "applying $f"
+            psql -v ON_ERROR_STOP=1 -q -f "$f"
+          done
+          psql -v ON_ERROR_STOP=1 -q -f supabase/seed.sql
+
+      - name: Unit tests
+        run: uv run pytest -q
+
+      - name: Integration tests
+        run: |
+          set +e
+          uv run pytest -q -m integration
+          code=$?
+          # Exit code 5 = no tests collected (none written yet); not a failure.
+          if [ "$code" -eq 5 ]; then echo "no integration tests collected"; exit 0; fi
+          exit "$code"
+
+  dashboard:
+    name: Dashboard (contracts, lint, typecheck, test, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      API_INTERNAL_URL: http://localhost:8000
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TS contract types up to date
+        run: |
+          npm run contracts:types
+          git diff --exit-code packages/schemas
+
+      - name: Lint
+        run: npm run lint --workspace @cineforge/dashboard
+
+      - name: Typecheck
+        run: npm run typecheck --workspace @cineforge/dashboard
+
+      - name: Test
+        run: npm test --workspace @cineforge/dashboard
+
+      - name: Build
+        run: npm run build --workspace @cineforge/dashboard
+
+  hygiene:
+    name: Repo hygiene (no media, no secrets)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for media, large files and secrets
+        run: bash scripts/check_no_media.sh
+
+      - name: Self-test the check
+        run: bash scripts/tests/test_check_no_media.sh
+
+  docker:
+    name: Docker images
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [python, dashboard]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Compose config
+        run: docker compose config -q
+
+      - name: Build images
+        run: docker compose build api worker media-worker dashboard
+
+      - name: Smoke test images
+        run: |
+          docker compose run --rm --no-deps api python -c "import cineforge, cineforge.contracts; print('ok')"
+          docker compose run --rm --no-deps media-worker sh -c "ffmpeg -hide_banner -version | head -1 && ffprobe -hide_banner -version | head -1"
+          docker compose run --rm --no-deps api pytest -q packages/engine/tests
