@@ -1,0 +1,753 @@
+{
+  "schema_version": "1.0",
+  "production_id": "prod_sample0000000001",
+  "tenant_id": "tenant_demo",
+  "title": "Eiffel Tower, 1889",
+  "theme_profile": {
+    "id": "time-traveler",
+    "version": 1
+  },
+  "mode": "balanced",
+  "state": "DRAFT",
+  "config_version": 1,
+  "creative_brief": {
+    "topic": "The night the Eiffel Tower first lit up for the 1889 World's Fair",
+    "genre": "documentary-adventure",
+    "language": "en-US",
+    "audience": null,
+    "notes": null
+  },
+  "output": {
+    "aspect_ratio": "9:16",
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "codec": "h264",
+    "audio_codec": "aac",
+    "container": "mp4",
+    "bitrate_kbps": null,
+    "duration_target_sec": 45.0
+  },
+  "budget": {
+    "currency": "USD",
+    "limit": 10.0,
+    "estimated": 0.0,
+    "reserved": 0.0,
+    "actual": 0.0
+  },
+  "approval": {
+    "auto_approve": false,
+    "approved_by": null,
+    "approved_at": null,
+    "note": null
+  },
+  "character_bible_ref": "asset://characters/host-v1",
+  "style_bible_ref": null,
+  "research_brief_ref": null,
+  "scenes": [
+    {
+      "id": "scene_01",
+      "order": 1,
+      "title": "Hook",
+      "duration_sec": 7.0,
+      "story_beat": "opening hook",
+      "narration": "Narration for hook.",
+      "facts": [
+        "claim_01"
+      ],
+      "shots": [
+        {
+          "id": "scene_01_shot_01",
+          "order": 1,
+          "duration_sec": 3.5,
+          "description": "Hook: establishing visual",
+          "visual": {
+            "shot_type": "wide",
+            "camera_motion": "ken_burns",
+            "lens": null,
+            "lighting": "golden_hour",
+            "atmosphere": null,
+            "color_grade": null,
+            "vfx": [],
+            "camera_path": null,
+            "camera_control_supported": false
+          },
+          "performance": {
+            "character_ref": null,
+            "emotion": null,
+            "gesture": null,
+            "lip_sync_required": false
+          },
+          "audio": {
+            "dialogue_ref": null,
+            "narration_text": null,
+            "ambience": null,
+            "music_cue": null,
+            "sfx": []
+          },
+          "assets": [],
+          "provider_plan": {
+            "strategy": "licensed_still_motion",
+            "capability": "image_to_video",
+            "provider": "mock-video",
+            "model": "mock-video-draft",
+            "prompt_template_id": null,
+            "prompt_template_version": null,
+            "prompt": null,
+            "prompt_ref": null,
+            "negative_prompt": null,
+            "seed": null,
+            "reference_asset_ids": [],
+            "parameters": {},
+            "draft_first": false
+          },
+          "attempts": [],
+          "review_scores": [],
+          "disclosure": {
+            "synthetic_media": false,
+            "reconstruction": false,
+            "label_text": null
+          },
+          "depends_on": [],
+          "estimated_cost": 0.0,
+          "actual_cost": 0.0,
+          "artifact_hash": null,
+          "version": 1,
+          "status": "planned"
+        },
+        {
+          "id": "scene_01_shot_02",
+          "order": 2,
+          "duration_sec": 3.5,
+          "description": "Hook: cinematic reconstruction",
+          "visual": {
+            "shot_type": "close_up",
+            "camera_motion": "slow_push",
+            "lens": null,
+            "lighting": null,
+            "atmosphere": "light_haze",
+            "color_grade": null,
+            "vfx": [],
+            "camera_path": null,
+            "camera_control_supported": false
+          },
+          "performance": {
+            "character_ref": "asset://characters/host-v1",
+            "emotion": "curious",
+            "gesture": null,
+            "lip_sync_required": true
+          },
+          "audio": {
+            "dialogue_ref": null,
+            "narration_text": "Narration for hook.",
+            "ambience": null,
+            "music_cue": null,
+            "sfx": []
+          },
+          "assets": [],
+          "provider_plan": {
+            "strategy": "generative",
+            "capability": "video_generation",
+            "provider": "mock-video",
+            "model": "mock-video-cinematic",
+            "prompt_template_id": null,
+            "prompt_template_version": null,
+            "prompt": null,
+            "prompt_ref": null,
+            "negative_prompt": null,
+            "seed": null,
+            "reference_asset_ids": [],
+            "parameters": {},
+            "draft_first": false
+          },
+          "attempts": [],
+          "review_scores": [],
+          "disclosure": {
+            "synthetic_media": true,
+            "reconstruction": true,
+            "label_text": "Reconstruction"
+          },
+          "depends_on": [
+            "scene_01_shot_01"
+          ],
+          "estimated_cost": 0.0,
+          "actual_cost": 0.0,
+          "artifact_hash": null,
+          "version": 1,
+          "status": "planned"
+        }
+      ],
+      "depends_on": [],
+      "budget_limit": null,
+      "estimated_cost": 0.0,
+      "actual_cost": 0.0,
+      "version": 1,
+      "status": "planned"
+    },
+    {
+      "id": "scene_02",
+      "order": 2,
+      "title": "Arrival",
+      "duration_sec": 9.0,
+      "story_beat": "arrival",
+      "narration": "Narration for arrival.",
+      "facts": [
+        "claim_02"
+      ],
+      "shots": [
+        {
+          "id": "scene_02_shot_01",
+          "order": 1,
+          "duration_sec": 4.5,
+          "description": "Arrival: establishing visual",
+          "visual": {
+            "shot_type": "wide",
+            "camera_motion": "ken_burns",
+            "lens": null,
+            "lighting": "golden_hour",
+            "atmosphere": null,
+            "color_grade": null,
+            "vfx": [],
+            "camera_path": null,
+            "camera_control_supported": false
+          },
+          "performance": {
+            "character_ref": null,
+            "emotion": null,
+            "gesture": null,
+            "lip_sync_required": false
+          },
+          "audio": {
+            "dialogue_ref": null,
+            "narration_text": null,
+            "ambience": null,
+            "music_cue": null,
+            "sfx": []
+          },
+          "assets": [],
+          "provider_plan": {
+            "strategy": "licensed_still_motion",
+            "capability": "image_to_video",
+            "provider": "mock-video",
+            "model": "mock-video-draft",
+            "prompt_template_id": null,
+            "prompt_template_version": null,
+            "prompt": null,
+            "prompt_ref": null,
+            "negative_prompt": null,
+            "seed": null,
+            "reference_asset_ids": [],
+            "parameters": {},
+            "draft_first": false
+          },
+          "attempts": [],
+          "review_scores": [],
+          "disclosure": {
+            "synthetic_media": false,
+            "reconstruction": false,
+            "label_text": null
+          },
+          "depends_on": [],
+          "estimated_cost": 0.0,
+          "actual_cost": 0.0,
+          "artifact_hash": null,
+          "version": 1,
+          "status": "planned"
+        },
+        {
+          "id": "scene_02_shot_02",
+          "order": 2,
+          "duration_sec": 4.5,
+          "description": "Arrival: cinematic detail",
+          "visual": {
+            "shot_type": "wide",
+            "camera_motion": "drone_reveal",
+            "lens": null,
+            "lighting": null,
+            "atmosphere": "light_haze",
+            "color_grade": null,
+            "vfx": [],
+            "camera_path": null,
+            "camera_control_supported": false
+          },
+          "performance": {
+            "character_ref": null,
+            "emotion": null,
+            "gesture": null,
+            "lip_sync_required": false
+          },
+          "audio": {
+            "dialogue_ref": null,
+            "narration_text": "Narration for arrival.",
+            "ambience": null,
+            "music_cue": null,
+            "sfx": []
+          },
+          "assets": [],
+          "provider_plan": {
+            "strategy": "licensed_still_motion",
+            "capability": "image_to_video",
+            "provider": "mock-video",
+            "model": "mock-video-draft",
+            "prompt_template_id": null,
+            "prompt_template_version": null,
+            "prompt": null,
+            "prompt_ref": null,
+            "negative_prompt": null,
+            "seed": null,
+            "reference_asset_ids": [],
+            "parameters": {},
+            "draft_first": false
+          },
+          "attempts": [],
+          "review_scores": [],
+          "disclosure": {
+            "synthetic_media": false,
+            "reconstruction": false,
+            "label_text": null
+          },
+          "depends_on": [
+            "scene_02_shot_01"
+          ],
+          "estimated_cost": 0.0,
+          "actual_cost": 0.0,
+          "artifact_hash": null,
+          "version": 1,
+          "status": "planned"
+        }
+      ],
+      "depends_on": [],
+      "budget_limit": null,
+      "estimated_cost": 0.0,
+      "actual_cost": 0.0,
+      "version": 1,
+      "status": "planned"
+    },
+    {
+      "id": "scene_03",
+      "order": 3,
+      "title": "Context",
+      "duration_sec": 10.0,
+      "story_beat": "context",
+      "narration": "Narration for context.",
+      "facts": [
+        "claim_03"
+      ],
+      "shots": [
+        {
+          "id": "scene_03_shot_01",
+          "order": 1,
+          "duration_sec": 5.0,
+          "description": "Context: establishing visual",
+          "visual": {
+            "shot_type": "wide",
+            "camera_motion": "ken_burns",
+            "lens": null,
+            "lighting": "golden_hour",
+            "atmosphere": null,
+            "color_grade": null,
+            "vfx": [],
+            "camera_path": null,
+            "camera_control_supported": false
+          },
+          "performance": {
+            "character_ref": null,
+            "emotion": null,
+            "gesture": null,
+            "lip_sync_required": false
+          },
+          "audio": {
+            "dialogue_ref": null,
+            "narration_text": null,
+            "ambience": null,
+            "music_cue": null,
+            "sfx": []
+          },
+          "assets": [],
+          "provider_plan": {
+            "strategy": "licensed_still_motion",
+            "capability": "image_to_video",
+            "provider": "mock-video",
+            "model": "mock-video-draft",
+            "prompt_template_id": null,
+            "prompt_template_version": null,
+            "prompt": null,
+            "prompt_ref": null,
+            "negative_prompt": null,
+            "seed": null,
+            "reference_asset_ids": [],
+            "parameters": {},
+            "draft_first": false
+          },
+          "attempts": [],
+          "review_scores": [],
+          "disclosure": {
+            "synthetic_media": false,
+            "reconstruction": false,
+            "label_text": null
+          },
+          "depends_on": [],
+          "estimated_cost": 0.0,
+          "actual_cost": 0.0,
+          "artifact_hash": null,
+          "version": 1,
+          "status": "planned"
+        },
+        {
+          "id": "scene_03_shot_02",
+          "order": 2,
+          "duration_sec": 5.0,
+          "description": "Context: cinematic detail",
+          "visual": {
+            "shot_type": "medium",
+            "camera_motion": "tracking",
+            "lens": null,
+            "lighting": null,
+            "atmosphere": "light_haze",
+            "color_grade": null,
+            "vfx": [],
+            "camera_path": null,
+            "camera_control_supported": false
+          },
+          "performance": {
+            "character_ref": null,
+            "emotion": null,
+            "gesture": null,
+            "lip_sync_required": false
+          },
+          "audio": {
+            "dialogue_ref": null,
+            "narration_text": "Narration for context.",
+            "ambience": null,
+            "music_cue": null,
+            "sfx": []
+          },
+          "assets": [],
+          "provider_plan": {
+            "strategy": "licensed_still_motion",
+            "capability": "image_to_video",
+            "provider": "mock-video",
+            "model": "mock-video-draft",
+            "prompt_template_id": null,
+            "prompt_template_version": null,
+            "prompt": null,
+            "prompt_ref": null,
+            "negative_prompt": null,
+            "seed": null,
+            "reference_asset_ids": [],
+            "parameters": {},
+            "draft_first": false
+          },
+          "attempts": [],
+          "review_scores": [],
+          "disclosure": {
+            "synthetic_media": false,
+            "reconstruction": false,
+            "label_text": null
+          },
+          "depends_on": [
+            "scene_03_shot_01"
+          ],
+          "estimated_cost": 0.0,
+          "actual_cost": 0.0,
+          "artifact_hash": null,
+          "version": 1,
+          "status": "planned"
+        }
+      ],
+      "depends_on": [],
+      "budget_limit": null,
+      "estimated_cost": 0.0,
+      "actual_cost": 0.0,
+      "version": 1,
+      "status": "planned"
+    },
+    {
+      "id": "scene_04",
+      "order": 4,
+      "title": "Reveal",
+      "duration_sec": 11.0,
+      "story_beat": "reveal",
+      "narration": "Narration for reveal.",
+      "facts": [
+        "claim_04"
+      ],
+      "shots": [
+        {
+          "id": "scene_04_shot_01",
+          "order": 1,
+          "duration_sec": 5.5,
+          "description": "Reveal: establishing visual",
+          "visual": {
+            "shot_type": "wide",
+            "camera_motion": "ken_burns",
+            "lens": null,
+            "lighting": "golden_hour",
+            "atmosphere": null,
+            "color_grade": null,
+            "vfx": [],
+            "camera_path": null,
+            "camera_control_supported": false
+          },
+          "performance": {
+            "character_ref": null,
+            "emotion": null,
+            "gesture": null,
+            "lip_sync_required": false
+          },
+          "audio": {
+            "dialogue_ref": null,
+            "narration_text": null,
+            "ambience": null,
+            "music_cue": null,
+            "sfx": []
+          },
+          "assets": [],
+          "provider_plan": {
+            "strategy": "licensed_still_motion",
+            "capability": "image_to_video",
+            "provider": "mock-video",
+            "model": "mock-video-draft",
+            "prompt_template_id": null,
+            "prompt_template_version": null,
+            "prompt": null,
+            "prompt_ref": null,
+            "negative_prompt": null,
+            "seed": null,
+            "reference_asset_ids": [],
+            "parameters": {},
+            "draft_first": false
+          },
+          "attempts": [],
+          "review_scores": [],
+          "disclosure": {
+            "synthetic_media": false,
+            "reconstruction": false,
+            "label_text": null
+          },
+          "depends_on": [],
+          "estimated_cost": 0.0,
+          "actual_cost": 0.0,
+          "artifact_hash": null,
+          "version": 1,
+          "status": "planned"
+        },
+        {
+          "id": "scene_04_shot_02",
+          "order": 2,
+          "duration_sec": 5.5,
+          "description": "Reveal: cinematic reconstruction",
+          "visual": {
+            "shot_type": "wide",
+            "camera_motion": "tilt_up",
+            "lens": null,
+            "lighting": null,
+            "atmosphere": "light_haze",
+            "color_grade": null,
+            "vfx": [],
+            "camera_path": null,
+            "camera_control_supported": false
+          },
+          "performance": {
+            "character_ref": null,
+            "emotion": null,
+            "gesture": null,
+            "lip_sync_required": false
+          },
+          "audio": {
+            "dialogue_ref": null,
+            "narration_text": "Narration for reveal.",
+            "ambience": null,
+            "music_cue": null,
+            "sfx": []
+          },
+          "assets": [],
+          "provider_plan": {
+            "strategy": "generative",
+            "capability": "video_generation",
+            "provider": "mock-video",
+            "model": "mock-video-cinematic",
+            "prompt_template_id": null,
+            "prompt_template_version": null,
+            "prompt": null,
+            "prompt_ref": null,
+            "negative_prompt": null,
+            "seed": null,
+            "reference_asset_ids": [],
+            "parameters": {},
+            "draft_first": false
+          },
+          "attempts": [],
+          "review_scores": [],
+          "disclosure": {
+            "synthetic_media": true,
+            "reconstruction": true,
+            "label_text": "Reconstruction"
+          },
+          "depends_on": [
+            "scene_04_shot_01"
+          ],
+          "estimated_cost": 0.0,
+          "actual_cost": 0.0,
+          "artifact_hash": null,
+          "version": 1,
+          "status": "planned"
+        }
+      ],
+      "depends_on": [],
+      "budget_limit": null,
+      "estimated_cost": 0.0,
+      "actual_cost": 0.0,
+      "version": 1,
+      "status": "planned"
+    },
+    {
+      "id": "scene_05",
+      "order": 5,
+      "title": "Legacy",
+      "duration_sec": 8.0,
+      "story_beat": "legacy and call-to-action",
+      "narration": "Narration for legacy.",
+      "facts": [
+        "claim_05"
+      ],
+      "shots": [
+        {
+          "id": "scene_05_shot_01",
+          "order": 1,
+          "duration_sec": 4.0,
+          "description": "Legacy: establishing visual",
+          "visual": {
+            "shot_type": "wide",
+            "camera_motion": "ken_burns",
+            "lens": null,
+            "lighting": "golden_hour",
+            "atmosphere": null,
+            "color_grade": null,
+            "vfx": [],
+            "camera_path": null,
+            "camera_control_supported": false
+          },
+          "performance": {
+            "character_ref": null,
+            "emotion": null,
+            "gesture": null,
+            "lip_sync_required": false
+          },
+          "audio": {
+            "dialogue_ref": null,
+            "narration_text": null,
+            "ambience": null,
+            "music_cue": null,
+            "sfx": []
+          },
+          "assets": [],
+          "provider_plan": {
+            "strategy": "licensed_still_motion",
+            "capability": "image_to_video",
+            "provider": "mock-video",
+            "model": "mock-video-draft",
+            "prompt_template_id": null,
+            "prompt_template_version": null,
+            "prompt": null,
+            "prompt_ref": null,
+            "negative_prompt": null,
+            "seed": null,
+            "reference_asset_ids": [],
+            "parameters": {},
+            "draft_first": false
+          },
+          "attempts": [],
+          "review_scores": [],
+          "disclosure": {
+            "synthetic_media": false,
+            "reconstruction": false,
+            "label_text": null
+          },
+          "depends_on": [],
+          "estimated_cost": 0.0,
+          "actual_cost": 0.0,
+          "artifact_hash": null,
+          "version": 1,
+          "status": "planned"
+        },
+        {
+          "id": "scene_05_shot_02",
+          "order": 2,
+          "duration_sec": 4.0,
+          "description": "Legacy: cinematic detail",
+          "visual": {
+            "shot_type": "medium",
+            "camera_motion": "slow_pull",
+            "lens": null,
+            "lighting": null,
+            "atmosphere": "light_haze",
+            "color_grade": null,
+            "vfx": [],
+            "camera_path": null,
+            "camera_control_supported": false
+          },
+          "performance": {
+            "character_ref": null,
+            "emotion": null,
+            "gesture": null,
+            "lip_sync_required": false
+          },
+          "audio": {
+            "dialogue_ref": null,
+            "narration_text": "Narration for legacy.",
+            "ambience": null,
+            "music_cue": null,
+            "sfx": []
+          },
+          "assets": [],
+          "provider_plan": {
+            "strategy": "licensed_still_motion",
+            "capability": "image_to_video",
+            "provider": "mock-video",
+            "model": "mock-video-draft",
+            "prompt_template_id": null,
+            "prompt_template_version": null,
+            "prompt": null,
+            "prompt_ref": null,
+            "negative_prompt": null,
+            "seed": null,
+            "reference_asset_ids": [],
+            "parameters": {},
+            "draft_first": false
+          },
+          "attempts": [],
+          "review_scores": [],
+          "disclosure": {
+            "synthetic_media": false,
+            "reconstruction": false,
+            "label_text": null
+          },
+          "depends_on": [
+            "scene_05_shot_01"
+          ],
+          "estimated_cost": 0.0,
+          "actual_cost": 0.0,
+          "artifact_hash": null,
+          "version": 1,
+          "status": "planned"
+        }
+      ],
+      "depends_on": [],
+      "budget_limit": null,
+      "estimated_cost": 0.0,
+      "actual_cost": 0.0,
+      "version": 1,
+      "status": "planned"
+    }
+  ],
+  "captions": [],
+  "soundtrack": null,
+  "master_render_asset_id": null,
+  "provenance_refs": [],
+  "review_status": "pending",
+  "review_findings": [],
+  "audit": [],
+  "created_at": "2026-10-13T12:00:00Z",
+  "updated_at": "2026-10-13T12:00:00Z"
+}

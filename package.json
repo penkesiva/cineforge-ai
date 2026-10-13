@@ -1,0 +1,16 @@
+{
+  "name": "cineforge-ai",
+  "private": true,
+  "version": "0.1.0",
+  "description": "CineForge AI monorepo (npm workspaces root)",
+  "workspaces": [
+    "apps/*",
+    "packages/schemas"
+  ],
+  "scripts": {
+    "contracts:types": "npm run generate --workspace @cineforge/schemas"
+  },
+  "engines": {
+    "node": ">=20.9"
+  }
+}

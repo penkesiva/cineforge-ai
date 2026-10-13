@@ -1,0 +1,93 @@
+# ---------------------------------------------------------------------------
+# CineForge AI .gitignore
+# Policy: Git holds code, schemas, prompts, config examples, migrations, docs
+# and small approved fixtures. NEVER media binaries, renders, caches or secrets.
+# ---------------------------------------------------------------------------
+
+# --- Secrets & credentials -------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials*.json
+service-account*.json
+secrets/
+.secrets/
+
+# --- Local runtime data (media storage, uploads, renders, caches) ----------
+# Anchored to the repo root so code modules named e.g. `media/` stay tracked.
+/var/
+/data/
+/media/
+/renders/
+/outputs/
+/uploads/
+/tmp/
+.cache/
+*.log
+
+# --- Media binaries (allowed only under tests/fixtures/approved/) ----------
+*.mp4
+*.mov
+*.m4v
+*.mkv
+*.webm
+*.avi
+*.mp3
+*.wav
+*.aac
+*.m4a
+*.flac
+*.ogg
+*.opus
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.avif
+*.heic
+*.tif
+*.tiff
+*.psd
+*.exr
+!tests/fixtures/approved/**
+!apps/dashboard/public/**/*.svg
+
+# --- Python ----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+build/
+dist/
+
+# --- Node / Next.js --------------------------------------------------------
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+coverage/
+.turbo/
+npm-debug.log*
+
+# --- Supabase local --------------------------------------------------------
+supabase/.branches
+supabase/.temp
+
+# --- OS / editors ----------------------------------------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json

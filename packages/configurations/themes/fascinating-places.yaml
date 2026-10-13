@@ -1,0 +1,43 @@
+id: fascinating-places
+version: 1
+name: Fascinating Places
+purpose: >-
+  Showcases a real remarkable place with verified facts about its geography,
+  history and why it is unique today.
+audience: Travel and nature enthusiasts, 18-55
+genres: [travel, nature-documentary, epic]
+tone: Awe-inspiring, uplifting, informative
+visual_style: Sweeping aerials, crisp natural light, authentic location photography
+pacing: Quick visual hook, steady rhythm, uplifting finale
+narrative:
+  hook_strategy: Lead with the most surprising superlative about the place
+  story_beats: [hook, where-it-is, how-it-formed, human-story, why-visit, call-to-action]
+  factual_rigor: strict
+  narration_style: Enthusiastic guide, concrete numbers with sources
+  cta: Save this for your travel list
+performance:
+  recurring_character: null
+  voice: bright-travel-guide
+  language: en-US
+  camera_relationship: Narrator off-camera
+direction:
+  camera_grammar: [drone_reveal, slow_pan, timelapse, tracking]
+  lighting: [golden_hour, blue_hour, midday_clear]
+  atmosphere: [mist, sea_spray, clouds]
+  vfx_intensity: low
+  sound_palette: [nature_ambience, uplifting_strings, wind]
+production:
+  preferred_strategies: [licensed_still_motion, hybrid]
+  min_scenes: 4
+  max_scenes: 6
+  max_shots_per_scene: 2
+  duration_target_sec: 40
+  aspect_ratio: "9:16"
+  resolution: 1080x1920
+  default_mode: balanced
+  qc_thresholds: {narrative: 0.7, continuity: 0.65, av_sync: 0.9, technical: 1.0}
+constraints:
+  prohibited_claims: [unverified business claims, misleading location identification]
+  rights_policy: fail_closed
+  disclosure_rules: [Label any AI-generated landscape]
+  avoid: [misrepresenting locations, promoting unsafe access]

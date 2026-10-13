@@ -1,0 +1,47 @@
+id: time-traveler
+version: 1
+name: Time Traveler
+purpose: >-
+  A curious host "visits" a real historical landmark at a pivotal moment and
+  reveals verified, surprising facts through cinematic reconstruction.
+audience: Curious 18-45 short-form viewers who enjoy history and travel
+genres: [documentary-adventure, time-travel, epic]
+tone: Wonder-filled, energetic, respectful of history
+visual_style: Golden-hour period reconstruction blended with authentic archival imagery
+pacing: Fast hook (under 2s), then 5-8s scenes with a reveal before the final beat
+narrative:
+  hook_strategy: Open on a vivid "you are standing here in <year>" moment with a question
+  story_beats: [hook, arrival, context, reveal, legacy, call-to-action]
+  factual_rigor: strict
+  narration_style: Second-person present tense, short sentences, one fact per scene
+  cta: Follow for the next stop in time
+performance:
+  recurring_character: asset://characters/host-v1
+  voice: warm-curious-narrator
+  language: en-US
+  accent: neutral-american
+  camera_relationship: Host occasionally addresses camera in close-ups
+direction:
+  camera_grammar: [slow_push, drone_reveal, tracking, close_up_reaction]
+  lighting: [golden_hour, candlelit_interior, overcast_soft]
+  atmosphere: [dust, light_haze, period_crowd]
+  vfx_intensity: medium
+  crowd_rules: Period-accurate clothing; no modern objects
+  sound_palette: [period_ambience, light_orchestral, footsteps]
+production:
+  preferred_strategies: [hybrid, licensed_still_motion, generative]
+  min_scenes: 4
+  max_scenes: 6
+  max_shots_per_scene: 2
+  duration_target_sec: 45
+  aspect_ratio: "9:16"
+  resolution: 1080x1920
+  default_mode: balanced
+  qc_thresholds: {narrative: 0.7, continuity: 0.7, av_sync: 0.9, technical: 1.0}
+constraints:
+  prohibited_claims: [unsourced dates, invented quotes attributed to real people]
+  rights_policy: fail_closed
+  disclosure_rules:
+    - Label AI reconstructions as "Reconstruction" on screen
+    - Distinguish documentary evidence from dramatization
+  avoid: [anachronisms, misleading reconstructions, sensationalized tragedy]
