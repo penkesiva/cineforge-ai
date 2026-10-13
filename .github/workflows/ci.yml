@@ -163,4 +163,5 @@ jobs:
         run: |
           docker compose run --rm --no-deps api python -c "import cineforge, cineforge.contracts; print('ok')"
           docker compose run --rm --no-deps media-worker sh -c "ffmpeg -hide_banner -version | head -1 && ffprobe -hide_banner -version | head -1"
-          docker compose run --rm --no-deps api pytest -q packages/engine/tests
+          docker compose run --rm --no-deps -v ./supabase:/app/supabase:ro -v ./tests:/app/tests:ro \
+            media-worker pytest -q
