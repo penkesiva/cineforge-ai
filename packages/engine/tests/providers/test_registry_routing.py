@@ -27,8 +27,8 @@ from provider_fakes import Recorder, wikimedia_handler
 C = ProviderCapability
 T = "tenant_demo"
 OTHER = "tenant_other"
-STORED_KEY = "sk-ant-stored-key-abcdef9876"
-ENV_KEY = "sk-ant-env-key-0000004321"
+STORED_KEY = "fake-ant-stored-key-abcdef9876"
+ENV_KEY = "fake-ant-env-key-0000004321"
 
 
 class Env:

@@ -22,7 +22,7 @@ from cineforge.providers.factory import anthropic_models, build_paid_call_guard
 from provider_fakes import Recorder, json_response, request_for
 
 C = ProviderCapability
-KEY = "sk-ant-test-0000000000001234"
+KEY = "fake-ant-test-0000000000001234"
 SCHEMA = {
     "type": "object",
     "properties": {"topic": {"type": "string"}, "claims": {"type": "array"}},

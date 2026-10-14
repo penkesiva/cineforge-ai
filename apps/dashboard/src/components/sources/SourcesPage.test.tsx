@@ -114,7 +114,7 @@ describe("SourcesPage", () => {
       }),
     );
     const setKey = vi.spyOn(api, "setProviderKey").mockResolvedValue(stored);
-    const secret = "sk-ant-super-secret-a1b2";
+    const secret = "fake-ant-super-secret-a1b2";
     render(<SourcesPage />);
     await screen.findByText(MOCK_MODE_MESSAGE);
 

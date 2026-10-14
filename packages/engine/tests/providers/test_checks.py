@@ -11,7 +11,7 @@ from cineforge.providers.settings_store import (
 from provider_fakes import Recorder, json_response, wikimedia_handler
 
 T = "tenant_demo"
-KEY = "sk-ant-check-key-00005555"
+KEY = "fake-ant-check-key-00005555"
 
 
 def _registry(handler=wikimedia_handler, **settings):
@@ -69,7 +69,7 @@ def test_anthropic_check_uses_registry_key_and_is_free() -> None:
     registry, rec, secrets = _registry(handler)
     missing = check_provider(registry, "anthropic", T)
     assert missing.ok is False and "no API key" in missing.detail and rec.requests == []
-    secrets.put(T, "anthropic", "sk-ant-wrong-key-000000")
+    secrets.put(T, "anthropic", "fake-ant-wrong-key-000000")
     wrong = check_provider(registry, "anthropic", T)
     assert wrong.ok is False and "invalid or unauthorized API key" in wrong.detail
     secrets.put(T, "anthropic", KEY)

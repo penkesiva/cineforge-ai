@@ -27,7 +27,7 @@ from cineforge.providers.settings_store import (
 )
 from fakes_d import DATABASE_URL, PgScratch, db_available
 
-SECRET = "sk-ant-integration-" + "x" * 12 + "7f3a"
+SECRET = "fake-ant-integration-" + "x" * 12 + "7f3a"
 
 
 @dataclass
