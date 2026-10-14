@@ -21,7 +21,7 @@ from pydantic import BaseModel
 
 from cineforge.agents.base import LEDGER_EVENTS
 from cineforge.agents.planning import target_scene_count
-from cineforge.configuration import get_theme, load_mode_policies
+from cineforge.configuration import load_mode_policies
 from cineforge.contracts.agents import (
     AgentContext,
     AgentRun,
@@ -47,7 +47,11 @@ from cineforge.contracts.agents import (
     ShotProductionInput,
     agent_definition,
 )
-from cineforge.contracts.api import ApproveProductionRequest, CreateProductionRequest
+from cineforge.contracts.api import (
+    ApproveProductionRequest,
+    CreateProductionRequest,
+    ReviewClaimsRequest,
+)
 from cineforge.contracts.common import MONEY_QUANTUM, AgentId, money, new_id, utcnow
 from cineforge.contracts.cost import BudgetExceededError, CostEstimate, LedgerEvent
 from cineforge.contracts.jobs import (
@@ -64,6 +68,7 @@ from cineforge.contracts.manifest import (
     BudgetSnapshot,
     Caption,
     CaptionTrack,
+    ClaimReview,
     CreativeBrief,
     OutputProfile,
     ProductionManifest,
@@ -95,10 +100,32 @@ S = ProductionState
 A = AgentId
 _DONE = (WorkStatus.COMPLETE, WorkStatus.APPROVED)
 SCENE_BUDGET_HEADROOM = Decimal("1.5")
+REWRITE_ACTION = "script_rewrite_requested"
+CLAIM_REVIEW_STATES = (S.AWAITING_APPROVAL, S.PAUSED_BUDGET)
 
 
 class WorkflowError(RuntimeError):
     pass
+
+
+class ApprovalBlockedError(WorkflowError):
+    """Approval refused by a deterministic rule (e.g. the script cites a rejected claim)."""
+
+
+class InvalidClaimReviewError(WorkflowError):
+    pass
+
+
+def rejected_claim_ids(m: ProductionManifest) -> set[str]:
+    latest: dict[str, str] = {}
+    for review in m.claim_reviews:
+        latest[review.claim_id] = review.decision
+    return {cid for cid, decision in latest.items() if decision == "rejected"}
+
+
+def script_revision(m: ProductionManifest) -> int:
+    """1 for the first script; +1 per rewrite request (keys new A5/A6/A10 runs)."""
+    return 1 + sum(1 for a in m.audit if a.action == REWRITE_ACTION)
 
 
 class ShotFailedError(WorkflowError):
@@ -195,9 +222,7 @@ class WorkflowEngine:
 
     # ================================================================== config
     def theme_for(self, m: ProductionManifest) -> ThemeProfile:
-        return get_theme(
-            self.settings.configurations_dir, m.theme_profile.id, m.theme_profile.version
-        )
+        return self.rt.themes.get(m.theme_profile.id, m.theme_profile.version)
 
     def policy_for(self, m: ProductionManifest) -> ProductionModePolicy:
         return load_mode_policies(self.settings.configurations_dir)[m.mode]
@@ -205,7 +230,7 @@ class WorkflowEngine:
     # ================================================================== commands
     def create_production(self, req: CreateProductionRequest, tenant_id: str) -> ProductionManifest:
         cfg = self.settings.configurations_dir
-        theme = get_theme(cfg, req.theme_id)
+        theme = self.rt.themes.get(req.theme_id, req.theme_version)
         policy = load_mode_policies(cfg)[req.mode]
         limit = money(
             req.budget_limit_usd if req.budget_limit_usd is not None else policy.default_budget_usd
@@ -276,6 +301,7 @@ class WorkflowEngine:
         m = self._load(production_id, tenant_id)
         if m.state not in (S.AWAITING_APPROVAL, S.PAUSED_BUDGET):
             raise InvalidStateTransitionError(m.state, S.GENERATING)
+        self._check_claims_for_approval(m)
         from_state = m.state
         if req.raise_budget_to_usd is not None:
             self._set_production_limit(m, money(req.raise_budget_to_usd))
@@ -301,6 +327,67 @@ class WorkflowEngine:
         self._event(m, "approved", f"Approved by {req.approved_by}", details)
         job_id = self._enqueue_advance(m)
         return ActionResult(m, job_id, "Production approved; generation queued")
+
+    def review_claims(
+        self, production_id: str, tenant_id: str, req: ReviewClaimsRequest
+    ) -> ActionResult:
+        """Record human claim decisions at the gate (latest decision per claim wins)."""
+        m = self._load(production_id, tenant_id)
+        if m.state not in CLAIM_REVIEW_STATES:
+            raise InvalidStateTransitionError(m.state, m.state)
+        research = self._artifact(m, ResearchBrief, required=False)
+        known = {c.id for c in research.claims} if research else set()
+        unknown = sorted({d.claim_id for d in req.decisions} - known)
+        if unknown:
+            raise InvalidClaimReviewError(f"unknown claim id(s): {', '.join(unknown)}")
+        now = utcnow()
+        for decision in req.decisions:
+            m.claim_reviews.append(
+                ClaimReview(
+                    claim_id=decision.claim_id,
+                    decision=decision.decision,
+                    reviewed_by=req.reviewed_by,
+                    reviewed_at=now,
+                    note=decision.note,
+                )
+            )
+        rejected = sorted(rejected_claim_ids(m))
+        blocking = sorted(self._lines_citing(m, set(rejected)))
+        details = {
+            "reviewed_by": req.reviewed_by,
+            "decisions": {d.claim_id: d.decision for d in req.decisions},
+            "rejected": rejected,
+            "blocking_scenes": blocking,
+        }
+        self._audit(m, req.reviewed_by, "claims_reviewed", details)
+        self.rt.productions.save(m)
+        message = f"{len(req.decisions)} claim decision(s) by {req.reviewed_by}"
+        if blocking:
+            message += f"; script must be rewritten (scenes {', '.join(map(str, blocking))})"
+        self._event(m, "claims_reviewed", message, details)
+        return ActionResult(self._load(production_id, tenant_id), None, message)
+
+    def rewrite_script(
+        self, production_id: str, tenant_id: str, *, requested_by: str = "operator"
+    ) -> ActionResult:
+        """Back to SCRIPTING (via NEEDS_REVIEW) so A5 rewrites without rejected claims."""
+        m = self._load(production_id, tenant_id)
+        if m.state == S.AWAITING_APPROVAL:
+            m = self._command_transition(
+                m, S.NEEDS_REVIEW, "Script rewrite requested", "rewrite_gate_left",
+                actor=requested_by,
+            )  # fmt: skip
+        if m.state != S.NEEDS_REVIEW:
+            raise InvalidStateTransitionError(m.state, S.SCRIPTING)
+        revision = script_revision(m) + 1
+        details = {"revision": revision, "excluded_claims": sorted(rejected_claim_ids(m))}
+        m = self._command_transition(
+            m, S.SCRIPTING, f"Script rewrite (revision {revision})", REWRITE_ACTION, details,
+            actor=requested_by,
+        )  # fmt: skip
+        self._event(m, "script_rewrite_requested", f"Script revision {revision} queued", details)
+        job_id = self._enqueue_advance(m)
+        return ActionResult(m, job_id, f"Script revision {revision} queued")
 
     def cancel(
         self, production_id: str, tenant_id: str, reason: str = "Cancelled by operator"
@@ -541,14 +628,20 @@ class WorkflowEngine:
                 assets=self._artifact(m, AssetSelection),
                 scene_count=target_scene_count(theme, m.output.duration_target_sec),
                 duration_target_sec=m.output.duration_target_sec,
+                excluded_claim_ids=sorted(rejected_claim_ids(m)),
             ),
+            attempt=script_revision(m),
         ).output
         self._sync_budget(m)
         return StepOutcome(
             m,
             S.STORYBOARDING,
             "Script complete",
-            {"lines": len(script.lines), "word_count": script.word_count},
+            {
+                "lines": len(script.lines),
+                "word_count": script.word_count,
+                "revision": script_revision(m),
+            },
         )
 
     def _storyboard(self, m: ProductionManifest) -> StepOutcome:
@@ -567,6 +660,7 @@ class WorkflowEngine:
                 mode_policy=policy,
                 max_shots_per_scene=theme.production.max_shots_per_scene,
             ),
+            attempt=script_revision(m),
         ).output
         m = self._with_scenes(m, graph.scenes)
         m.captions = [self._captions(m)]
@@ -583,6 +677,7 @@ class WorkflowEngine:
             policy,
             A.COST_OPTIMIZER,
             CostPlanningInput(manifest=m, mode_policy=policy, estimate=estimate),
+            attempt=script_revision(m),
         ).output
         self._apply_estimate(m, estimate)
         self._allocate_scene_budgets(m)
@@ -728,21 +823,54 @@ class WorkflowEngine:
     def _produce_audio(
         self, m: ProductionManifest, theme: ThemeProfile, policy: ProductionModePolicy
     ) -> AudioPackage:
-        """A8 with the same bounded retry policy as shots (transient provider failures)."""
-        payload = AudioInput(
-            scenes=m.scenes, script=self._artifact(m, Script), language=m.creative_brief.language
+        """A8 once per scene (narration + lip-sync) and once for the music bed, each with
+        the shots' bounded retry policy, so a failed line retries alone. Succeeded runs
+        are reused when GENERATING resumes."""
+        script = self._artifact(m, Script)
+        language = m.creative_brief.language
+        tracks, alignments = [], []
+        for scene in m.scenes:
+            self._ensure_still(m, S.GENERATING)
+            payload = AudioInput(
+                scenes=[scene], script=script, language=language, include_music=False
+            )
+            part = self._audio_with_retries(m, theme, policy, payload, scope=scene.id)
+            tracks += part.tracks
+            alignments += part.alignments
+        self._ensure_still(m, S.GENERATING)
+        music = AudioInput(
+            scenes=m.scenes, script=script, language=language, include_narration=False
         )
+        part = self._audio_with_retries(m, theme, policy, music, scope="music")
+        return AudioPackage(tracks=[*tracks, *part.tracks], alignments=alignments)
+
+    def _audio_with_retries(
+        self,
+        m: ProductionManifest,
+        theme: ThemeProfile,
+        policy: ProductionModePolicy,
+        payload: AudioInput,
+        *,
+        scope: str,
+    ) -> AudioPackage:
         max_attempts = policy.max_attempts_per_shot
         for attempt in range(1, max_attempts + 1):
             try:
                 return self._invoke(
-                    m, theme, policy, A.AUDIO_PERFORMANCE, payload, attempt=attempt
+                    m, theme, policy, A.AUDIO_PERFORMANCE, payload, scope=scope, attempt=attempt
                 ).output
             except ProviderError as exc:
                 if not exc.retryable or attempt == max_attempts:
-                    raise WorkflowError(f"audio failed after {attempt} attempt(s): {exc}") from exc
-                log.info("audio attempt %s failed (%s); retrying", attempt, exc)
-                self._audit(m, A.AUDIO_PERFORMANCE.value, "audio_retry", {"error": str(exc)})
+                    raise WorkflowError(
+                        f"audio {scope} failed after {attempt} attempt(s): {exc}"
+                    ) from exc
+                log.info("audio %s attempt %s failed (%s); retrying", scope, attempt, exc)
+                self._audit(
+                    m,
+                    A.AUDIO_PERFORMANCE.value,
+                    "audio_retry",
+                    {"scope": scope, "attempt": attempt, "error": str(exc)},
+                )
                 self.rt.productions.save(m)
         raise WorkflowError("audio produced no result")  # pragma: no cover
 
@@ -822,6 +950,22 @@ class WorkflowEngine:
         return StepOutcome(m, S.READY, "QC passed", payload)
 
     # ================================================================== helpers
+    def _lines_citing(self, m: ProductionManifest, claim_ids: set[str]) -> set[int]:
+        if not claim_ids:
+            return set()
+        script = self._artifact(m, Script, required=False)
+        if script is None:
+            return set()
+        return {line.scene_order for line in script.lines if claim_ids & set(line.claim_ids)}
+
+    def _check_claims_for_approval(self, m: ProductionManifest) -> None:
+        blocking = self._lines_citing(m, rejected_claim_ids(m))
+        if blocking:
+            scenes = ", ".join(str(n) for n in sorted(blocking))
+            raise ApprovalBlockedError(
+                f"script scene(s) {scenes} cite rejected claims; request a script rewrite first"
+            )
+
     def master_render(self, m: ProductionManifest) -> MasterRender | None:
         """MasterRender from the media job's AgentRun (EDITOR_QC / ASSEMBLING), else from
         the AssetRecord referenced by ``master_render_asset_id``."""

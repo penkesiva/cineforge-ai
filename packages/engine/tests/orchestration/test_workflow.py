@@ -127,7 +127,9 @@ def test_full_mock_workflow_draft_to_delivered() -> None:
     a7 = _runs(rt, pid, AgentId.VISUAL_PRODUCTION)
     assert len(a7) == 10
     assert a7[0].idempotency_key == f"{pid}:GENERATING:a7_visual_production:scene_01_shot_01:1"
-    assert len(_runs(rt, pid, AgentId.AUDIO_PERFORMANCE)) == 1
+    audio = _runs(rt, pid, AgentId.AUDIO_PERFORMANCE)
+    audio_scopes = [r.idempotency_key.split(":")[3] for r in audio]
+    assert audio_scopes == [s.id for s in m.scenes] + ["music"]
     qc = _runs(rt, pid, AgentId.EDITOR_QC)
     assert {r.output_model for r in qc} == {"MasterRender", "ReviewReport"}
     # Every provider call went through the guard and is in the ledger.
@@ -251,12 +253,18 @@ def test_transient_audio_failure_is_retried() -> None:
     wf = WorkflowEngine(rt)
     pid = wf.create_production(_req(auto_approve=True), TENANT).production_id
     wf.start(pid, TENANT)
-    assert rt.productions.get(pid, TENANT).state == S.READY
+    m = rt.productions.get(pid, TENANT)
+    assert m.state == S.READY
     runs = _runs(rt, pid, AgentId.AUDIO_PERFORMANCE)
-    assert [(r.attempt, r.status) for r in runs] == [
-        (1, AgentRunStatus.FAILED),
-        (2, AgentRunStatus.SUCCEEDED),
-    ]
+    # Only the scene with the lip-synced hook shot retries; other lines run once.
+    by_scope: dict[str, list] = {}
+    for r in runs:
+        by_scope.setdefault(r.idempotency_key.split(":")[3], []).append((r.attempt, r.status))
+    assert by_scope.pop("scene_01") == [(1, AgentRunStatus.FAILED), (2, AgentRunStatus.SUCCEEDED)]
+    assert all(v == [(1, AgentRunStatus.SUCCEEDED)] for v in by_scope.values())
+    assert set(by_scope) == {s.id for s in m.scenes[1:]} | {"music"}
+    retries = [a for a in m.audit if a.action == "audio_retry"]
+    assert [a.details["scope"] for a in retries] == ["scene_01"]
 
 
 def test_audio_exhausting_attempts_fails_production() -> None:
