@@ -44,8 +44,14 @@ Only edit files your workstream owns (table in AGENTS.md). Platform (A) owns
 - No binary media in Git (video, audio, images, renders). Only tiny approved
   fixtures under `tests/fixtures/approved/`. `make check-media` enforces it.
 - No secrets in Git. Use `.env` (ignored); `.env.example` holds placeholders only.
-- No paid API calls without explicit human approval. Phase 0 uses mock providers only;
-  keep `PROVIDER_MODE=mock` and `ALLOW_PAID_PROVIDERS=false`.
+  API keys go on the Sources page (Supabase Vault) or `.env`; `make check-media` fails on
+  key-like strings.
+- No paid API calls without explicit human approval. Defaults stay
+  `PROVIDER_MODE=mock` and `ALLOW_PAID_PROVIDERS=false`; tests and CI never touch the
+  network (`@pytest.mark.live` runs only with `RUN_LIVE_TESTS=1`). Paid runs only via
+  `make demo-live` / `make test-live` after a human says so
+  ([providers](mdc:docs/development/providers.md)).
+- The stack has no login: ports bind to `127.0.0.1` only. Never expose it.
 - No new dependencies without a stated reason (Python deps are locked by the integrator).
 - Tests are mandatory. Every change ships with tests and the workstream's test command passes.
 
