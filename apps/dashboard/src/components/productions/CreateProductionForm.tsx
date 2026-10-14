@@ -6,7 +6,7 @@ import type {
   ProductionModePolicy,
   ThemeSummary,
 } from "@cineforge/schemas";
-import { useId, useState, type FormEvent, type ReactNode } from "react";
+import { useId, useState, type FormEvent } from "react";
 import { formatUsd, humanize } from "@/lib/format";
 import {
   DEFAULT_DURATION_SEC,
@@ -17,44 +17,8 @@ import {
   type CreateProductionFormErrors,
   type CreateProductionFormValues,
 } from "@/lib/validation";
-import { Button, cx } from "../ui";
-
-const inputClass =
-  "w-full rounded-lg border border-white/10 bg-ink-950/60 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none transition focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/20 aria-[invalid=true]:border-rose-500/60";
-
-function Field({
-  id,
-  label,
-  hint,
-  error,
-  children,
-  className,
-}: {
-  id: string;
-  label: string;
-  hint?: ReactNode;
-  error?: string;
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={className}>
-      <label htmlFor={id} className="mb-1.5 block text-xs font-medium text-zinc-300">
-        {label}
-      </label>
-      {children}
-      {error ? (
-        <p id={`${id}-error`} className="mt-1 text-xs text-rose-300">
-          {error}
-        </p>
-      ) : hint ? (
-        <p id={`${id}-hint`} className="mt-1 text-xs text-zinc-500">
-          {hint}
-        </p>
-      ) : null}
-    </div>
-  );
-}
+import { Field } from "../Field";
+import { Button, cx, inputClass } from "../ui";
 
 export interface CreateProductionFormProps {
   themes: readonly ThemeSummary[];
@@ -70,6 +34,7 @@ function initialValues(themes: readonly ThemeSummary[], modes: readonly Producti
   const mode = modes.find((m) => m.mode === preferred)?.mode ?? modes[0]?.mode ?? "";
   return {
     themeId: theme?.id ?? "",
+    themeVersion: "",
     topic: "",
     title: "",
     mode,
@@ -77,6 +42,12 @@ function initialValues(themes: readonly ThemeSummary[], modes: readonly Producti
     budgetUsd: "",
     autoApprove: false,
   };
+}
+
+/** Theme versions are created sequentially from 1, so every version up to the latest exists. */
+export function themeVersionOptions(theme: ThemeSummary | undefined): number[] {
+  if (!theme) return [];
+  return Array.from({ length: Math.max(0, theme.version - 1) }, (_, i) => theme.version - 1 - i);
 }
 
 export function CreateProductionForm({ themes, modes, onSubmit, submitting = false, onCancel }: CreateProductionFormProps) {
@@ -120,7 +91,11 @@ export function CreateProductionForm({ themes, modes, onSubmit, submitting = fal
           value={values.themeId}
           aria-invalid={errors.themeId ? true : undefined}
           aria-describedby={describedBy("themeId", Boolean(selectedTheme))}
-          onChange={(e) => update("themeId", e.target.value)}
+          onChange={(e) => {
+            const next = { ...values, themeId: e.target.value, themeVersion: "" };
+            setValues(next);
+            if (submitted) setErrors(validateCreateProduction(next).errors);
+          }}
         >
           {themes.length === 0 && <option value="">No themes available</option>}
           {themes.map((theme) => (
@@ -132,10 +107,35 @@ export function CreateProductionForm({ themes, modes, onSubmit, submitting = fal
       </Field>
 
       <Field
+        id={fieldId("themeVersion")}
+        label="Theme version"
+        error={errors.themeVersion}
+        hint="Pin an older version to reproduce earlier productions."
+      >
+        <select
+          id={fieldId("themeVersion")}
+          className={inputClass}
+          value={values.themeVersion ?? ""}
+          disabled={!selectedTheme}
+          aria-invalid={errors.themeVersion ? true : undefined}
+          aria-describedby={describedBy("themeVersion", true)}
+          onChange={(e) => update("themeVersion", e.target.value)}
+        >
+          {selectedTheme && <option value="">Latest (v{selectedTheme.version})</option>}
+          {themeVersionOptions(selectedTheme).map((version) => (
+            <option key={version} value={String(version)}>
+              v{version}
+            </option>
+          ))}
+        </select>
+      </Field>
+
+      <Field
         id={fieldId("mode")}
         label="Production mode"
         error={errors.mode}
         hint={selectedMode ? `${selectedMode.description}` : undefined}
+        className="md:col-span-2"
       >
         <select
           id={fieldId("mode")}
