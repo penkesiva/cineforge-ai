@@ -1,6 +1,5 @@
 import type { ProductionArtifacts, ReviewFinding, Severity } from "@cineforge/schemas";
-import { formatPct, humanize } from "@/lib/format";
-import { IconExternal } from "../icons";
+import { humanize } from "@/lib/format";
 import { Badge, Card, EmptyState, StatusBadge } from "../ui";
 
 const SEVERITY_TONE: Record<Severity, "neutral" | "info" | "warning" | "danger"> = {
@@ -9,10 +8,6 @@ const SEVERITY_TONE: Record<Severity, "neutral" | "info" | "warning" | "danger">
   major: "warning",
   critical: "danger",
 };
-
-function safeHref(url: string): string | undefined {
-  return /^https?:\/\//i.test(url) ? url : undefined;
-}
 
 function Findings({ findings }: { findings: readonly ReviewFinding[] }) {
   if (findings.length === 0) return <p className="text-sm text-zinc-500">No findings. Review passed cleanly.</p>;
@@ -45,13 +40,13 @@ export function ArtifactsPanel({
   artifacts: ProductionArtifacts;
   manifestFindings?: readonly ReviewFinding[];
 }) {
-  const { research, script, review, treatment } = artifacts;
+  const { script, review, treatment } = artifacts;
   const findings = review?.findings ?? manifestFindings;
-  const empty = !research && !script && !review && !treatment;
+  const empty = !script && !review && !treatment;
   return (
     <Card id="artifacts" title="Artifacts" description="Typed outputs from the latest successful agent runs">
       {empty ? (
-        <EmptyState title="No artifacts yet">Research, script and review outputs appear as agents finish.</EmptyState>
+        <EmptyState title="No artifacts yet">Treatment, script and review outputs appear as agents finish.</EmptyState>
       ) : (
         <div className="grid gap-6 lg:grid-cols-2">
           {treatment && (
@@ -66,58 +61,8 @@ export function ArtifactsPanel({
             </section>
           )}
 
-          {research && (
-            <section aria-label="Research claims">
-              <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
-                Research · {research.claims.length} claims
-              </h3>
-              <p className="mb-2 text-sm text-zinc-400">{research.summary}</p>
-              <ul className="space-y-2">
-                {research.claims.map((claim) => (
-                  <li
-                    key={claim.id}
-                    data-testid="research-claim"
-                    className="rounded-lg border border-white/[0.05] bg-white/[0.015] px-3 py-2 text-sm"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-zinc-200">{claim.text}</p>
-                      <StatusBadge status={claim.status} />
-                    </div>
-                    <p className="mt-1 text-[11px] text-zinc-500">confidence {formatPct(claim.confidence * 100)}</p>
-                    {claim.sources && claim.sources.length > 0 && (
-                      <ul className="mt-1 space-y-0.5">
-                        {claim.sources.map((source) => {
-                          const href = safeHref(source.url);
-                          return (
-                            <li key={source.url} className="text-xs">
-                              {href ? (
-                                <a
-                                  href={href}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 text-sky-300 hover:text-sky-200 hover:underline"
-                                >
-                                  {source.title}
-                                  <IconExternal size={11} />
-                                  <span className="sr-only">(opens in a new tab)</span>
-                                </a>
-                              ) : (
-                                <span className="text-zinc-400">{source.title}</span>
-                              )}
-                              {source.publisher && <span className="text-zinc-600"> · {source.publisher}</span>}
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-
           {script && (
-            <section aria-label="Script">
+            <section aria-label="Script" className="lg:col-span-2">
               <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
                 Script · {script.word_count} words · ~{Math.round(script.estimated_duration_sec)}s
               </h3>
