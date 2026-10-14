@@ -1,4 +1,5 @@
 import type { ProductionDetail } from "@cineforge/schemas";
+import { isReviewState } from "@/lib/workflow";
 import { WorkflowStepper } from "../WorkflowStepper";
 import { Card } from "../ui";
 import { AgentsPanel } from "./AgentsPanel";
@@ -7,16 +8,43 @@ import { CostPanel } from "./CostPanel";
 import { EventsLog } from "./EventsLog";
 import { MasterRenderPanel } from "./MasterRenderPanel";
 import { ProductionHeader, type ProductionActionHandlers } from "./ProductionHeader";
+import { ClaimsReview, type ClaimsReviewHandlers } from "./review/ClaimsReview";
+import { CostPreflight } from "./review/CostPreflight";
+import { MediaCandidatesPanel } from "./review/MediaCandidatesPanel";
+import { StoryboardPanel } from "./review/StoryboardPanel";
 import { ScenesPanel } from "./ScenesPanel";
 
 export interface ProductionDetailViewProps extends ProductionActionHandlers {
   detail: ProductionDetail;
   contentUrl: (assetId: string) => string;
   polling?: boolean;
+  review?: ClaimsReviewHandlers;
 }
 
-export function ProductionDetailView({ detail, contentUrl, polling, onAction, busyAction }: ProductionDetailViewProps) {
-  const { summary, manifest } = detail;
+export function ProductionDetailView({ detail, contentUrl, polling, onAction, busyAction, review }: ProductionDetailViewProps) {
+  const { summary, manifest, artifacts } = detail;
+  const inReview = isReviewState(summary.state);
+  const scenes = manifest.scenes ?? [];
+
+  const preproduction = (
+    <>
+      {artifacts.research && (
+        <ClaimsReview
+          research={artifacts.research}
+          script={artifacts.script}
+          reviews={manifest.claim_reviews}
+          canReview={inReview}
+          {...review}
+        />
+      )}
+      {scenes.length > 0 && <StoryboardPanel scenes={scenes} media={artifacts.media} />}
+      {artifacts.media && <MediaCandidatesPanel media={artifacts.media} />}
+    </>
+  );
+  const master = (
+    <MasterRenderPanel assetId={manifest.master_render_asset_id} master={artifacts.master} contentUrl={contentUrl} />
+  );
+
   return (
     <div className="animate-fade-up">
       <ProductionHeader detail={detail} onAction={onAction} busyAction={busyAction} polling={polling} />
@@ -25,16 +53,16 @@ export function ProductionDetailView({ detail, contentUrl, polling, onAction, bu
       </Card>
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="min-w-0 space-y-6">
-          <MasterRenderPanel
-            assetId={manifest.master_render_asset_id}
-            master={detail.artifacts.master}
-            contentUrl={contentUrl}
-          />
-          <ScenesPanel scenes={manifest.scenes ?? []} />
+          {inReview ? preproduction : master}
+          <ScenesPanel scenes={scenes} />
+          {inReview ? master : preproduction}
           <AgentsPanel runs={detail.agent_runs} />
-          <ArtifactsPanel artifacts={detail.artifacts} manifestFindings={manifest.review_findings} />
+          <ArtifactsPanel artifacts={artifacts} manifestFindings={manifest.review_findings} />
         </div>
         <div className="space-y-6">
+          {artifacts.cost_plan && (
+            <CostPreflight estimate={artifacts.cost_plan.estimate} limit={manifest.budget.limit} scenes={scenes} cost={detail.cost} />
+          )}
           <CostPanel cost={detail.cost} />
           <EventsLog events={detail.events} />
         </div>

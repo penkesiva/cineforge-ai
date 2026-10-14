@@ -1,31 +1,29 @@
-import { HAPPY_PATH, type ProductionEvent, type ProductionState } from "@cineforge/schemas";
+import {
+  ALLOWED_TRANSITIONS,
+  EXCEPTION_STATES as EXCEPTION_STATE_LIST,
+  HAPPY_PATH,
+  TERMINAL_STATES as TERMINAL_STATE_LIST,
+  WORKING_STATES as WORKING_STATE_LIST,
+  type ProductionEvent,
+  type ProductionState,
+} from "@cineforge/schemas";
 
-// Mirrors cineforge.contracts.workflow (not exported to TS by the schema generator).
-export const WORKING_STATES: ReadonlySet<ProductionState> = new Set<ProductionState>([
-  "RESEARCHING",
-  "SCRIPTING",
-  "STORYBOARDING",
-  "GENERATING",
-  "ASSEMBLING",
-  "REVIEWING",
-]);
-export const TERMINAL_STATES: ReadonlySet<ProductionState> = new Set<ProductionState>([
-  "DELIVERED",
-  "FAILED",
-  "CANCELLED",
-]);
-export const EXCEPTION_STATES: ReadonlySet<ProductionState> = new Set<ProductionState>([
-  "PAUSED_BUDGET",
-  "NEEDS_REVIEW",
-  "FAILED",
-  "CANCELLED",
-]);
+export const WORKING_STATES: ReadonlySet<ProductionState> = new Set<ProductionState>(WORKING_STATE_LIST);
+export const TERMINAL_STATES: ReadonlySet<ProductionState> = new Set<ProductionState>(TERMINAL_STATE_LIST);
+export const EXCEPTION_STATES: ReadonlySet<ProductionState> = new Set<ProductionState>(EXCEPTION_STATE_LIST);
 
 export type HappyPathState = (typeof HAPPY_PATH)[number];
 
 export const isWorkingState = (state: ProductionState): boolean => WORKING_STATES.has(state);
 export const isTerminalState = (state: ProductionState): boolean => TERMINAL_STATES.has(state);
 export const isExceptionState = (state: ProductionState): boolean => EXCEPTION_STATES.has(state);
+
+export const canTransition = (from: ProductionState, to: ProductionState): boolean =>
+  ALLOWED_TRANSITIONS[from].includes(to);
+
+/** States where the operator reviews claims, storyboard and cost before generation. */
+export const isReviewState = (state: ProductionState): boolean =>
+  state === "AWAITING_APPROVAL" || state === "PAUSED_BUDGET";
 
 export function isHappyPathState(state: ProductionState): state is HappyPathState {
   return (HAPPY_PATH as readonly ProductionState[]).includes(state);
@@ -41,7 +39,7 @@ export interface AvailableActions {
 export function availableActions(state: ProductionState): AvailableActions {
   return {
     run: state === "DRAFT",
-    approve: state === "AWAITING_APPROVAL" || state === "PAUSED_BUDGET",
+    approve: isReviewState(state),
     cancel: !isTerminalState(state),
     deliver: state === "READY",
   };

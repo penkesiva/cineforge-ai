@@ -5,6 +5,7 @@ import type {
   CostOverview,
   CostSummary,
   CreateProductionRequest,
+  CreateThemeVersionRequest,
   ErrorResponse,
   HealthResponse,
   LedgerEvent,
@@ -12,7 +13,14 @@ import type {
   ProductionDetail,
   ProductionModePolicy,
   ProductionSummary,
+  ProviderCatalogEntry,
+  ProvidersOverview,
+  ProviderTestResult,
+  ReviewClaimsRequest,
+  SetProviderKeyRequest,
+  ThemeProfile,
   ThemeSummary,
+  UpdateProviderRequest,
 } from "@cineforge/schemas";
 
 export const DEFAULT_API_BASE_PATH = "/api/v1";
@@ -113,7 +121,7 @@ export interface ApiClientOptions {
   fetchImpl?: typeof fetch;
 }
 
-type Method = "GET" | "POST";
+type Method = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
 
 export function createApiClient(options: ApiClientOptions = {}) {
   const basePath = (options.basePath ?? DEFAULT_API_BASE_PATH).replace(/\/+$/, "");
@@ -160,6 +168,18 @@ export function createApiClient(options: ApiClientOptions = {}) {
     },
     listAgents: () => request<AgentDefinition[]>("/agents"),
     listThemes: () => request<ThemeSummary[]>("/themes"),
+    getTheme: (id: string, version?: number) =>
+      request<ThemeProfile>(`/themes/${enc(id)}${version === undefined ? "" : `?version=${enc(String(version))}`}`),
+    listThemeVersions: (id: string) => request<ThemeProfile[]>(`/themes/${enc(id)}/versions`),
+    createThemeVersion: (id: string, payload: CreateThemeVersionRequest) =>
+      request<ThemeProfile>(`/themes/${enc(id)}/versions`, "POST", payload),
+    getProviders: () => request<ProvidersOverview>("/providers"),
+    updateProvider: (name: string, payload: UpdateProviderRequest) =>
+      request<ProviderCatalogEntry>(`/providers/${enc(name)}`, "PATCH", payload),
+    setProviderKey: (name: string, apiKey: string) =>
+      request<ProviderCatalogEntry>(`/providers/${enc(name)}/key`, "PUT", { api_key: apiKey } satisfies SetProviderKeyRequest),
+    deleteProviderKey: (name: string) => request<ProviderCatalogEntry>(`/providers/${enc(name)}/key`, "DELETE"),
+    testProvider: (name: string) => request<ProviderTestResult>(`/providers/${enc(name)}/test`, "POST"),
     listModes: () => request<ProductionModePolicy[]>("/modes"),
     listPricing: () => request<PriceCatalogEntry[]>("/pricing"),
     getCostOverview: () => request<CostOverview>("/costs/overview"),
@@ -170,6 +190,9 @@ export function createApiClient(options: ApiClientOptions = {}) {
     runProduction: (id: string) => request<ActionResponse>(`/productions/${enc(id)}/run`, "POST"),
     approveProduction: (id: string, payload: ApproveProductionRequest = {}) =>
       request<ActionResponse>(`/productions/${enc(id)}/approve`, "POST", payload),
+    reviewClaims: (id: string, payload: ReviewClaimsRequest) =>
+      request<ProductionDetail>(`/productions/${enc(id)}/claims`, "POST", payload),
+    rewriteScript: (id: string) => request<ActionResponse>(`/productions/${enc(id)}/rewrite-script`, "POST"),
     cancelProduction: (id: string) => request<ActionResponse>(`/productions/${enc(id)}/cancel`, "POST"),
     deliverProduction: (id: string) => request<ActionResponse>(`/productions/${enc(id)}/deliver`, "POST"),
     getProductionCosts: (id: string) => request<CostSummary>(`/productions/${enc(id)}/costs`),

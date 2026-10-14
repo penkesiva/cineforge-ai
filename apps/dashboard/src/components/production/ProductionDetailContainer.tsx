@@ -1,20 +1,28 @@
 "use client";
 
-import type { ProductionDetail } from "@cineforge/schemas";
+import type { FactClaim, ProductionDetail } from "@cineforge/schemas";
 import Link from "next/link";
 import { useCallback, useState } from "react";
 import { api, errorMessage, isApiError } from "@/lib/api";
 import { formatUsd } from "@/lib/format";
 import { usePolling, useResource } from "@/lib/hooks";
-import { isWorkingState } from "@/lib/workflow";
+import { claimCitations, rejectedCitedClaimIds, type ClaimDecisionValue } from "@/lib/review";
+import { isReviewState, isWorkingState } from "@/lib/workflow";
 import { AppConfirmDialog } from "../dialogs/AppConfirmDialog";
 import { AppNoticeDialog, type NoticeState } from "../dialogs/AppNoticeDialog";
 import { IconAlert } from "../icons";
 import { EmptyState, ErrorState, Loading } from "../ui";
-import type { ProductionAction } from "./ProductionHeader";
+import type { BusyAction, ProductionAction } from "./ProductionHeader";
 import { ProductionDetailView } from "./ProductionDetailView";
 
 export const DETAIL_POLL_MS = 2_000;
+export const CLAIM_REVIEWER = "operator";
+
+type ConfirmAction = Exclude<ProductionAction, "run"> | "rewrite";
+
+interface DetailNotice extends NoticeState {
+  offerRewrite?: boolean;
+}
 
 /** Suggested cap when resuming from PAUSED_BUDGET: 25% headroom over the larger of estimate and limit. */
 export function suggestedBudget(detail: ProductionDetail): number {
@@ -55,23 +63,26 @@ function BudgetInput({
 }
 
 export function ProductionDetailContainer({ id }: { id: string }) {
-  const { data, error, loading, reload } = useResource(id, () => api.getProduction(id));
+  const { data, error, loading, reload, setData } = useResource(id, () => api.getProduction(id));
   const state = data?.summary.state;
   const polling = state !== undefined && isWorkingState(state);
   usePolling(reload, DETAIL_POLL_MS, polling);
 
-  const [confirming, setConfirming] = useState<Exclude<ProductionAction, "run"> | null>(null);
-  const [busyAction, setBusyAction] = useState<ProductionAction | null>(null);
-  const [notice, setNotice] = useState<NoticeState | null>(null);
+  const [confirming, setConfirming] = useState<ConfirmAction | null>(null);
+  const [busyAction, setBusyAction] = useState<BusyAction | null>(null);
+  const [notice, setNotice] = useState<DetailNotice | null>(null);
+  const [busyClaimId, setBusyClaimId] = useState<string | null>(null);
+  const [rejecting, setRejecting] = useState<FactClaim | null>(null);
   const [raiseTo, setRaiseTo] = useState("");
 
   const execute = useCallback(
-    async (action: ProductionAction) => {
+    async (action: ProductionAction | "rewrite") => {
       if (!data) return;
       setBusyAction(action);
       try {
         let message: string;
         if (action === "run") message = (await api.runProduction(id)).message;
+        else if (action === "rewrite") message = (await api.rewriteScript(id)).message;
         else if (action === "approve") {
           const payload =
             data.summary.state === "PAUSED_BUDGET" && raiseTo.trim() ? { raise_budget_to_usd: Number(raiseTo) } : {};
@@ -85,14 +96,26 @@ export function ProductionDetailContainer({ id }: { id: string }) {
           setNotice({ variant: "success", title: "Production cancelled", message });
         } else if (action === "deliver") {
           setNotice({ variant: "success", title: "Production delivered", message });
+        } else if (action === "rewrite") {
+          setNotice({
+            variant: "success",
+            title: "Script rewrite started",
+            message: `${message} Rejected claims are excluded from the new script.`,
+          });
         }
       } catch (err) {
         setConfirming(null);
+        const blockedByClaims =
+          action === "approve" &&
+          isApiError(err) &&
+          err.status === 409 &&
+          (rejectedCitedClaimIds(data).length > 0 || /claim/i.test(`${err.body?.error ?? ""} ${err.message}`));
         setNotice({
           variant: "error",
-          title: `Could not ${action} production`,
+          title: action === "rewrite" ? "Could not rewrite script" : `Could not ${action} production`,
           message: errorMessage(err),
           note: isApiError(err) && err.status ? `HTTP ${err.status}${err.body ? ` · ${err.body.error}` : ""}` : undefined,
+          offerRewrite: blockedByClaims,
         });
         void reload();
       } finally {
@@ -100,6 +123,35 @@ export function ProductionDetailContainer({ id }: { id: string }) {
       }
     },
     [data, id, raiseTo, reload],
+  );
+
+  const postDecision = useCallback(
+    async (claim: FactClaim, decision: ClaimDecisionValue) => {
+      setBusyClaimId(claim.id);
+      try {
+        const updated = await api.reviewClaims(id, {
+          reviewed_by: CLAIM_REVIEWER,
+          decisions: [{ claim_id: claim.id, decision }],
+        });
+        setData(updated);
+      } catch (err) {
+        setNotice({ variant: "error", title: "Could not record the claim decision", message: errorMessage(err) });
+        void reload();
+      } finally {
+        setRejecting(null);
+        setBusyClaimId(null);
+      }
+    },
+    [id, reload, setData],
+  );
+
+  const onDecideClaim = useCallback(
+    (claim: FactClaim, decision: ClaimDecisionValue) => {
+      if (!data) return;
+      if (decision === "rejected" && claimCitations(data.artifacts.script).has(claim.id)) setRejecting(claim);
+      else void postDecision(claim, decision);
+    },
+    [data, postDecision],
   );
 
   const onAction = useCallback(
@@ -155,6 +207,12 @@ export function ProductionDetailContainer({ id }: { id: string }) {
         polling={polling}
         onAction={onAction}
         busyAction={busyAction}
+        review={{
+          onDecide: onDecideClaim,
+          onRewrite: () => setConfirming("rewrite"),
+          busyClaimId,
+          rewriting: busyAction === "rewrite",
+        }}
       />
 
       <AppConfirmDialog
@@ -214,12 +272,43 @@ export function ProductionDetailContainer({ id }: { id: string }) {
         onCancel={() => setConfirming(null)}
       />
 
+      <AppConfirmDialog
+        open={rejecting !== null}
+        variant="warning"
+        title="Reject a claim the script cites?"
+        message="The script cites this claim. Approval will be blocked until the script is rewritten without it."
+        noteLabel="Claim"
+        note={rejecting?.text}
+        confirmLabel="Reject claim"
+        busy={rejecting !== null && busyClaimId === rejecting.id}
+        onConfirm={() => rejecting && void postDecision(rejecting, "rejected")}
+        onCancel={() => setRejecting(null)}
+      />
+
+      <AppConfirmDialog
+        open={confirming === "rewrite"}
+        variant="warning"
+        title="Rewrite the script?"
+        message="The production goes back to scripting. The scriptwriter drops rejected claims, then storyboarding and the cost estimate run again."
+        noteLabel="Rejected claims cited"
+        note={`${rejectedCitedClaimIds(data).length} cited by the current script`}
+        confirmLabel="Rewrite script"
+        busy={busyAction === "rewrite"}
+        onConfirm={() => void execute("rewrite")}
+        onCancel={() => setConfirming(null)}
+      />
+
       <AppNoticeDialog
         open={notice !== null}
         variant={notice?.variant}
         title={notice?.title ?? ""}
         message={notice?.message}
         note={notice?.note}
+        secondaryLabel={notice?.offerRewrite && isReviewState(data.summary.state) ? "Rewrite script" : undefined}
+        onSecondary={() => {
+          setNotice(null);
+          setConfirming("rewrite");
+        }}
         onClose={() => setNotice(null)}
       />
     </>

@@ -104,6 +104,30 @@ describe("CreateProductionForm", () => {
     expect(screen.getByLabelText("Topic")).toHaveFocus();
   });
 
+  it("offers every theme version, defaulting to latest", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    const versioned = [{ ...themes[0]!, version: 3 }, themes[1]!];
+    render(<CreateProductionForm themes={versioned} modes={modes} onSubmit={onSubmit} />);
+    const version = screen.getByLabelText("Theme version");
+    expect(version).toHaveValue("");
+    expect(Array.from((version as HTMLSelectElement).options).map((o) => o.text)).toEqual(["Latest (v3)", "v2", "v1"]);
+
+    await user.type(screen.getByLabelText("Topic"), "The lost colony of Roanoke");
+    await user.click(screen.getByRole("button", { name: "Create production" }));
+    expect(onSubmit.mock.calls[0]![0]).not.toHaveProperty("theme_version");
+
+    await user.selectOptions(version, "2");
+    await user.click(screen.getByRole("button", { name: "Create production" }));
+    expect(onSubmit.mock.calls[1]![0]).toMatchObject({ theme_id: "time-traveler", theme_version: 2 });
+
+    await user.selectOptions(screen.getByLabelText("Theme"), "mystery-explorer");
+    expect(screen.getByLabelText("Theme version")).toHaveValue("");
+    expect(Array.from((screen.getByLabelText("Theme version") as HTMLSelectElement).options).map((o) => o.text)).toEqual([
+      "Latest (v1)",
+    ]);
+  });
+
   it("submits a valid CreateProductionRequest", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();

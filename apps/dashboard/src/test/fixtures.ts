@@ -1,6 +1,7 @@
 import type {
   AgentId,
   AgentRun,
+  ClaimReview,
   CostSummary,
   ProductionArtifacts,
   ProductionDetail,
@@ -213,3 +214,111 @@ export function buildDetail(
 }
 
 export const productionDetail: ProductionDetail = buildDetail();
+
+/** Approval-gate detail with claims, licensed media bound to shots and a cost plan. */
+export function buildReviewDetail(
+  state: ProductionState = "AWAITING_APPROVAL",
+  { estimateTotal = 4.2, claimReviews = [] }: { estimateTotal?: number; claimReviews?: ClaimReview[] } = {},
+): ProductionDetail {
+  const detail = buildDetail(state, { events: happyEvents.slice(0, 4) });
+  const scenes = detail.manifest.scenes ?? [];
+  const firstShot = scenes[0]?.shots[0];
+  if (firstShot) {
+    firstShot.assets = [
+      { asset_id: "cand_eiffel", role: "source" },
+      { asset_id: "cand_nothumb", role: "reference" },
+      { asset_id: "generated_not_a_candidate", role: "generated" },
+    ];
+  }
+  const secondSceneShot = scenes[1]?.shots[0];
+  if (secondSceneShot) secondSceneShot.assets = [{ asset_id: "cand_blocked", role: "source" }];
+  detail.manifest.claim_reviews = claimReviews;
+  detail.artifacts = {
+    ...detail.artifacts,
+    research: {
+      topic: "Eiffel Tower 1889",
+      summary: "Opening night of the Eiffel Tower.",
+      claims: [
+        {
+          id: "claim_01",
+          text: "The tower was lit by about 10,000 gas lamps.",
+          status: "verified",
+          confidence: 0.92,
+          sources: [
+            {
+              url: "https://example.org/eiffel-1889",
+              title: "Eiffel Tower history",
+              publisher: "Example Archive",
+              excerpt: "some 10,000 gas lamps lit the tower",
+            },
+          ],
+        },
+        { id: "claim_02", text: "A searchlight swept Paris from the summit.", status: "unverified", confidence: 0.6 },
+        { id: "claim_03", text: "Crowds gasped as one.", status: "dramatized", confidence: 0.5 },
+        { id: "claim_04", text: "Eiffel climbed the stairs himself that night.", status: "disputed", confidence: 0.4 },
+      ],
+    },
+    script: {
+      hook: "You are standing in Paris, May 1889. Look up.",
+      logline: "A time traveler witnesses the first night of the Eiffel Tower.",
+      beats: [{ order: 1, beat: "hook", purpose: "grab attention" }],
+      lines: [
+        { scene_order: 1, speaker: "narrator", text: "Ten thousand gas lamps flicker to life.", claim_ids: ["claim_01"] },
+        { scene_order: 2, speaker: "narrator", text: "Eiffel climbs every stair.", claim_ids: ["claim_04"] },
+      ],
+      word_count: 12,
+      estimated_duration_sec: 40,
+    },
+    media: {
+      candidates: [
+        {
+          candidate_id: "cand_eiffel",
+          provider: "wikimedia",
+          media_type: "image",
+          title: "Eiffel Tower 1889",
+          source_url: "https://commons.example.org/eiffel.jpg",
+          thumbnail_url: "https://commons.example.org/thumb/eiffel.jpg",
+          license: { license_type: "public-domain", author: "Unknown", attribution_text: "Public domain, via Wikimedia Commons" },
+          rights_status: "approved",
+        },
+        {
+          candidate_id: "cand_nothumb",
+          provider: "openverse",
+          media_type: "image",
+          title: "Exposition crowd",
+          source_url: "https://openverse.example.org/crowd",
+          thumbnail_url: null,
+          license: { license_type: "CC-BY-4.0", author: "Jane Doe" },
+          rights_status: "pending",
+        },
+        {
+          candidate_id: "cand_blocked",
+          provider: "openverse",
+          media_type: "image",
+          title: "Mystery poster",
+          source_url: "https://openverse.example.org/poster",
+          thumbnail_url: "javascript:alert(1)",
+          license: null,
+          rights_status: "blocked",
+        },
+      ],
+      selected_ids: ["cand_eiffel", "cand_nothumb"],
+      blocked: { cand_blocked: "License unknown: rights fail closed" },
+    },
+    cost_plan: {
+      production_id: detail.summary.id,
+      within_budget: estimateTotal <= 10,
+      estimate: {
+        production_id: detail.summary.id,
+        currency: "USD",
+        mode: "balanced",
+        price_catalog_version: "mock-2026-10",
+        total_estimated: estimateTotal,
+        by_scene: { scene_01: estimateTotal * 0.6, scene_02: estimateTotal * 0.4 },
+        by_agent: { a7_visual_production: estimateTotal * 0.7, a8_audio_performance: estimateTotal * 0.3 },
+        line_items: [],
+      },
+    },
+  };
+  return detail;
+}
