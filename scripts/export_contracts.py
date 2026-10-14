@@ -64,6 +64,10 @@ REQUEST_MODELS: list[type[BaseModel]] = [
 ]
 
 
+def _ordered(states: frozenset[wf.ProductionState]) -> list[str]:
+    return [s.value for s in wf.ProductionState if s in states]
+
+
 def build_schema() -> dict:
     _, response_schema = models_json_schema(
         [(m, "serialization") for m in RESPONSE_MODELS], ref_template="#/$defs/{model}"
@@ -88,6 +92,12 @@ def build_schema() -> dict:
         "x-enums": {
             "ProductionStateOrder": [s.value for s in wf.ProductionState],
             "HappyPath": [s.value for s in wf.HAPPY_PATH],
+            "WorkingStates": _ordered(wf.WORKING_STATES),
+            "TerminalStates": _ordered(wf.TERMINAL_STATES),
+            "ExceptionStates": _ordered(wf.EXCEPTION_STATES),
+            "AllowedTransitions": {
+                s.value: _ordered(wf.ALLOWED_TRANSITIONS[s]) for s in wf.ProductionState
+            },
         },
         "x-agent-definitions": [d.model_dump(mode="json") for d in agents.AGENT_DEFINITIONS],
     }

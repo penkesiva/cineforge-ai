@@ -45,6 +45,10 @@ const types = await compile(jsonSchema, "CineForgeContracts", {
 const constants = `
 export const PRODUCTION_STATES = ${JSON.stringify(enums.ProductionStateOrder)} as const;
 export const HAPPY_PATH = ${JSON.stringify(enums.HappyPath)} as const;
+export const WORKING_STATES = ${JSON.stringify(enums.WorkingStates)} as const;
+export const TERMINAL_STATES = ${JSON.stringify(enums.TerminalStates)} as const;
+export const EXCEPTION_STATES = ${JSON.stringify(enums.ExceptionStates)} as const;
+export const ALLOWED_TRANSITIONS: Record<ProductionState, readonly ProductionState[]> = ${JSON.stringify(enums.AllowedTransitions, null, 2)};
 export const AGENT_DEFINITIONS: AgentDefinition[] = ${JSON.stringify(agentDefinitions, null, 2)};
 `;
 
