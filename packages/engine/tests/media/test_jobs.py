@@ -62,8 +62,9 @@ def test_render_master_end_to_end(
     assert asset.uri == f"local://{asset.storage_key}"
     assert asset.rights.status == RightsStatus.APPROVED
     assert (asset.width, asset.height) == (180, 320)
-    assert asset.duration_sec == pytest.approx(5.0, abs=0.5)
-    assert asset.generation["renderer"] == "ffmpeg-slate"
+    assert asset.duration_sec == pytest.approx(8.0, abs=0.5)  # 5 x 1 s scenes + 3 s end card
+    assert asset.generation["renderer"] == "ffmpeg-edit-v1"
+    assert asset.generation["edit"]["slates"] == 10
     assert asset.generation["ffmpeg_version"]
     path = rt.storage.local_path(asset.storage_key)
     assert path.is_file() and path.is_relative_to(tmp_path)
@@ -96,7 +97,7 @@ def test_render_master_end_to_end(
     def boom(*a, **k):
         raise AssertionError("must not re-render")
 
-    monkeypatch.setattr(jobs, "render_master_slate", boom)
+    monkeypatch.setattr(jobs, "render_master_edit", boom)
     assert _call() == asset_id
     assert len(rt.assets.list_for_production(PID, TENANT)) == 1
     assert len(rt.agent_runs.list_for_production(PID, TENANT)) == 1
@@ -109,7 +110,7 @@ def test_failure_marks_run_and_production_failed(
     def broken(*a, **k):
         raise RenderError("ffmpeg failed (1): synthetic")
 
-    monkeypatch.setattr(jobs, "render_master_slate", broken)
+    monkeypatch.setattr(jobs, "render_master_edit", broken)
     with pytest.raises(RenderError):
         _call()
     (run,) = rt.agent_runs.list_for_production(PID, TENANT)
@@ -124,11 +125,11 @@ def test_failure_marks_run_and_production_failed(
 def test_blocking_qc_finding_fails_production(
     rt: Runtime, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    def fake_render(manifest, out_path):
+    def fake_render(plan, output, out_path):
         Path(out_path).write_bytes(b"not really a video")
-        return Path(out_path)
+        return Path(out_path), True
 
-    monkeypatch.setattr(jobs, "render_master_slate", fake_render)
+    monkeypatch.setattr(jobs, "render_master_edit", fake_render)
     monkeypatch.setattr(jobs, "probe", lambda path: {"streams": [], "format": {}})
     with pytest.raises(RenderError, match="technical QC"):
         _call()
@@ -162,7 +163,7 @@ def test_recovers_succeeded_run_without_rendering(
         output=master.model_dump(mode="json"),
         output_model="MasterRender",
     )
-    monkeypatch.setattr(jobs, "render_master_slate", lambda *a, **k: pytest.fail("re-render"))
+    monkeypatch.setattr(jobs, "render_master_edit", lambda *a, **k: pytest.fail("re-render"))
     assert _call() == "asset_prev"
     assert rt.productions.get(PID, TENANT).master_render_asset_id == "asset_prev"
     assert len(rt.queue.jobs) == 1
