@@ -1,6 +1,7 @@
 import type {
   AgentId,
   AgentRun,
+  AssetRecord,
   ClaimReview,
   CostSummary,
   ProductionArtifacts,
@@ -214,6 +215,49 @@ export function buildDetail(
 }
 
 export const productionDetail: ProductionDetail = buildDetail();
+
+/** A generated video clip with the provenance the external-generation flow records. */
+export function generatedAsset(id: string, generation: Record<string, unknown> | null): AssetRecord {
+  return {
+    id,
+    tenant_id: TENANT_ID,
+    production_id: PRODUCTION_ID,
+    kind: "video",
+    origin: "generated",
+    storage_backend: "local",
+    storage_key: `tenants/${TENANT_ID}/productions/${PRODUCTION_ID}/clips/${id}.mp4`,
+    uri: `local://${id}.mp4`,
+    content_type: "video/mp4",
+    size_bytes: 1024,
+    sha256: "0".repeat(64),
+    rights: { status: "approved" },
+    generation,
+    metadata: {},
+  };
+}
+
+/**
+ * Detail where scene 1 shot 1 is a real Higgsfield clip (AI-generated, no label text)
+ * and scene 1 shot 2 is a mock clip whose disclosure reads "Reconstruction".
+ */
+export function buildGeneratedDetail(state: ProductionState = "READY"): ProductionDetail {
+  const detail = buildDetail(state, {
+    assets: [
+      generatedAsset("ast_higgs", { provider: "higgsfield", model: "kling2_6", job_id: "hf_job_1", via: "external" }),
+      generatedAsset("ast_mock", { provider: "mock-video", model: "mock-video-draft" }),
+    ],
+  });
+  const [first, second] = detail.manifest.scenes?.[0]?.shots ?? [];
+  if (first) {
+    first.disclosure = { synthetic_media: true, reconstruction: false, label_text: null };
+    first.assets = [
+      { asset_id: "cand_still", role: "source" },
+      { asset_id: "ast_higgs", role: "generated" },
+    ];
+  }
+  if (second) second.assets = [{ asset_id: "ast_mock", role: "generated" }];
+  return detail;
+}
 
 /** Approval-gate detail with claims, licensed media bound to shots and a cost plan. */
 export function buildReviewDetail(

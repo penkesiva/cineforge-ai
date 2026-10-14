@@ -38,7 +38,7 @@ export function ProductionDetailView({ detail, contentUrl, polling, onAction, bu
           {...review}
         />
       )}
-      {scenes.length > 0 && <StoryboardPanel scenes={scenes} media={artifacts.media} />}
+      {scenes.length > 0 && <StoryboardPanel scenes={scenes} media={artifacts.media} assets={detail.assets} />}
       {artifacts.media && <MediaCandidatesPanel media={artifacts.media} />}
     </>
   );
@@ -55,7 +55,7 @@ export function ProductionDetailView({ detail, contentUrl, polling, onAction, bu
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="min-w-0 space-y-6">
           {inReview ? preproduction : master}
-          <ScenesPanel scenes={scenes} />
+          <ScenesPanel scenes={scenes} assets={detail.assets} />
           {inReview ? master : preproduction}
           <AgentsPanel runs={detail.agent_runs} />
           <ArtifactsPanel artifacts={artifacts} manifestFindings={manifest.review_findings} />
