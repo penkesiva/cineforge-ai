@@ -11,6 +11,7 @@ from cineforge.contracts.api import (
     CreateProductionRequest,
     ProductionDetail,
     ProductionSummary,
+    ReviewClaimsRequest,
 )
 from cineforge.contracts.cost import CostOverview, CostSummary, LedgerEvent
 from cineforge.contracts.manifest import ProductionManifest
@@ -94,6 +95,33 @@ def approve_production(
     req: Annotated[ApproveProductionRequest | None, Body()] = None,
 ) -> ActionResponse:
     return _action(wf.approve(production_id, tenant_id, req or ApproveProductionRequest()))
+
+
+@router.post(
+    "/productions/{production_id}/claims",
+    response_model=ProductionDetail,
+    tags=["productions"],
+    summary="Approve or reject research claims at the approval gate",
+)
+def review_claims(
+    production_id: str,
+    req: ReviewClaimsRequest,
+    rt: RuntimeDep,
+    tenant_id: TenantDep,
+    wf: WorkflowDep,
+) -> ProductionDetail:
+    return build_detail(rt, wf.review_claims(production_id, tenant_id, req).manifest)
+
+
+@router.post(
+    "/productions/{production_id}/rewrite-script",
+    response_model=ActionResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    tags=["productions"],
+    summary="Rewrite the script without rejected claims (back to SCRIPTING)",
+)
+def rewrite_script(production_id: str, tenant_id: TenantDep, wf: WorkflowDep) -> ActionResponse:
+    return _action(wf.rewrite_script(production_id, tenant_id))
 
 
 @router.post(

@@ -7,8 +7,9 @@ import logging
 from cineforge.configuration import ThemeNotFoundError
 from cineforge.contracts.agents import AgentSchemaError
 from cineforge.contracts.api import ErrorResponse
-from cineforge.contracts.repositories import NotFoundError
+from cineforge.contracts.repositories import NotFoundError, ThemeVersionConflictError
 from cineforge.contracts.workflow import InvalidStateTransitionError
+from cineforge.orchestration.workflow import ApprovalBlockedError, InvalidClaimReviewError
 from fastapi import FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
@@ -53,6 +54,18 @@ def install_error_handlers(app: FastAPI) -> None:
                 "to_state": exc.to_state.value,
             },
         )
+
+    @app.exception_handler(ApprovalBlockedError)
+    async def _approval_blocked(_: Request, exc: ApprovalBlockedError) -> JSONResponse:
+        return error_response(status.HTTP_409_CONFLICT, "approval_blocked", str(exc))
+
+    @app.exception_handler(ThemeVersionConflictError)
+    async def _theme_conflict(_: Request, exc: ThemeVersionConflictError) -> JSONResponse:
+        return error_response(status.HTTP_409_CONFLICT, "theme_version_conflict", str(exc))
+
+    @app.exception_handler(InvalidClaimReviewError)
+    async def _bad_claims(_: Request, exc: InvalidClaimReviewError) -> JSONResponse:
+        return error_response(status.HTTP_422_UNPROCESSABLE_CONTENT, "validation_error", str(exc))
 
     @app.exception_handler(RequestValidationError)
     async def _validation(_: Request, exc: RequestValidationError) -> JSONResponse:
