@@ -1412,6 +1412,97 @@ export interface CreateThemeVersionRequest {
 
 export const PRODUCTION_STATES = ["DRAFT","RESEARCHING","SCRIPTING","STORYBOARDING","AWAITING_APPROVAL","GENERATING","ASSEMBLING","REVIEWING","READY","DELIVERED","PAUSED_BUDGET","NEEDS_REVIEW","FAILED","CANCELLED"] as const;
 export const HAPPY_PATH = ["DRAFT","RESEARCHING","SCRIPTING","STORYBOARDING","AWAITING_APPROVAL","GENERATING","ASSEMBLING","REVIEWING","READY","DELIVERED"] as const;
+export const WORKING_STATES = ["RESEARCHING","SCRIPTING","STORYBOARDING","GENERATING","ASSEMBLING","REVIEWING"] as const;
+export const TERMINAL_STATES = ["DELIVERED","FAILED","CANCELLED"] as const;
+export const EXCEPTION_STATES = ["PAUSED_BUDGET","NEEDS_REVIEW","FAILED","CANCELLED"] as const;
+export const ALLOWED_TRANSITIONS: Record<ProductionState, readonly ProductionState[]> = {
+  "DRAFT": [
+    "RESEARCHING",
+    "PAUSED_BUDGET",
+    "NEEDS_REVIEW",
+    "FAILED",
+    "CANCELLED"
+  ],
+  "RESEARCHING": [
+    "SCRIPTING",
+    "PAUSED_BUDGET",
+    "NEEDS_REVIEW",
+    "FAILED",
+    "CANCELLED"
+  ],
+  "SCRIPTING": [
+    "STORYBOARDING",
+    "PAUSED_BUDGET",
+    "NEEDS_REVIEW",
+    "FAILED",
+    "CANCELLED"
+  ],
+  "STORYBOARDING": [
+    "AWAITING_APPROVAL",
+    "PAUSED_BUDGET",
+    "NEEDS_REVIEW",
+    "FAILED",
+    "CANCELLED"
+  ],
+  "AWAITING_APPROVAL": [
+    "GENERATING",
+    "PAUSED_BUDGET",
+    "NEEDS_REVIEW",
+    "FAILED",
+    "CANCELLED"
+  ],
+  "GENERATING": [
+    "ASSEMBLING",
+    "PAUSED_BUDGET",
+    "NEEDS_REVIEW",
+    "FAILED",
+    "CANCELLED"
+  ],
+  "ASSEMBLING": [
+    "REVIEWING",
+    "PAUSED_BUDGET",
+    "NEEDS_REVIEW",
+    "FAILED",
+    "CANCELLED"
+  ],
+  "REVIEWING": [
+    "GENERATING",
+    "READY",
+    "PAUSED_BUDGET",
+    "NEEDS_REVIEW",
+    "FAILED",
+    "CANCELLED"
+  ],
+  "READY": [
+    "DELIVERED",
+    "PAUSED_BUDGET",
+    "NEEDS_REVIEW",
+    "FAILED",
+    "CANCELLED"
+  ],
+  "DELIVERED": [],
+  "PAUSED_BUDGET": [
+    "AWAITING_APPROVAL",
+    "GENERATING",
+    "ASSEMBLING",
+    "FAILED",
+    "CANCELLED"
+  ],
+  "NEEDS_REVIEW": [
+    "RESEARCHING",
+    "SCRIPTING",
+    "STORYBOARDING",
+    "AWAITING_APPROVAL",
+    "GENERATING",
+    "ASSEMBLING",
+    "REVIEWING",
+    "READY",
+    "FAILED",
+    "CANCELLED"
+  ],
+  "FAILED": [],
+  "CANCELLED": []
+};
 export const AGENT_DEFINITIONS: AgentDefinition[] = [
   {
     "id": "a1_master_orchestrator",
