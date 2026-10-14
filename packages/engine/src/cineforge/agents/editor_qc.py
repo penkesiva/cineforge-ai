@@ -111,7 +111,8 @@ class EditorQCAgent(BaseAgent):
         if not _codec_matches(m.output.codec, master.codec):
             problems.append(f"codec {master.codec} != {m.output.codec}")
         target = m.output.duration_target_sec
-        if abs(master.duration_sec - target) > DURATION_TOLERANCE_SEC:
+        end_card = float(master.probe.get("end_card_sec") or 0)
+        if abs(master.duration_sec - end_card - target) > DURATION_TOLERANCE_SEC:
             problems.append(
                 f"duration {master.duration_sec:.2f}s != {target:.2f}s "
                 f"(tolerance {DURATION_TOLERANCE_SEC}s)"

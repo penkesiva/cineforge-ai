@@ -18,8 +18,7 @@ def catalog() -> YamlPriceCatalog:
 def test_loads_all_entries(catalog: YamlPriceCatalog) -> None:
     assert isinstance(catalog, PriceCatalog)
     assert (
-        catalog.version
-        == "mock-2026-10+open-sources-2026-10+anthropic-2026-10+higgsfield-2026-10"
+        catalog.version == "mock-2026-10+open-sources-2026-10+anthropic-2026-10+higgsfield-2026-10"
     )
     assert catalog.simulated is False
     entries = catalog.entries()

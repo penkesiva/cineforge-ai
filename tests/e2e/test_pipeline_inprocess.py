@@ -16,6 +16,7 @@ from pathlib import Path
 import pytest
 from cineforge.config import Settings
 from cineforge.contracts.common import AgentId
+from cineforge.media.edit import END_CARD_SEC
 from cineforge.runtime import Runtime, set_runtime
 from fastapi.testclient import TestClient
 
@@ -111,7 +112,7 @@ def test_full_mock_production_reaches_delivered(client: TestClient, tmp_path: Pa
     # Master render exists, passed QC and is downloadable (Range supported).
     master = detail["artifacts"]["master"]
     assert master["width"] == 1080 and master["height"] == 1920
-    assert master["duration_sec"] == pytest.approx(45, abs=0.5)
+    assert master["duration_sec"] == pytest.approx(45 + END_CARD_SEC, abs=0.5)
     assert detail["artifacts"]["review"]["passed"] is True
     asset_id = detail["manifest"]["master_render_asset_id"]
     content = client.get(f"/api/v1/assets/{asset_id}/content")
