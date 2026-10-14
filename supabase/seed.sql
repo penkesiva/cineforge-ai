@@ -21,6 +21,8 @@ insert into public.price_catalog (version, provider, model, capability, unit, un
     ('anthropic-2026-10', 'anthropic', 'claude-sonnet-4-5', 'llm_text', '1k_output_tokens', 0.015000, 'USD', null, '2026-10-01', null, false, '$15 / MTok output'),
     ('anthropic-2026-10', 'anthropic', 'claude-haiku-4-5', 'llm_text', '1k_input_tokens', 0.001000, 'USD', null, '2026-10-01', null, false, '$1 / MTok input'),
     ('anthropic-2026-10', 'anthropic', 'claude-haiku-4-5', 'llm_text', '1k_output_tokens', 0.005000, 'USD', null, '2026-10-01', null, false, '$5 / MTok output'),
+    ('higgsfield-2026-10', 'higgsfield', 'kling2_6', 'image_to_video', 'credit', 0.043000, 'USD', 1, '2026-10-01', null, false, 'Kling 2.6 start-image video; 5 credits per 5 s clip (quote 2026-10-14)'),
+    ('higgsfield-2026-10', 'higgsfield', 'seed_audio', 'voice_tts', 'credit', 0.043000, 'USD', 1, '2026-10-01', null, false, 'Seed Audio 1.0 TTS; about 0.6 credits per line (quote 2026-10-14)'),
     ('mock-2026-10', 'mock-llm', 'mock-llm-standard', 'llm_text', '1k_tokens', 0.002000, 'USD', null, '2026-10-01', null, true, ''),
     ('mock-2026-10', 'mock-llm', 'mock-llm-premium', 'llm_text', '1k_tokens', 0.010000, 'USD', null, '2026-10-01', null, true, ''),
     ('mock-2026-10', 'mock-research', 'mock-search-v1', 'web_research', 'request', 0.005000, 'USD', null, '2026-10-01', null, true, ''),
@@ -34,7 +36,9 @@ insert into public.price_catalog (version, provider, model, capability, unit, un
     ('mock-2026-10', 'mock-lipsync', 'mock-lipsync-v1', 'lip_sync', 'video_second', 0.080000, 'USD', null, '2026-10-01', null, true, ''),
     ('open-sources-2026-10', 'wikipedia', 'mediawiki-action-api', 'web_research', 'request', 0.000000, 'USD', null, '2026-10-01', null, false, 'Wikipedia search + extracts (free, keyless)'),
     ('open-sources-2026-10', 'wikimedia-commons', 'mediawiki-action-api', 'media_search', 'request', 0.000000, 'USD', null, '2026-10-01', null, false, 'Commons file search + extmetadata licenses (free, keyless)'),
-    ('open-sources-2026-10', 'openverse', 'openverse-v1', 'media_search', 'request', 0.000000, 'USD', null, '2026-10-01', null, false, 'Openverse anonymous API (free, rate limited)')
+    ('open-sources-2026-10', 'openverse', 'openverse-v1', 'media_search', 'request', 0.000000, 'USD', null, '2026-10-01', null, false, 'Openverse anonymous API (free, rate limited)'),
+    ('open-sources-2026-10', 'wikimedia-commons', 'file-download', 'media_search', 'request', 0.000000, 'USD', null, '2026-10-01', null, false, 'Download of a rights-approved original file (free)'),
+    ('open-sources-2026-10', 'openverse', 'file-download', 'media_search', 'request', 0.000000, 'USD', null, '2026-10-01', null, false, 'Download of a rights-approved original file (free)')
 on conflict (version, provider, model, unit) do update set
     capability = excluded.capability, unit_price = excluded.unit_price,
     currency = excluded.currency, credits_per_unit = excluded.credits_per_unit,
