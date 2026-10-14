@@ -2,6 +2,7 @@ import * as schemas from "@cineforge/schemas";
 import { describe, expect, it } from "vitest";
 import {
   availableActions,
+  canRewriteScript,
   canTransition,
   EXCEPTION_STATES,
   isExceptionState,
@@ -42,5 +43,11 @@ describe("workflow constants", () => {
     expect(review).toEqual(["AWAITING_APPROVAL", "PAUSED_BUDGET"]);
     expect(availableActions("PAUSED_BUDGET").approve).toBe(true);
     expect(availableActions("GENERATING").approve).toBe(false);
+  });
+
+  it("allows a script rewrite only where the API accepts it", () => {
+    expect(schemas.PRODUCTION_STATES.filter(canRewriteScript)).toEqual(["AWAITING_APPROVAL", "NEEDS_REVIEW"]);
+    expect(canTransition("AWAITING_APPROVAL", "NEEDS_REVIEW") && canTransition("NEEDS_REVIEW", "SCRIPTING")).toBe(true);
+    expect(canTransition("PAUSED_BUDGET", "NEEDS_REVIEW")).toBe(false);
   });
 });

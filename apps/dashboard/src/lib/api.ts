@@ -95,9 +95,15 @@ async function readJson(response: Response): Promise<unknown> {
 
 function errorFromPayload(status: number, statusText: string, payload: unknown): ApiError {
   if (isErrorResponse(payload)) {
+    // The API sends `detail` as an object with `message`, a plain string, or a validation list.
+    const detail: unknown = payload.detail;
     const detailMessage =
-      payload.detail && typeof payload.detail.message === "string" ? payload.detail.message : null;
-    return new ApiError(status, detailMessage ?? payload.error, payload);
+      typeof detail === "object" && detail !== null && !Array.isArray(detail)
+        ? typeof (detail as { message?: unknown }).message === "string"
+          ? (detail as { message: string }).message
+          : null
+        : messageFromDetail(detail);
+    return new ApiError(status, detailMessage || payload.error, payload);
   }
   const detail =
     typeof payload === "object" && payload !== null ? (payload as { detail?: unknown }).detail : undefined;

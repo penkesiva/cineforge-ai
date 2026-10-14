@@ -69,6 +69,15 @@ describe("ClaimsReview", () => {
     expect(screen.queryByTestId("rewrite-warning")).not.toBeInTheDocument();
   });
 
+  it("does not offer a rewrite while paused for budget", () => {
+    const detail = buildReviewDetail("PAUSED_BUDGET", { claimReviews: [{ claim_id: "claim_01", decision: "rejected" }] });
+    render(<ProductionDetailView detail={detail} contentUrl={contentUrl} review={{ onDecide: vi.fn(), onRewrite: vi.fn() }} />);
+    const banner = screen.getByTestId("rewrite-warning");
+    expect(banner).toHaveTextContent("back at the approval gate");
+    expect(within(banner).queryByRole("button", { name: "Rewrite script" })).not.toBeInTheDocument();
+    expect(within(claimRow("claim_02")).getByRole("button", { name: "Approve" })).toBeEnabled();
+  });
+
   it("is read-only outside the approval gate", () => {
     render(<ProductionDetailView detail={buildReviewDetail("GENERATING")} contentUrl={contentUrl} />);
     expect(screen.getAllByTestId("claim-row")).toHaveLength(4);
@@ -139,7 +148,9 @@ describe("claim review actions", () => {
     });
     vi.spyOn(api, "getProduction").mockResolvedValue(rejected);
     vi.spyOn(api, "approveProduction").mockRejectedValue(
-      new ApiError(409, "Script line in scene 1 cites rejected claim claim_01", { error: "rejected_claim_cited" }),
+      new ApiError(409, "script scene(s) [1] cite rejected claims; request a script rewrite first", {
+        error: "approval_blocked",
+      }),
     );
     render(<ProductionDetailContainer id="prod_1" />);
     const group = await screen.findByRole("group", { name: "Production actions" });
@@ -147,7 +158,7 @@ describe("claim review actions", () => {
     await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Approve spend" }));
 
     const notice = await screen.findByRole("alertdialog");
-    expect(notice).toHaveTextContent("Script line in scene 1 cites rejected claim claim_01");
+    expect(notice).toHaveTextContent("script scene(s) [1] cite rejected claims");
     expect(notice).toHaveTextContent("HTTP 409");
     await user.click(within(notice).getByRole("button", { name: "Rewrite script" }));
     expect(screen.getByRole("alertdialog")).toHaveTextContent("Rewrite the script?");

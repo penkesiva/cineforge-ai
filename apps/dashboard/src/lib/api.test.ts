@@ -147,6 +147,22 @@ describe("api client errors", () => {
     expect(apiError.unavailable).toBe(false);
   });
 
+  it("uses string and list details from ErrorResponse bodies", async () => {
+    const { client } = setup(
+      jsonResponse({ error: "approval_blocked", detail: "script scene(s) [2] cite rejected claims" }, 409),
+    );
+    const blocked = (await client.approveProduction("p1").catch((e: unknown) => e)) as ApiError;
+    expect(blocked.status).toBe(409);
+    expect(blocked.message).toBe("script scene(s) [2] cite rejected claims");
+    expect(blocked.body?.error).toBe("approval_blocked");
+
+    const invalid = setup(
+      jsonResponse({ error: "validation_error", detail: [{ loc: ["body", "api_key"], msg: "Field required" }] }, 422),
+    );
+    const error = (await invalid.client.setProviderKey("anthropic", "").catch((e: unknown) => e)) as ApiError;
+    expect(error.message).toBe("api_key: Field required");
+  });
+
   it("falls back to the error code when detail has no message", async () => {
     const { client } = setup(jsonResponse({ error: "production_not_found", detail: { production_id: "x" } }, 404));
     const error = (await client.getProduction("x").catch((e: unknown) => e)) as ApiError;

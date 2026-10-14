@@ -1,5 +1,5 @@
 import type { ProductionDetail } from "@cineforge/schemas";
-import { isReviewState } from "@/lib/workflow";
+import { canRewriteScript, isReviewState } from "@/lib/workflow";
 import { WorkflowStepper } from "../WorkflowStepper";
 import { Card } from "../ui";
 import { AgentsPanel } from "./AgentsPanel";
@@ -34,6 +34,7 @@ export function ProductionDetailView({ detail, contentUrl, polling, onAction, bu
           script={artifacts.script}
           reviews={manifest.claim_reviews}
           canReview={inReview}
+          canRewrite={canRewriteScript(summary.state)}
           {...review}
         />
       )}
