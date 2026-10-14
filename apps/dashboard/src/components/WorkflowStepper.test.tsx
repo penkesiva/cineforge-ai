@@ -76,11 +76,11 @@ describe("WorkflowStepper", () => {
 
 describe("workflow helpers", () => {
   it("derives available actions from the state", () => {
-    expect(availableActions("DRAFT")).toEqual({ run: true, approve: false, cancel: true, deliver: false });
+    expect(availableActions("DRAFT")).toEqual({ run: true, approve: false, cancel: true, deliver: false, rerender: false });
     expect(availableActions("AWAITING_APPROVAL")).toMatchObject({ approve: true, cancel: true });
     expect(availableActions("PAUSED_BUDGET")).toMatchObject({ approve: true, cancel: true });
-    expect(availableActions("READY")).toMatchObject({ deliver: true, cancel: true });
-    expect(availableActions("DELIVERED")).toEqual({ run: false, approve: false, cancel: false, deliver: false });
+    expect(availableActions("READY")).toMatchObject({ deliver: true, cancel: true, rerender: true });
+    expect(availableActions("DELIVERED")).toEqual({ run: false, approve: false, cancel: false, deliver: false, rerender: false });
     expect(availableActions("FAILED").cancel).toBe(false);
   });
 

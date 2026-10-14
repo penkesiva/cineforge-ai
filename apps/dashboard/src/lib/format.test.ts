@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import {
   formatBytes,
+  formatCredits,
   formatDateTime,
   formatDuration,
   formatPct,
@@ -26,6 +27,26 @@ describe("formatUsd", () => {
     expect(formatUsd(null)).toBe("-");
     expect(formatUsd(undefined)).toBe("-");
     expect(formatUsd("abc")).toBe("-");
+  });
+});
+
+describe("formatCredits", () => {
+  it("formats ledger decimal strings without trailing zeros", () => {
+    expect(formatCredits("15.000000")).toBe("15");
+    expect(formatCredits("0.125")).toBe("0.125");
+    expect(formatCredits("2.123456")).toBe("2.1235");
+    expect(formatCredits("1234.5")).toBe("1,234.5");
+    expect(formatCredits(" 7 ")).toBe("7");
+    expect(formatCredits(0)).toBe("0");
+    expect(formatCredits("0")).toBe("0");
+  });
+
+  it("shows a dash when credits are missing or invalid", () => {
+    expect(formatCredits(null)).toBe("-");
+    expect(formatCredits(undefined)).toBe("-");
+    expect(formatCredits("")).toBe("-");
+    expect(formatCredits("  ")).toBe("-");
+    expect(formatCredits("n/a")).toBe("-");
   });
 });
 

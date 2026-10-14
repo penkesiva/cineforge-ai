@@ -1,9 +1,10 @@
 import type { ProductionState } from "@cineforge/schemas";
-import { act, render, renderHook, screen } from "@testing-library/react";
+import { act, render, renderHook, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { usePolling } from "@/lib/hooks";
-import { buildDetail } from "@/test/fixtures";
+import { buildDetail, ledgerEvents } from "@/test/fixtures";
 import { DETAIL_POLL_MS, ProductionDetailContainer } from "./ProductionDetailContainer";
 
 vi.mock("next/link", () => ({
@@ -19,6 +20,7 @@ async function flush(ms = 0) {
 describe("production detail polling", () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    vi.spyOn(api, "getProductionLedger").mockResolvedValue([]);
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -47,6 +49,7 @@ describe("production detail polling", () => {
 
     await flush(DETAIL_POLL_MS * 10);
     expect(getProduction).toHaveBeenCalledTimes(3);
+    expect(api.getProductionLedger).toHaveBeenCalledTimes(3);
   });
 
   it.each(["DRAFT", "READY", "DELIVERED", "PAUSED_BUDGET", "FAILED"] as const)(
@@ -66,6 +69,76 @@ describe("production detail polling", () => {
     render(<ProductionDetailContainer id="prod_1" />);
     await flush();
     expect(screen.getByRole("alert")).toHaveTextContent("API unavailable");
+  });
+});
+
+describe("re-render", () => {
+  beforeEach(() => {
+    vi.spyOn(api, "getProductionLedger").mockResolvedValue(ledgerEvents);
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("is offered only in READY", async () => {
+    vi.spyOn(api, "getProduction").mockResolvedValue(buildDetail("GENERATING"));
+    const { unmount } = render(<ProductionDetailContainer id="prod_1" />);
+    const group = await screen.findByRole("group", { name: "Production actions" });
+    expect(within(group).queryByRole("button", { name: /Re-render/ })).not.toBeInTheDocument();
+    unmount();
+
+    vi.spyOn(api, "getProduction").mockResolvedValue(buildDetail("READY"));
+    render(<ProductionDetailContainer id="prod_1" />);
+    const ready = await screen.findByRole("group", { name: "Production actions" });
+    expect(within(ready).getByRole("button", { name: /Re-render/ })).toBeEnabled();
+  });
+
+  it("confirms, posts the render request, refreshes and shows the job id", async () => {
+    const user = userEvent.setup();
+    const get = vi
+      .spyOn(api, "getProduction")
+      .mockResolvedValueOnce(buildDetail("READY"))
+      .mockResolvedValue(buildDetail("ASSEMBLING"));
+    const renderProduction = vi.spyOn(api, "renderProduction").mockResolvedValue({
+      production_id: "prod_1",
+      state: "ASSEMBLING",
+      message: "Re-render queued.",
+      job_id: "job_render_1",
+    });
+    render(<ProductionDetailContainer id="prod_1" />);
+    const group = await screen.findByRole("group", { name: "Production actions" });
+    await user.click(within(group).getByRole("button", { name: /Re-render/ }));
+
+    const confirm = screen.getByRole("alertdialog", { name: "Render a new master version?" });
+    expect(confirm).toHaveTextContent("current clips, stills and narration");
+    expect(confirm).toHaveTextContent("no paid provider calls");
+    expect(renderProduction).not.toHaveBeenCalled();
+    await user.click(within(confirm).getByRole("button", { name: "Re-render" }));
+
+    expect(renderProduction).toHaveBeenCalledWith("prod_1", { requested_by: "operator" });
+    const notice = await screen.findByRole("dialog", { name: "Re-render started" });
+    expect(notice).toHaveTextContent("Re-render queued.");
+    expect(notice).toHaveTextContent("Job job_render_1");
+    expect(get).toHaveBeenCalledTimes(2);
+    expect(api.getProductionLedger).toHaveBeenCalledTimes(2);
+    expect(screen.getAllByTestId("ledger-credits")[0]).toHaveTextContent("15");
+    await waitFor(() => expect(screen.getAllByTestId("state-badge")[0]).toHaveTextContent("Assembling"));
+  });
+
+  it("shows the API error when the production is no longer READY", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api, "getProduction").mockResolvedValue(buildDetail("READY"));
+    vi.spyOn(api, "renderProduction").mockRejectedValue(
+      new ApiError(409, "Cannot re-render from DELIVERED", { error: "invalid_transition" }),
+    );
+    render(<ProductionDetailContainer id="prod_1" />);
+    const group = await screen.findByRole("group", { name: "Production actions" });
+    await user.click(within(group).getByRole("button", { name: /Re-render/ }));
+    await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Re-render" }));
+
+    const notice = await screen.findByRole("alertdialog", { name: "Could not re-render production" });
+    expect(notice).toHaveTextContent("Cannot re-render from DELIVERED");
+    expect(notice).toHaveTextContent("HTTP 409 · invalid_transition");
   });
 });
 

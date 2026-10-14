@@ -1,8 +1,9 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { buildDetail, productionDetail } from "@/test/fixtures";
+import { buildDetail, buildGeneratedDetail, ledgerEvents, productionDetail } from "@/test/fixtures";
 import { ProductionDetailView } from "./ProductionDetailView";
+import { StoryboardPanel } from "./review/StoryboardPanel";
 
 const contentUrl = (id: string) => `/api/v1/assets/${id}/content`;
 
@@ -31,6 +32,34 @@ describe("ProductionDetailView", () => {
     expect(shots[1]).toHaveTextContent("Lip-sync");
     expect(shots[1]).toHaveTextContent("Reconstruction");
     expect(shots[1]).toHaveTextContent("Generative");
+  });
+
+  it("badges AI-generated shots and names real generation providers", () => {
+    const detail = buildGeneratedDetail();
+    const synthetic = (detail.manifest.scenes ?? []).flatMap((s) => s.shots).filter((s) => s.disclosure?.synthetic_media);
+    render(<ProductionDetailView detail={detail} contentUrl={contentUrl} />);
+    const shots = within(screen.getByRole("article", { name: "Scene 1: Hook" })).getAllByTestId("shot-row");
+
+    const badge = within(shots[0]!).getByTestId("ai-generated-badge");
+    expect(badge).toHaveTextContent("AI-generated");
+    expect(badge.parentElement).toHaveAttribute("title", "AI-generated (synthetic media)");
+    expect(within(shots[0]!).getByTestId("shot-generated-by")).toHaveTextContent("higgsfield / kling2_6");
+
+    expect(within(shots[1]!).getByTestId("ai-generated-badge")).toHaveTextContent("Reconstruction");
+    expect(within(shots[1]!).queryByTestId("shot-generated-by")).not.toBeInTheDocument();
+    expect(screen.getAllByTestId("ai-generated-badge")).toHaveLength(synthetic.length);
+    const scenesCard = screen.getByRole("region", { name: "Scenes & shots" });
+    expect(within(scenesCard).getAllByTestId("shot-generated-by")).toHaveLength(1);
+  });
+
+  it("shows the same disclosure and provider on storyboard shots", () => {
+    const detail = buildGeneratedDetail("AWAITING_APPROVAL");
+    render(<StoryboardPanel scenes={detail.manifest.scenes ?? []} assets={detail.assets} />);
+    const shots = screen.getAllByTestId("storyboard-shot");
+    expect(shots[0]).toHaveTextContent("AI-generated");
+    expect(within(shots[0]!).getByTestId("shot-generated-by")).toHaveTextContent("higgsfield / kling2_6");
+    expect(shots[1]).toHaveTextContent("Reconstruction");
+    expect(within(shots[1]!).queryByTestId("shot-generated-by")).not.toBeInTheDocument();
   });
 
   it("renders the agent run timeline and the 10-agent roster", () => {
@@ -65,6 +94,36 @@ describe("ProductionDetailView", () => {
     expect(within(costs).getByRole("table", { name: "By scene" })).toHaveTextContent("Hook");
     expect(within(costs).getByRole("table", { name: "By agent" })).toHaveTextContent("A7 Visual Production Agent");
     expect(within(costs).getByRole("table", { name: "By provider" })).toHaveTextContent("mock-video");
+  });
+
+  it("renders ledger rows with a credits column", () => {
+    render(<ProductionDetailView detail={productionDetail} contentUrl={contentUrl} ledger={{ events: ledgerEvents }} />);
+    const ledger = screen.getByRole("region", { name: "Cost ledger" });
+    expect(within(ledger).getByRole("columnheader", { name: "Credits" })).toBeInTheDocument();
+    const rows = within(ledger).getAllByTestId("ledger-row");
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveTextContent("higgsfield/kling2_6");
+    expect(rows[0]).toHaveTextContent("$0.9375");
+    expect(within(rows[0]!).getByTestId("ledger-credits")).toHaveTextContent("15");
+    expect(rows[1]).toHaveTextContent("try 2");
+    expect(within(rows[1]!).getByTestId("ledger-credits")).toHaveTextContent("-");
+  });
+
+  it("shows ledger loading, empty and error states and hides the panel without data", () => {
+    const { rerender } = render(<ProductionDetailView detail={productionDetail} contentUrl={contentUrl} />);
+    expect(screen.queryByRole("region", { name: "Cost ledger" })).not.toBeInTheDocument();
+
+    rerender(<ProductionDetailView detail={productionDetail} contentUrl={contentUrl} ledger={{ events: [] }} />);
+    expect(screen.getByText("No ledger events yet")).toBeInTheDocument();
+
+    rerender(
+      <ProductionDetailView
+        detail={productionDetail}
+        contentUrl={contentUrl}
+        ledger={{ events: undefined, error: new Error("boom") }}
+      />,
+    );
+    expect(screen.getByRole("region", { name: "Cost ledger" })).toHaveTextContent("Could not load the ledger: boom");
   });
 
   it("renders artifacts: claims with sources and script lines", () => {

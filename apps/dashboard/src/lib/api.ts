@@ -16,6 +16,7 @@ import type {
   ProviderCatalogEntry,
   ProvidersOverview,
   ProviderTestResult,
+  RenderRequest,
   ReviewClaimsRequest,
   SetProviderKeyRequest,
   ThemeProfile,
@@ -201,6 +202,9 @@ export function createApiClient(options: ApiClientOptions = {}) {
     rewriteScript: (id: string) => request<ActionResponse>(`/productions/${enc(id)}/rewrite-script`, "POST"),
     cancelProduction: (id: string) => request<ActionResponse>(`/productions/${enc(id)}/cancel`, "POST"),
     deliverProduction: (id: string) => request<ActionResponse>(`/productions/${enc(id)}/deliver`, "POST"),
+    /** Renders a new master version from the current clips, stills and narration. Only valid in READY. */
+    renderProduction: (id: string, payload: RenderRequest = {}) =>
+      request<ActionResponse>(`/productions/${enc(id)}/render`, "POST", payload),
     getProductionCosts: (id: string) => request<CostSummary>(`/productions/${enc(id)}/costs`),
     getProductionLedger: (id: string) => request<LedgerEvent[]>(`/productions/${enc(id)}/ledger`),
     assetContentUrl: (assetId: string) => `${basePath}/assets/${enc(assetId)}/content`,

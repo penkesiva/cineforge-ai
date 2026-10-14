@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api, ApiError } from "@/lib/api";
 import { buildReviewDetail } from "@/test/fixtures";
 import { ProductionDetailContainer } from "../ProductionDetailContainer";
@@ -87,6 +87,10 @@ describe("ClaimsReview", () => {
 });
 
 describe("claim review actions", () => {
+  beforeEach(() => {
+    vi.spyOn(api, "getProductionLedger").mockResolvedValue([]);
+  });
+
   it("posts an approval for an uncited claim without asking", async () => {
     const user = userEvent.setup();
     vi.spyOn(api, "getProduction").mockResolvedValue(buildReviewDetail());

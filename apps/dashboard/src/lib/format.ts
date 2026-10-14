@@ -20,6 +20,15 @@ export function formatUsd(value: number | string | null | undefined): string {
   return usdFormatter.format(n);
 }
 
+const creditsFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 4 });
+
+/** Provider credits (decimal strings from the ledger): "15.000000" -> "15", "1234.5" -> "1,234.5", null -> "-". */
+export function formatCredits(value: number | string | null | undefined): string {
+  const n = toNumber(typeof value === "string" ? value.trim() : value);
+  if (n === null) return EMPTY;
+  return creditsFormatter.format(n);
+}
+
 /** Seconds -> "0.4s", "45s", "1m 16s", "1h 2m". */
 export function formatDuration(seconds: number | null | undefined): string {
   if (seconds === null || seconds === undefined || !Number.isFinite(seconds) || seconds < 0) return EMPTY;

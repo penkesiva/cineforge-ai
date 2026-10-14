@@ -16,7 +16,8 @@ import type { BusyAction, ProductionAction } from "./ProductionHeader";
 import { ProductionDetailView } from "./ProductionDetailView";
 
 export const DETAIL_POLL_MS = 2_000;
-export const CLAIM_REVIEWER = "operator";
+export const OPERATOR = "operator";
+export const CLAIM_REVIEWER = OPERATOR;
 
 type ConfirmAction = Exclude<ProductionAction, "run"> | "rewrite";
 
@@ -63,7 +64,13 @@ function BudgetInput({
 }
 
 export function ProductionDetailContainer({ id }: { id: string }) {
-  const { data, error, loading, reload, setData } = useResource(id, () => api.getProduction(id));
+  const { data, error, loading, reload: reloadDetail, setData } = useResource(id, () => api.getProduction(id));
+  const ledger = useResource(`ledger:${id}`, () => api.getProductionLedger(id));
+  const reloadLedger = ledger.reload;
+  const reload = useCallback(async () => {
+    const [detail] = await Promise.all([reloadDetail(), reloadLedger()]);
+    return detail;
+  }, [reloadDetail, reloadLedger]);
   const state = data?.summary.state;
   const polling = state !== undefined && isWorkingState(state);
   usePolling(reload, DETAIL_POLL_MS, polling);
@@ -81,6 +88,7 @@ export function ProductionDetailContainer({ id }: { id: string }) {
       setBusyAction(action);
       try {
         let message: string;
+        let jobId: string | null = null;
         if (action === "run") message = (await api.runProduction(id)).message;
         else if (action === "rewrite") message = (await api.rewriteScript(id)).message;
         else if (action === "approve") {
@@ -88,11 +96,22 @@ export function ProductionDetailContainer({ id }: { id: string }) {
             data.summary.state === "PAUSED_BUDGET" && raiseTo.trim() ? { raise_budget_to_usd: Number(raiseTo) } : {};
           message = (await api.approveProduction(id, payload)).message;
         } else if (action === "cancel") message = (await api.cancelProduction(id)).message;
-        else message = (await api.deliverProduction(id)).message;
+        else if (action === "rerender") {
+          const result = await api.renderProduction(id, { requested_by: OPERATOR });
+          message = result.message;
+          jobId = result.job_id ?? null;
+        } else message = (await api.deliverProduction(id)).message;
 
         setConfirming(null);
         await reload();
-        if (action === "cancel") {
+        if (action === "rerender") {
+          setNotice({
+            variant: "success",
+            title: "Re-render started",
+            message,
+            note: jobId ? `Job ${jobId}` : undefined,
+          });
+        } else if (action === "cancel") {
           setNotice({ variant: "success", title: "Production cancelled", message });
         } else if (action === "deliver") {
           setNotice({ variant: "success", title: "Production delivered", message });
@@ -114,7 +133,12 @@ export function ProductionDetailContainer({ id }: { id: string }) {
             /claim/i.test(err.message));
         setNotice({
           variant: "error",
-          title: action === "rewrite" ? "Could not rewrite script" : `Could not ${action} production`,
+          title:
+            action === "rewrite"
+              ? "Could not rewrite script"
+              : action === "rerender"
+                ? "Could not re-render production"
+                : `Could not ${action} production`,
           message: errorMessage(err),
           note: isApiError(err) && err.status ? `HTTP ${err.status}${err.body ? ` · ${err.body.error}` : ""}` : undefined,
           offerRewrite: blockedByClaims,
@@ -207,6 +231,7 @@ export function ProductionDetailContainer({ id }: { id: string }) {
         detail={data}
         contentUrl={api.assetContentUrl}
         polling={polling}
+        ledger={{ events: ledger.data, error: ledger.error, loading: ledger.loading }}
         onAction={onAction}
         busyAction={busyAction}
         review={{
@@ -271,6 +296,23 @@ export function ProductionDetailContainer({ id }: { id: string }) {
         confirmLabel="Deliver"
         busy={busyAction === "deliver"}
         onConfirm={() => void execute("deliver")}
+        onCancel={() => setConfirming(null)}
+      />
+
+      <AppConfirmDialog
+        open={confirming === "rerender"}
+        variant="default"
+        title="Render a new master version?"
+        message="The editor assembles a new master from the current clips, stills and narration. Nothing is regenerated and no paid provider calls are made."
+        noteLabel="Current master"
+        note={
+          data.artifacts.master
+            ? `${data.artifacts.master.width}×${data.artifacts.master.height}, ${Math.round(data.artifacts.master.duration_sec)}s ${data.artifacts.master.codec}`
+            : "No master render yet"
+        }
+        confirmLabel="Re-render"
+        busy={busyAction === "rerender"}
+        onConfirm={() => void execute("rerender")}
         onCancel={() => setConfirming(null)}
       />
 

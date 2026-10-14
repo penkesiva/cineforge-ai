@@ -1,8 +1,10 @@
 import type {
   AgentId,
   AgentRun,
+  AssetRecord,
   ClaimReview,
   CostSummary,
+  LedgerEvent,
   ProductionArtifacts,
   ProductionDetail,
   ProductionEvent,
@@ -214,6 +216,78 @@ export function buildDetail(
 }
 
 export const productionDetail: ProductionDetail = buildDetail();
+
+function ledgerEvent(overrides: Partial<LedgerEvent> & Pick<LedgerEvent, "provider" | "model">): LedgerEvent {
+  return {
+    event_id: `led_${overrides.provider}_${overrides.attempt ?? 1}`,
+    tenant_id: TENANT_ID,
+    production_id: PRODUCTION_ID,
+    agent_id: "a7_visual_production",
+    capability: "video_generation",
+    usage_units: "5",
+    usage_unit: "video_second",
+    unit_price_version: "mock-2026-10",
+    estimated_cost: 0.5,
+    reserved_cost: 0.5,
+    actual_cost: 0.5,
+    status: "committed",
+    attempt: 1,
+    cache_hit: false,
+    credits_used: null,
+    idempotency_key: `${PRODUCTION_ID}:${overrides.provider}:${overrides.attempt ?? 1}`,
+    timestamp: at(9),
+    ...overrides,
+  };
+}
+
+/** One external Higgsfield clip that spent credits and one mock clip without credits. */
+export const ledgerEvents: LedgerEvent[] = [
+  ledgerEvent({ provider: "higgsfield", model: "kling2_6", credits_used: "15.000000", actual_cost: 0.9375 }),
+  ledgerEvent({ provider: "mock-video", model: "mock-video-draft", attempt: 2, actual_cost: 0.05 }),
+];
+
+/** A generated video clip with the provenance the external-generation flow records. */
+export function generatedAsset(id: string, generation: Record<string, unknown> | null): AssetRecord {
+  return {
+    id,
+    tenant_id: TENANT_ID,
+    production_id: PRODUCTION_ID,
+    kind: "video",
+    origin: "generated",
+    storage_backend: "local",
+    storage_key: `tenants/${TENANT_ID}/productions/${PRODUCTION_ID}/clips/${id}.mp4`,
+    uri: `local://${id}.mp4`,
+    content_type: "video/mp4",
+    size_bytes: 1024,
+    sha256: "0".repeat(64),
+    rights: { status: "approved" },
+    generation,
+    metadata: {},
+  };
+}
+
+/**
+ * Detail where scene 1 shot 1 is a real Higgsfield clip (AI-generated, no label text)
+ * and scene 1 shot 2 is a mock clip whose disclosure reads "Reconstruction".
+ */
+export function buildGeneratedDetail(state: ProductionState = "READY"): ProductionDetail {
+  const detail = buildDetail(state, {
+    assets: [
+      generatedAsset("ast_higgs", { provider: "higgsfield", model: "kling2_6", job_id: "hf_job_1", via: "external" }),
+      generatedAsset("ast_mock", { provider: "mock-video", model: "mock-video-draft" }),
+    ],
+  });
+  const [first, second] = detail.manifest.scenes?.[0]?.shots ?? [];
+  if (first) {
+    first.disclosure = { synthetic_media: true, reconstruction: false, label_text: null };
+    first.assets = [
+      { asset_id: "cand_still", role: "source" },
+      { asset_id: "ast_higgs", role: "generated" },
+    ];
+  }
+  if (second) second.assets = [{ asset_id: "ast_mock", role: "generated" }];
+  return detail;
+}
 
 /** Approval-gate detail with claims, licensed media bound to shots and a cost plan. */
 export function buildReviewDetail(

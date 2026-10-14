@@ -462,6 +462,7 @@ createServer(async (req, res) => {
     }
     if (sub === "POST cancel") return action(res, p, [...HAPPY, "PAUSED_BUDGET", "NEEDS_REVIEW"].filter((s) => !TERMINAL.has(s)), "CANCELLED", "Cancel");
     if (sub === "POST deliver") return action(res, p, ["READY"], "DELIVERED", "Deliver");
+    if (sub === "POST render") return action(res, p, ["READY"], "ASSEMBLING", "Re-render");
   }
   if (path.startsWith("/api/v1/assets/")) return fail(res, 404, "asset_not_found", "The mock API serves no media");
   fail(res, 404, "not_found", `${route} is not mocked`);
