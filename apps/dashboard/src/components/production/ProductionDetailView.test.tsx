@@ -69,7 +69,7 @@ describe("ProductionDetailView", () => {
 
   it("renders artifacts: claims with sources and script lines", () => {
     render(<ProductionDetailView detail={productionDetail} contentUrl={contentUrl} />);
-    expect(screen.getAllByTestId("research-claim")).toHaveLength(2);
+    expect(screen.getAllByTestId("claim-row")).toHaveLength(2);
     const link = screen.getByRole("link", { name: /Eiffel Tower history/ });
     expect(link).toHaveAttribute("href", "https://example.org/eiffel-1889");
     expect(link).toHaveAttribute("rel", "noopener noreferrer");

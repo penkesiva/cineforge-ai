@@ -5,10 +5,12 @@ import { IconCheck, IconPlay, IconSend, IconStop } from "../icons";
 import { Badge, Button, SimulatedBadge, Spinner, StateBadge } from "../ui";
 
 export type ProductionAction = "run" | "approve" | "cancel" | "deliver";
+/** Header actions plus review-only actions that should also lock the header. */
+export type BusyAction = ProductionAction | "rewrite";
 
 export interface ProductionActionHandlers {
   onAction?: (action: ProductionAction) => void;
-  busyAction?: ProductionAction | null;
+  busyAction?: BusyAction | null;
 }
 
 export function ProductionHeader({
