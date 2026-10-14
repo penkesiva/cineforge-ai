@@ -5,6 +5,10 @@
 #
 # Works with no .env file. Host-oriented values in .env (DATABASE_URL, REDIS_URL,
 # STORAGE_LOCAL_ROOT with 127.0.0.1 / ./var paths) are overridden below for containers.
+#
+# Without a .env the stack is offline and free: PROVIDER_MODE=mock, ALLOW_PAID_PROVIDERS=false.
+# Every published port binds to 127.0.0.1 only: there is no login yet, so never expose
+# the stack on the LAN or the internet.
 
 name: cineforge
 
@@ -26,8 +30,17 @@ x-python-service: &python-service
     STORAGE_LOCAL_ROOT: /data/media
     CONFIGURATIONS_DIR: /app/packages/configurations
     PROMPTS_DIR: /app/packages/prompts
-    PROVIDER_MODE: mock
-    ALLOW_PAID_PROVIDERS: "false"
+    # Provider safety layers (docs/development/providers.md). A paid call needs live mode
+    # + paid allowed + provider enabled on the Sources page + key + budget.
+    PROVIDER_MODE: ${PROVIDER_MODE:-mock}
+    ALLOW_PAID_PROVIDERS: ${ALLOW_PAID_PROVIDERS:-false}
+    PRICE_CATALOG_VERSION: ${PRICE_CATALOG_VERSION:-mock-2026-10,open-sources-2026-10,anthropic-2026-10}
+    # Keys entered on the Sources page live in Supabase Vault (shared by api + workers).
+    SECRETS_BACKEND: vault
+    # Optional: an env key wins over a Vault key. Empty = use the Sources page.
+    ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-4-5}
+    HTTP_USER_AGENT: "${HTTP_USER_AGENT:-CineForgeAI/0.2 (https://github.com/penkesiva/cineforge-ai)}"
     MOCK_STEP_DELAY_SEC: ${MOCK_STEP_DELAY_SEC:-1.0}
     # Simulated transient media-provider failures (exercises bounded retries).
     # 0.05 with 3 attempts per shot => roughly 1 in 700 demo productions ends FAILED.
@@ -51,7 +64,7 @@ services:
     image: redis:7-alpine
     command: ["redis-server", "--appendonly", "yes"]
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     volumes:
       - redis-data:/data
     healthcheck:
@@ -80,7 +93,7 @@ services:
       - --reload-dir
       - /app/packages/engine/src
     ports:
-      - "${API_PORT:-8000}:8000"
+      - "127.0.0.1:${API_PORT:-8000}:8000"
     healthcheck:
       test:
         - CMD
@@ -134,7 +147,7 @@ services:
       PORT: "3000"
       HOSTNAME: 0.0.0.0
     ports:
-      - "${DASHBOARD_PORT:-3000}:3000"
+      - "127.0.0.1:${DASHBOARD_PORT:-3000}:3000"
     volumes:
       - ./apps/dashboard:/app/apps/dashboard
       - ./packages/schemas:/app/packages/schemas
