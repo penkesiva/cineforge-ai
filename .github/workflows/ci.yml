@@ -18,7 +18,8 @@ jobs:
     timeout-minutes: 20
     services:
       postgres:
-        image: postgres:17
+        # Same image as the Supabase CLI local stack: migrations need supabase_vault.
+        image: public.ecr.aws/supabase/postgres:17.11.0.004
         env:
           POSTGRES_PASSWORD: postgres
         ports:
@@ -43,8 +44,10 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
       QUEUE_BACKEND: redis
       REDIS_URL: redis://localhost:6379/0
+      # Offline by design: mock providers only, paid off, live tests skipped. No secrets.
       PROVIDER_MODE: mock
       ALLOW_PAID_PROVIDERS: "false"
+      RUN_LIVE_TESTS: "0"
       PGHOST: localhost
       PGPORT: "5432"
       PGUSER: postgres
@@ -143,11 +146,19 @@ jobs:
       - name: Self-test the check
         run: bash scripts/tests/test_check_no_media.sh
 
+      - name: Self-test demo-live gating (fake curl, no network)
+        run: bash scripts/tests/test_demo_live.sh
+
   docker:
     name: Docker images
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: [python, dashboard]
+    env:
+      # Interpolated into compose.yaml: keep the containers offline and free.
+      PROVIDER_MODE: mock
+      ALLOW_PAID_PROVIDERS: "false"
+      ANTHROPIC_API_KEY: ""
     steps:
       - uses: actions/checkout@v4
 
@@ -163,5 +174,5 @@ jobs:
         run: |
           docker compose run --rm --no-deps api python -c "import cineforge, cineforge.contracts; print('ok')"
           docker compose run --rm --no-deps media-worker sh -c "ffmpeg -hide_banner -version | head -1 && ffprobe -hide_banner -version | head -1"
-          docker compose run --rm --no-deps -v ./supabase:/app/supabase:ro -v ./tests:/app/tests:ro \
-            media-worker pytest -q
+          docker compose run --rm --no-deps -e RUN_LIVE_TESTS=0 \
+            -v ./supabase:/app/supabase:ro -v ./tests:/app/tests:ro media-worker pytest -q
