@@ -90,7 +90,11 @@ _SUFFIX_TYPES = {
     ".jpeg": "image/jpeg",
     ".webp": "image/webp",
 }
-_EXT = {v: k for k, v in reversed(_SUFFIX_TYPES.items())}
+_EXT = {v: k for k, v in reversed(_SUFFIX_TYPES.items())} | {
+    "audio/x-wav": ".wav",
+    "audio/wave": ".wav",
+    "audio/mp3": ".mp3",
+}
 _UNSAFE = re.compile(r"[^A-Za-z0-9_.-]+")
 
 

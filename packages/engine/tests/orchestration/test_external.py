@@ -59,6 +59,9 @@ def _handler(request: httpx.Request) -> httpx.Response:
             200, json={"query": {"pages": [{"imageinfo": [{"thumburl": FULL_URL}]}]}}
         )
     if host == "d8j0ntlcm91z4.cloudfront.net":
+        if request.url.path.endswith(".wav"):
+            wav = b"RIFF" + b"0" * 32
+            return httpx.Response(200, content=wav, headers={"content-type": "audio/x-wav"})
         if request.url.path.endswith(".mp3"):
             mp3 = b"ID3" + b"0" * 32
             return httpx.Response(200, content=mp3, headers={"content-type": "audio/mpeg"})
@@ -295,6 +298,30 @@ def test_narration_binds_audio_without_label(rt: Runtime) -> None:
     first = min(_fresh(rt, m).scenes[1].shots, key=lambda s: s.order)
     assert first.assets[-1].role == AssetRole.AUDIO and first.assets[-1].asset_id == asset.id
     assert not first.disclosure.synthetic_media
+
+    other = m.scenes[2]
+    event = external.reserve_external(
+        rt,
+        m,
+        ExternalGenerationRequest(
+            scene_id=other.id,
+            provider="higgsfield",
+            model="seed_audio",
+            capability=ProviderCapability.VOICE_TTS,
+            quoted_credits=Decimal("0.7"),
+        ),
+    )
+    _, wav = external.complete_external(
+        rt,
+        m,
+        event.event_id,
+        _done(result_url=MP3.replace(".mp3", ".wav"), provider_request_id="hf_v2",
+              credits_used=Decimal("0.7"), source_candidate_id=None),
+        client=_client(),
+        resolver=PUBLIC,
+    )  # fmt: skip
+    assert wav.storage_key.endswith("/audio/higgsfield_hf_v2.wav")
+    assert wav.content_type == "audio/x-wav"
 
 
 def test_release_marks_failed_attempt(rt: Runtime) -> None:
