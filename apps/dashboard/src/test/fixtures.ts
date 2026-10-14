@@ -4,6 +4,7 @@ import type {
   AssetRecord,
   ClaimReview,
   CostSummary,
+  LedgerEvent,
   ProductionArtifacts,
   ProductionDetail,
   ProductionEvent,
@@ -215,6 +216,35 @@ export function buildDetail(
 }
 
 export const productionDetail: ProductionDetail = buildDetail();
+
+function ledgerEvent(overrides: Partial<LedgerEvent> & Pick<LedgerEvent, "provider" | "model">): LedgerEvent {
+  return {
+    event_id: `led_${overrides.provider}_${overrides.attempt ?? 1}`,
+    tenant_id: TENANT_ID,
+    production_id: PRODUCTION_ID,
+    agent_id: "a7_visual_production",
+    capability: "video_generation",
+    usage_units: "5",
+    usage_unit: "video_second",
+    unit_price_version: "mock-2026-10",
+    estimated_cost: 0.5,
+    reserved_cost: 0.5,
+    actual_cost: 0.5,
+    status: "committed",
+    attempt: 1,
+    cache_hit: false,
+    credits_used: null,
+    idempotency_key: `${PRODUCTION_ID}:${overrides.provider}:${overrides.attempt ?? 1}`,
+    timestamp: at(9),
+    ...overrides,
+  };
+}
+
+/** One external Higgsfield clip that spent credits and one mock clip without credits. */
+export const ledgerEvents: LedgerEvent[] = [
+  ledgerEvent({ provider: "higgsfield", model: "kling2_6", credits_used: "15.000000", actual_cost: 0.9375 }),
+  ledgerEvent({ provider: "mock-video", model: "mock-video-draft", attempt: 2, actual_cost: 0.05 }),
+];
 
 /** A generated video clip with the provenance the external-generation flow records. */
 export function generatedAsset(id: string, generation: Record<string, unknown> | null): AssetRecord {

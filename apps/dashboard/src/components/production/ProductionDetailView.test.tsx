@@ -1,7 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { buildDetail, buildGeneratedDetail, productionDetail } from "@/test/fixtures";
+import { buildDetail, buildGeneratedDetail, ledgerEvents, productionDetail } from "@/test/fixtures";
 import { ProductionDetailView } from "./ProductionDetailView";
 import { StoryboardPanel } from "./review/StoryboardPanel";
 
@@ -94,6 +94,36 @@ describe("ProductionDetailView", () => {
     expect(within(costs).getByRole("table", { name: "By scene" })).toHaveTextContent("Hook");
     expect(within(costs).getByRole("table", { name: "By agent" })).toHaveTextContent("A7 Visual Production Agent");
     expect(within(costs).getByRole("table", { name: "By provider" })).toHaveTextContent("mock-video");
+  });
+
+  it("renders ledger rows with a credits column", () => {
+    render(<ProductionDetailView detail={productionDetail} contentUrl={contentUrl} ledger={{ events: ledgerEvents }} />);
+    const ledger = screen.getByRole("region", { name: "Cost ledger" });
+    expect(within(ledger).getByRole("columnheader", { name: "Credits" })).toBeInTheDocument();
+    const rows = within(ledger).getAllByTestId("ledger-row");
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveTextContent("higgsfield/kling2_6");
+    expect(rows[0]).toHaveTextContent("$0.9375");
+    expect(within(rows[0]!).getByTestId("ledger-credits")).toHaveTextContent("15");
+    expect(rows[1]).toHaveTextContent("try 2");
+    expect(within(rows[1]!).getByTestId("ledger-credits")).toHaveTextContent("-");
+  });
+
+  it("shows ledger loading, empty and error states and hides the panel without data", () => {
+    const { rerender } = render(<ProductionDetailView detail={productionDetail} contentUrl={contentUrl} />);
+    expect(screen.queryByRole("region", { name: "Cost ledger" })).not.toBeInTheDocument();
+
+    rerender(<ProductionDetailView detail={productionDetail} contentUrl={contentUrl} ledger={{ events: [] }} />);
+    expect(screen.getByText("No ledger events yet")).toBeInTheDocument();
+
+    rerender(
+      <ProductionDetailView
+        detail={productionDetail}
+        contentUrl={contentUrl}
+        ledger={{ events: undefined, error: new Error("boom") }}
+      />,
+    );
+    expect(screen.getByRole("region", { name: "Cost ledger" })).toHaveTextContent("Could not load the ledger: boom");
   });
 
   it("renders artifacts: claims with sources and script lines", () => {

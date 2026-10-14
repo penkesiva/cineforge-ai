@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api, ApiError } from "@/lib/api";
 import { usePolling } from "@/lib/hooks";
-import { buildDetail } from "@/test/fixtures";
+import { buildDetail, ledgerEvents } from "@/test/fixtures";
 import { DETAIL_POLL_MS, ProductionDetailContainer } from "./ProductionDetailContainer";
 
 vi.mock("next/link", () => ({
@@ -20,6 +20,7 @@ async function flush(ms = 0) {
 describe("production detail polling", () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    vi.spyOn(api, "getProductionLedger").mockResolvedValue([]);
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -48,6 +49,7 @@ describe("production detail polling", () => {
 
     await flush(DETAIL_POLL_MS * 10);
     expect(getProduction).toHaveBeenCalledTimes(3);
+    expect(api.getProductionLedger).toHaveBeenCalledTimes(3);
   });
 
   it.each(["DRAFT", "READY", "DELIVERED", "PAUSED_BUDGET", "FAILED"] as const)(
@@ -71,6 +73,9 @@ describe("production detail polling", () => {
 });
 
 describe("re-render", () => {
+  beforeEach(() => {
+    vi.spyOn(api, "getProductionLedger").mockResolvedValue(ledgerEvents);
+  });
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -115,6 +120,8 @@ describe("re-render", () => {
     expect(notice).toHaveTextContent("Re-render queued.");
     expect(notice).toHaveTextContent("Job job_render_1");
     expect(get).toHaveBeenCalledTimes(2);
+    expect(api.getProductionLedger).toHaveBeenCalledTimes(2);
+    expect(screen.getAllByTestId("ledger-credits")[0]).toHaveTextContent("15");
     await waitFor(() => expect(screen.getAllByTestId("state-badge")[0]).toHaveTextContent("Assembling"));
   });
 

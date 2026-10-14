@@ -64,7 +64,13 @@ function BudgetInput({
 }
 
 export function ProductionDetailContainer({ id }: { id: string }) {
-  const { data, error, loading, reload, setData } = useResource(id, () => api.getProduction(id));
+  const { data, error, loading, reload: reloadDetail, setData } = useResource(id, () => api.getProduction(id));
+  const ledger = useResource(`ledger:${id}`, () => api.getProductionLedger(id));
+  const reloadLedger = ledger.reload;
+  const reload = useCallback(async () => {
+    const [detail] = await Promise.all([reloadDetail(), reloadLedger()]);
+    return detail;
+  }, [reloadDetail, reloadLedger]);
   const state = data?.summary.state;
   const polling = state !== undefined && isWorkingState(state);
   usePolling(reload, DETAIL_POLL_MS, polling);
@@ -225,6 +231,7 @@ export function ProductionDetailContainer({ id }: { id: string }) {
         detail={data}
         contentUrl={api.assetContentUrl}
         polling={polling}
+        ledger={{ events: ledger.data, error: ledger.error, loading: ledger.loading }}
         onAction={onAction}
         busyAction={busyAction}
         review={{

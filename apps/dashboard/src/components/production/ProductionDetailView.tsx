@@ -6,6 +6,7 @@ import { AgentsPanel } from "./AgentsPanel";
 import { ArtifactsPanel } from "./ArtifactsPanel";
 import { CostPanel } from "./CostPanel";
 import { EventsLog } from "./EventsLog";
+import { LedgerPanel, type LedgerPanelProps } from "./LedgerPanel";
 import { MasterRenderPanel } from "./MasterRenderPanel";
 import { ProductionHeader, type ProductionActionHandlers } from "./ProductionHeader";
 import { ClaimsReview, type ClaimsReviewHandlers } from "./review/ClaimsReview";
@@ -19,9 +20,19 @@ export interface ProductionDetailViewProps extends ProductionActionHandlers {
   contentUrl: (assetId: string) => string;
   polling?: boolean;
   review?: ClaimsReviewHandlers;
+  /** Ledger rows loaded separately from the detail; the panel is hidden when omitted. */
+  ledger?: LedgerPanelProps;
 }
 
-export function ProductionDetailView({ detail, contentUrl, polling, onAction, busyAction, review }: ProductionDetailViewProps) {
+export function ProductionDetailView({
+  detail,
+  contentUrl,
+  polling,
+  onAction,
+  busyAction,
+  review,
+  ledger,
+}: ProductionDetailViewProps) {
   const { summary, manifest, artifacts } = detail;
   const inReview = isReviewState(summary.state);
   const scenes = manifest.scenes ?? [];
@@ -58,6 +69,7 @@ export function ProductionDetailView({ detail, contentUrl, polling, onAction, bu
           <ScenesPanel scenes={scenes} assets={detail.assets} />
           {inReview ? master : preproduction}
           <AgentsPanel runs={detail.agent_runs} />
+          {ledger && <LedgerPanel {...ledger} />}
           <ArtifactsPanel artifacts={artifacts} manifestFindings={manifest.review_findings} />
         </div>
         <div className="space-y-6">
