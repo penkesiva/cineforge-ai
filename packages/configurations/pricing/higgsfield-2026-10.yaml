@@ -1,0 +1,12 @@
+# Higgsfield plan credits (MCP / CLI, billed against the subscription balance).
+# unit_price is USD per credit, derived from the Ultra plan ($129 / 3,000 credits,
+# monthly billing). VERIFY against your plan before spending; add a NEW versioned file
+# if it changes, never edit this one after use. Quantities are the provider's credit
+# quote per call (generate_* with get_cost), so usage_units == credits.
+version: higgsfield-2026-10
+currency: USD
+effective_from: 2026-10-01
+simulated: false
+entries:
+  - {provider: higgsfield, model: kling2_6, capability: image_to_video, unit: credit, unit_price: 0.043, credits_per_unit: 1, notes: "Kling 2.6 start-image video; 5 credits per 5 s clip (quote 2026-10-14)"}
+  - {provider: higgsfield, model: seed_audio, capability: voice_tts, unit: credit, unit_price: 0.043, credits_per_unit: 1, notes: "Seed Audio 1.0 TTS; about 0.6 credits per line (quote 2026-10-14)"}

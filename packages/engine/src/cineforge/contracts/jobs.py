@@ -17,10 +17,14 @@ QUEUE_MEDIA = "cineforge-media"
 #   media worker) or a terminal/exception state is reached.
 JOB_ADVANCE_PRODUCTION = "cineforge.orchestration.jobs.advance_production"
 
-# render_master(production_id: str, tenant_id: str, idempotency_key: str) -> None
-#   Media worker: deterministic FFmpeg render of the timeline (Phase 0: slate),
-#   ffprobe validation, store via StorageBackend, register AssetRecord, set
+# render_master(production_id: str, tenant_id: str, idempotency_key: str,
+#               force: bool = False, requested_by: str = "system") -> None
+#   Media worker: deterministic FFmpeg edit of the timeline (generated clips, Ken Burns
+#   stills or slates, narration, captions, AI labels, attribution card), ffprobe
+#   validation, store via StorageBackend, register AssetRecord, set
 #   manifest.master_render_asset_id, then enqueue JOB_ADVANCE_PRODUCTION.
+#   force=True re-renders a READY production as master_v{n+1} (no state change, no
+#   advance hand-off); the idempotency key must then be unique per request.
 JOB_RENDER_MASTER = "cineforge.media.jobs.render_master"
 
 

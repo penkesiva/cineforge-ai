@@ -73,6 +73,12 @@
     "ProviderTestResult": {
       "$ref": "#/$defs/ProviderTestResult"
     },
+    "GenerationPack": {
+      "$ref": "#/$defs/GenerationPack"
+    },
+    "ExternalGenerationResponse": {
+      "$ref": "#/$defs/ExternalGenerationResponse"
+    },
     "ProductionEvent": {
       "$ref": "#/$defs/ProductionEvent"
     },
@@ -93,6 +99,18 @@
     },
     "CreateThemeVersionRequest": {
       "$ref": "#/$defs/CreateThemeVersionRequest"
+    },
+    "ExternalGenerationRequest": {
+      "$ref": "#/$defs/ExternalGenerationRequest"
+    },
+    "ExternalGenerationComplete": {
+      "$ref": "#/$defs/ExternalGenerationComplete"
+    },
+    "ExternalGenerationRelease": {
+      "$ref": "#/$defs/ExternalGenerationRelease"
+    },
+    "RenderRequest": {
+      "$ref": "#/$defs/RenderRequest"
     }
   },
   "$defs": {
@@ -1980,6 +1998,223 @@
       "title": "ErrorResponse",
       "type": "object"
     },
+    "ExternalGenerationComplete": {
+      "additionalProperties": false,
+      "properties": {
+        "result_url": {
+          "description": "https URL of the finished output on the provider CDN",
+          "title": "Result Url",
+          "type": "string"
+        },
+        "provider_request_id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Provider Request Id",
+          "type": "string"
+        },
+        "credits_used": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "title": "Credits Used"
+        },
+        "prompt": {
+          "anyOf": [
+            {
+              "maxLength": 4000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prompt"
+        },
+        "source_candidate_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A3 candidate the output was derived from (start image)",
+          "title": "Source Candidate Id"
+        },
+        "parameters": {
+          "additionalProperties": true,
+          "title": "Parameters",
+          "type": "object"
+        }
+      },
+      "required": [
+        "result_url",
+        "provider_request_id",
+        "credits_used"
+      ],
+      "title": "ExternalGenerationComplete",
+      "type": "object"
+    },
+    "ExternalGenerationRelease": {
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "failed": {
+          "default": true,
+          "title": "Failed",
+          "type": "boolean"
+        },
+        "credits_used": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "default": "0",
+          "title": "Credits Used"
+        }
+      },
+      "required": [
+        "reason"
+      ],
+      "title": "ExternalGenerationRelease",
+      "type": "object"
+    },
+    "ExternalGenerationRequest": {
+      "additionalProperties": false,
+      "description": "Reserve budget before a human-approved generation runs outside the engine.",
+      "properties": {
+        "scene_id": {
+          "title": "Scene Id",
+          "type": "string"
+        },
+        "shot_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "None for scene-level audio",
+          "title": "Shot Id"
+        },
+        "provider": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Provider",
+          "type": "string"
+        },
+        "model": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "capability": {
+          "$ref": "#/$defs/ProviderCapability"
+        },
+        "quoted_credits": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "description": "Provider quote for this one call",
+          "title": "Quoted Credits"
+        },
+        "credit_cap": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Max credits this provider may use in this production, incl. this call",
+          "title": "Credit Cap"
+        },
+        "attempt": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Attempt",
+          "type": "integer"
+        },
+        "requested_by": {
+          "default": "operator",
+          "title": "Requested By",
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene_id",
+        "provider",
+        "model",
+        "capability",
+        "quoted_credits"
+      ],
+      "title": "ExternalGenerationRequest",
+      "type": "object"
+    },
+    "ExternalGenerationResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "production_id": {
+          "title": "Production Id",
+          "type": "string"
+        },
+        "ledger_event": {
+          "$ref": "#/$defs/LedgerEvent"
+        },
+        "asset": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AssetRecord"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "production_id",
+        "ledger_event"
+      ],
+      "title": "ExternalGenerationResponse",
+      "type": "object"
+    },
     "FactClaim": {
       "additionalProperties": false,
       "properties": {
@@ -2021,6 +2256,244 @@
         "confidence"
       ],
       "title": "FactClaim",
+      "type": "object"
+    },
+    "GenerationPack": {
+      "additionalProperties": false,
+      "properties": {
+        "production_id": {
+          "title": "Production Id",
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/ProductionState"
+        },
+        "width": {
+          "title": "Width",
+          "type": "integer"
+        },
+        "height": {
+          "title": "Height",
+          "type": "integer"
+        },
+        "aspect_ratio": {
+          "description": "e.g. '9:16'",
+          "title": "Aspect Ratio",
+          "type": "string"
+        },
+        "scenes": {
+          "items": {
+            "$ref": "#/$defs/GenerationPackScene"
+          },
+          "title": "Scenes",
+          "type": "array"
+        },
+        "shots": {
+          "items": {
+            "$ref": "#/$defs/GenerationPackShot"
+          },
+          "title": "Shots",
+          "type": "array"
+        }
+      },
+      "required": [
+        "production_id",
+        "state",
+        "width",
+        "height",
+        "aspect_ratio",
+        "scenes",
+        "shots"
+      ],
+      "title": "GenerationPack",
+      "type": "object"
+    },
+    "GenerationPackScene": {
+      "additionalProperties": false,
+      "properties": {
+        "scene_id": {
+          "title": "Scene Id",
+          "type": "string"
+        },
+        "order": {
+          "minimum": 1,
+          "title": "Order",
+          "type": "integer"
+        },
+        "duration_sec": {
+          "exclusiveMinimum": 0,
+          "title": "Duration Sec",
+          "type": "number"
+        },
+        "narration": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Narration"
+        },
+        "narration_asset_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Real narration audio already attached to the scene",
+          "title": "Narration Asset Id"
+        }
+      },
+      "required": [
+        "scene_id",
+        "order",
+        "duration_sec"
+      ],
+      "title": "GenerationPackScene",
+      "type": "object"
+    },
+    "GenerationPackShot": {
+      "additionalProperties": false,
+      "properties": {
+        "scene_id": {
+          "title": "Scene Id",
+          "type": "string"
+        },
+        "scene_order": {
+          "minimum": 1,
+          "title": "Scene Order",
+          "type": "integer"
+        },
+        "shot_id": {
+          "title": "Shot Id",
+          "type": "string"
+        },
+        "shot_order": {
+          "minimum": 1,
+          "title": "Shot Order",
+          "type": "integer"
+        },
+        "duration_sec": {
+          "exclusiveMinimum": 0,
+          "title": "Duration Sec",
+          "type": "number"
+        },
+        "prompt": {
+          "title": "Prompt",
+          "type": "string"
+        },
+        "camera_motion": {
+          "title": "Camera Motion",
+          "type": "string"
+        },
+        "still": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GenerationPackStill"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Rights-approved still to animate; None if there is none"
+        },
+        "score": {
+          "default": 0,
+          "description": "Still ranking score from A3",
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Score",
+          "type": "number"
+        },
+        "generated_asset_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Real generated clip already attached to the shot",
+          "title": "Generated Asset Id"
+        }
+      },
+      "required": [
+        "scene_id",
+        "scene_order",
+        "shot_id",
+        "shot_order",
+        "duration_sec",
+        "prompt",
+        "camera_motion"
+      ],
+      "title": "GenerationPackShot",
+      "type": "object"
+    },
+    "GenerationPackStill": {
+      "additionalProperties": false,
+      "properties": {
+        "candidate_id": {
+          "title": "Candidate Id",
+          "type": "string"
+        },
+        "provider": {
+          "title": "Provider",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "image_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Full-resolution https URL a generator can import",
+          "title": "Image Url"
+        },
+        "source_url": {
+          "title": "Source Url",
+          "type": "string"
+        },
+        "license": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LicenseInfo"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "rights_status": {
+          "$ref": "#/$defs/RightsStatus"
+        }
+      },
+      "required": [
+        "candidate_id",
+        "provider",
+        "title",
+        "source_url",
+        "rights_status"
+      ],
+      "title": "GenerationPackStill",
       "type": "object"
     },
     "GenerationStrategy": {
@@ -4062,6 +4535,31 @@
         "groups"
       ],
       "title": "ProvidersOverview",
+      "type": "object"
+    },
+    "RenderRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "requested_by": {
+          "default": "operator",
+          "title": "Requested By",
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        }
+      },
+      "title": "RenderRequest",
       "type": "object"
     },
     "ResearchBrief": {

@@ -50,6 +50,8 @@ RESPONSE_MODELS: list[type[BaseModel]] = [
     providers.ProviderCatalogEntry,
     api.ProvidersOverview,
     api.ProviderTestResult,
+    api.GenerationPack,
+    api.ExternalGenerationResponse,
     wf.ProductionEvent,
 ]
 
@@ -61,6 +63,10 @@ REQUEST_MODELS: list[type[BaseModel]] = [
     api.UpdateProviderRequest,
     api.SetProviderKeyRequest,
     api.CreateThemeVersionRequest,
+    api.ExternalGenerationRequest,
+    api.ExternalGenerationComplete,
+    api.ExternalGenerationRelease,
+    api.RenderRequest,
 ]
 
 

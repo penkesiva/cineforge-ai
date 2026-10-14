@@ -7,6 +7,7 @@ from these models into packages/schemas (``make contracts``).
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 from enum import StrEnum
 from typing import Any, Literal
 
@@ -23,9 +24,9 @@ from cineforge.contracts.agents import (
     Script,
 )
 from cineforge.contracts.common import ContractModel, Money, ProductionMode
-from cineforge.contracts.cost import CostSummary
+from cineforge.contracts.cost import CostSummary, LedgerEvent
 from cineforge.contracts.manifest import ProductionManifest
-from cineforge.contracts.media import AssetRecord
+from cineforge.contracts.media import AssetRecord, LicenseInfo, RightsStatus
 from cineforge.contracts.providers import ProviderCapability, ProviderCatalogEntry
 from cineforge.contracts.review import ReviewReport
 from cineforge.contracts.theme import ThemeProfile
@@ -188,3 +189,101 @@ class ProviderTestResult(ContractModel):
 class CreateThemeVersionRequest(ContractModel):
     base_version: int = Field(ge=1, description="Must be the current latest version")
     profile: ThemeProfile = Field(description="id/version are overwritten by the server")
+
+
+# --------------------------------------------------------------------------- #
+# External generations (media made outside the engine, e.g. Higgsfield via MCP)
+# --------------------------------------------------------------------------- #
+class GenerationPackStill(ContractModel):
+    candidate_id: str
+    provider: str
+    title: str
+    image_url: str | None = Field(
+        default=None, description="Full-resolution https URL a generator can import"
+    )
+    source_url: str
+    license: LicenseInfo | None = None
+    rights_status: RightsStatus
+
+
+class GenerationPackShot(ContractModel):
+    scene_id: str
+    scene_order: int = Field(ge=1)
+    shot_id: str
+    shot_order: int = Field(ge=1)
+    duration_sec: float = Field(gt=0)
+    prompt: str
+    camera_motion: str
+    still: GenerationPackStill | None = Field(
+        default=None, description="Rights-approved still to animate; None if there is none"
+    )
+    score: float = Field(default=0, ge=0, le=1, description="Still ranking score from A3")
+    generated_asset_id: str | None = Field(
+        default=None, description="Real generated clip already attached to the shot"
+    )
+
+
+class GenerationPackScene(ContractModel):
+    scene_id: str
+    order: int = Field(ge=1)
+    duration_sec: float = Field(gt=0)
+    narration: str | None = None
+    narration_asset_id: str | None = Field(
+        default=None, description="Real narration audio already attached to the scene"
+    )
+
+
+class GenerationPack(ContractModel):
+    production_id: str
+    state: ProductionState
+    width: int
+    height: int
+    aspect_ratio: str = Field(description="e.g. '9:16'")
+    scenes: list[GenerationPackScene]
+    shots: list[GenerationPackShot]
+
+
+class ExternalGenerationRequest(ContractModel):
+    """Reserve budget before a human-approved generation runs outside the engine."""
+
+    scene_id: str
+    shot_id: str | None = Field(default=None, description="None for scene-level audio")
+    provider: str = Field(min_length=1, max_length=100)
+    model: str = Field(min_length=1, max_length=200)
+    capability: ProviderCapability
+    quoted_credits: Decimal = Field(gt=0, description="Provider quote for this one call")
+    credit_cap: Decimal | None = Field(
+        default=None,
+        gt=0,
+        description="Max credits this provider may use in this production, incl. this call",
+    )
+    attempt: int = Field(default=1, ge=1)
+    requested_by: str = "operator"
+
+
+class ExternalGenerationComplete(ContractModel):
+    result_url: str = Field(description="https URL of the finished output on the provider CDN")
+    provider_request_id: str = Field(min_length=1, max_length=200)
+    credits_used: Decimal = Field(ge=0)
+    prompt: str | None = Field(default=None, max_length=4000)
+    source_candidate_id: str | None = Field(
+        default=None, description="A3 candidate the output was derived from (start image)"
+    )
+    parameters: dict[str, Any] = Field(default_factory=dict)
+
+
+class ExternalGenerationRelease(ContractModel):
+    reason: str = Field(min_length=1, max_length=500)
+    failed: bool = True
+    credits_used: Decimal = Field(default=Decimal(0), ge=0)
+
+
+class ExternalGenerationResponse(ContractModel):
+    production_id: str
+    ledger_event: LedgerEvent
+    asset: AssetRecord | None = None
+
+
+class RenderRequest(ContractModel):
+    requested_by: str = "operator"
+    reason: str | None = Field(default=None, max_length=500)

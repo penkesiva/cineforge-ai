@@ -224,3 +224,46 @@ fail deterministically (seeded by idempotency key) to exercise bounded retries.
 
 Database: `supabase/migrations/20261014000000_phase1_providers.sql` adds
 `provider_settings`, `cost_ledger.status_reason` and enables `supabase_vault`.
+
+## 10. Phase 2 additions (first real video)
+
+### Media
+
+- `cineforge.media.ingest.ingest_still` downloads a rights-APPROVED A3 candidate (Commons
+  1920 px rendition / Openverse original) into storage as an `AssetRecord` (kind `image`,
+  `metadata.candidate_id`), once per candidate. Downloads are https-only, size-capped and
+  refuse private addresses.
+- `cineforge.media.edit` replaces the slate renderer (`RENDERER = "ffmpeg-edit-v1"`). Per
+  shot it uses the latest real generated clip, else an ingested still (Ken Burns), else a
+  slate. Narration audio is placed per scene; captions are burned in; synthetic shots
+  carry their `disclosure.label_text`; a 3 s attribution card closes the master and is
+  part of the expected duration.
+- `render_master(..., force=True)` re-renders a READY production as `master_v{n+1}`
+  without a state change (audit `master_rerendered`).
+
+### External generations
+
+Media generated outside the engine (Phase 2 step one: Higgsfield through MCP, driven by
+an operator) still follows reserve, then generate, then commit:
+
+1. `POST /productions/{id}/external-generations` reserves `quoted_credits` x catalog
+   price through `BudgetService.reserve`. It fails closed: 403 `paid_providers_disabled`
+   unless `ALLOW_PAID_PROVIDERS=true`, 422 `unknown_price` without a catalog entry
+   (unit `credit`), 409 `budget_exceeded` over the production budget or `credit_cap`.
+2. The operator runs the generation with the provider.
+3. `POST .../external-generations/{event_id}/complete` downloads `result_url` (provider
+   host allowlist only), registers a `GENERATED` asset (`license_type="generated"`,
+   `metadata.derived_from` = source still license/attribution), binds it to the shot
+   (`AssetRole.GENERATED`, `disclosure.synthetic_media`) or scene (`AssetRole.AUDIO`),
+   appends a `ProviderAttempt` and commits the ledger row with `credits_used`.
+4. `POST .../external-generations/{event_id}/release` frees a reservation on failure.
+
+| Method & path | Body | Response |
+|---|---|---|
+| `GET /productions/{id}/generation-pack` | | `GenerationPack` |
+| `POST /productions/{id}/external-generations` | `ExternalGenerationRequest` | 201 `ExternalGenerationResponse` |
+| `POST /productions/{id}/external-generations/{event_id}/complete` | `ExternalGenerationComplete` | `ExternalGenerationResponse` |
+| `POST /productions/{id}/external-generations/{event_id}/release` | `ExternalGenerationRelease` | `ExternalGenerationResponse` |
+| `POST /productions/{id}/render` | `RenderRequest` | 202 `ActionResponse` (READY only) |
+
+Prices: `packages/configurations/pricing/higgsfield-2026-10.yaml` (USD per plan credit).

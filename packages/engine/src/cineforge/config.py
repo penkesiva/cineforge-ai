@@ -40,7 +40,9 @@ class Settings(BaseSettings):
     provider_mode: Literal["mock", "live"] = "mock"
     allow_paid_providers: bool = False
     # Comma-separated catalog versions, merged (packages/configurations/pricing/<v>.yaml).
-    price_catalog_version: str = "mock-2026-10,open-sources-2026-10,anthropic-2026-10"
+    price_catalog_version: str = (
+        "mock-2026-10,open-sources-2026-10,anthropic-2026-10,higgsfield-2026-10"
+    )
     # Where API keys entered on the Sources page live. vault = Supabase Vault (encrypted in
     # Postgres, shared by api + workers); memory = per-process (tests only).
     secrets_backend: Literal["vault", "memory"] = "vault"

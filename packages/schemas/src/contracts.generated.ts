@@ -186,6 +186,8 @@ export interface CineForgeContracts {
   ProviderCatalogEntry?: ProviderCatalogEntry;
   ProvidersOverview?: ProvidersOverview;
   ProviderTestResult?: ProviderTestResult;
+  GenerationPack?: GenerationPack;
+  ExternalGenerationResponse?: ExternalGenerationResponse;
   ProductionEvent?: ProductionEvent;
   CreateProductionRequest?: CreateProductionRequest;
   ApproveProductionRequest?: ApproveProductionRequest;
@@ -193,6 +195,10 @@ export interface CineForgeContracts {
   UpdateProviderRequest?: UpdateProviderRequest;
   SetProviderKeyRequest?: SetProviderKeyRequest;
   CreateThemeVersionRequest?: CreateThemeVersionRequest;
+  ExternalGenerationRequest?: ExternalGenerationRequest;
+  ExternalGenerationComplete?: ExternalGenerationComplete;
+  ExternalGenerationRelease?: ExternalGenerationRelease;
+  RenderRequest?: RenderRequest;
 }
 /**
  * This interface was referenced by `CineForgeContracts`'s JSON-Schema
@@ -1331,6 +1337,86 @@ export interface ProviderTestResult {
 }
 /**
  * This interface was referenced by `CineForgeContracts`'s JSON-Schema
+ * via the `definition` "GenerationPack".
+ */
+export interface GenerationPack {
+  production_id: string;
+  state: ProductionState;
+  width: number;
+  height: number;
+  /**
+   * e.g. '9:16'
+   */
+  aspect_ratio: string;
+  scenes: GenerationPackScene[];
+  shots: GenerationPackShot[];
+}
+/**
+ * This interface was referenced by `CineForgeContracts`'s JSON-Schema
+ * via the `definition` "GenerationPackScene".
+ */
+export interface GenerationPackScene {
+  scene_id: string;
+  order: number;
+  duration_sec: number;
+  narration?: string | null;
+  /**
+   * Real narration audio already attached to the scene
+   */
+  narration_asset_id?: string | null;
+}
+/**
+ * This interface was referenced by `CineForgeContracts`'s JSON-Schema
+ * via the `definition` "GenerationPackShot".
+ */
+export interface GenerationPackShot {
+  scene_id: string;
+  scene_order: number;
+  shot_id: string;
+  shot_order: number;
+  duration_sec: number;
+  prompt: string;
+  camera_motion: string;
+  /**
+   * Rights-approved still to animate; None if there is none
+   */
+  still?: GenerationPackStill | null;
+  /**
+   * Still ranking score from A3
+   */
+  score?: number;
+  /**
+   * Real generated clip already attached to the shot
+   */
+  generated_asset_id?: string | null;
+}
+/**
+ * This interface was referenced by `CineForgeContracts`'s JSON-Schema
+ * via the `definition` "GenerationPackStill".
+ */
+export interface GenerationPackStill {
+  candidate_id: string;
+  provider: string;
+  title: string;
+  /**
+   * Full-resolution https URL a generator can import
+   */
+  image_url?: string | null;
+  source_url: string;
+  license?: LicenseInfo | null;
+  rights_status: RightsStatus;
+}
+/**
+ * This interface was referenced by `CineForgeContracts`'s JSON-Schema
+ * via the `definition` "ExternalGenerationResponse".
+ */
+export interface ExternalGenerationResponse {
+  production_id: string;
+  ledger_event: LedgerEvent;
+  asset?: AssetRecord | null;
+}
+/**
+ * This interface was referenced by `CineForgeContracts`'s JSON-Schema
  * via the `definition` "CreateProductionRequest".
  */
 export interface CreateProductionRequest {
@@ -1408,6 +1494,69 @@ export interface CreateThemeVersionRequest {
    */
   base_version: number;
   profile: ThemeProfile;
+}
+/**
+ * Reserve budget before a human-approved generation runs outside the engine.
+ *
+ * This interface was referenced by `CineForgeContracts`'s JSON-Schema
+ * via the `definition` "ExternalGenerationRequest".
+ */
+export interface ExternalGenerationRequest {
+  scene_id: string;
+  /**
+   * None for scene-level audio
+   */
+  shot_id?: string | null;
+  provider: string;
+  model: string;
+  capability: ProviderCapability;
+  /**
+   * Provider quote for this one call
+   */
+  quoted_credits: number | string;
+  /**
+   * Max credits this provider may use in this production, incl. this call
+   */
+  credit_cap?: number | string | null;
+  attempt?: number;
+  requested_by?: string;
+}
+/**
+ * This interface was referenced by `CineForgeContracts`'s JSON-Schema
+ * via the `definition` "ExternalGenerationComplete".
+ */
+export interface ExternalGenerationComplete {
+  /**
+   * https URL of the finished output on the provider CDN
+   */
+  result_url: string;
+  provider_request_id: string;
+  credits_used: number | string;
+  prompt?: string | null;
+  /**
+   * A3 candidate the output was derived from (start image)
+   */
+  source_candidate_id?: string | null;
+  parameters?: {
+    [k: string]: unknown;
+  };
+}
+/**
+ * This interface was referenced by `CineForgeContracts`'s JSON-Schema
+ * via the `definition` "ExternalGenerationRelease".
+ */
+export interface ExternalGenerationRelease {
+  reason: string;
+  failed?: boolean;
+  credits_used?: number | string;
+}
+/**
+ * This interface was referenced by `CineForgeContracts`'s JSON-Schema
+ * via the `definition` "RenderRequest".
+ */
+export interface RenderRequest {
+  requested_by?: string;
+  reason?: string | null;
 }
 
 export const PRODUCTION_STATES = ["DRAFT","RESEARCHING","SCRIPTING","STORYBOARDING","AWAITING_APPROVAL","GENERATING","ASSEMBLING","REVIEWING","READY","DELIVERED","PAUSED_BUDGET","NEEDS_REVIEW","FAILED","CANCELLED"] as const;

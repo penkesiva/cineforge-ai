@@ -17,7 +17,10 @@ def catalog() -> YamlPriceCatalog:
 
 def test_loads_all_entries(catalog: YamlPriceCatalog) -> None:
     assert isinstance(catalog, PriceCatalog)
-    assert catalog.version == "mock-2026-10+open-sources-2026-10+anthropic-2026-10"
+    assert (
+        catalog.version
+        == "mock-2026-10+open-sources-2026-10+anthropic-2026-10+higgsfield-2026-10"
+    )
     assert catalog.simulated is False
     entries = catalog.entries()
     assert len([e for e in entries if e.version == "mock-2026-10"]) == 11
@@ -25,8 +28,18 @@ def test_loads_all_entries(catalog: YamlPriceCatalog) -> None:
         "mock-2026-10",
         "open-sources-2026-10",
         "anthropic-2026-10",
+        "higgsfield-2026-10",
     }
     assert all(isinstance(e.unit_price, Decimal) for e in entries)
+
+
+def test_higgsfield_prices_are_per_credit(catalog: YamlPriceCatalog) -> None:
+    for model in ("kling2_6", "seed_audio"):
+        entry = catalog.get("higgsfield", model, PriceUnit.CREDIT)
+        assert entry.unit_price == Decimal("0.043")
+        assert entry.credits_per_unit == Decimal(1)
+    downloads = catalog.get("wikimedia-commons", "file-download", PriceUnit.REQUEST)
+    assert downloads.unit_price == Decimal(0)
 
 
 def test_single_version_catalog_is_simulated() -> None:

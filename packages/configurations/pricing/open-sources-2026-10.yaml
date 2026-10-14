@@ -9,3 +9,5 @@ entries:
   - {provider: wikipedia, model: mediawiki-action-api, capability: web_research, unit: request, unit_price: 0, notes: "Wikipedia search + extracts (free, keyless)"}
   - {provider: wikimedia-commons, model: mediawiki-action-api, capability: media_search, unit: request, unit_price: 0, notes: "Commons file search + extmetadata licenses (free, keyless)"}
   - {provider: openverse, model: openverse-v1, capability: media_search, unit: request, unit_price: 0, notes: "Openverse anonymous API (free, rate limited)"}
+  - {provider: wikimedia-commons, model: file-download, capability: media_search, unit: request, unit_price: 0, notes: "Download of a rights-approved original file (free)"}
+  - {provider: openverse, model: file-download, capability: media_search, unit: request, unit_price: 0, notes: "Download of a rights-approved original file (free)"}
