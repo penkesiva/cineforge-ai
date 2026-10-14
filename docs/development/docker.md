@@ -9,15 +9,38 @@ Containers reach it through `host.docker.internal:54322`
 
 | Service | Image (target) | Port | Command |
 |---|---|---|---|
-| `redis` | `redis:7-alpine` | 6379 | `redis-server --appendonly yes` |
-| `api` | `cineforge/python-app:dev` (`app`) | 8000 | `uvicorn cineforge_api.main:app --reload` |
+| `redis` | `redis:7-alpine` | 127.0.0.1:6379 | `redis-server --appendonly yes` |
+| `api` | `cineforge/python-app:dev` (`app`) | 127.0.0.1:8000 | `uvicorn cineforge_api.main:app --reload` |
 | `worker` | `cineforge/python-app:dev` (`app`) | - | `watchfiles ... "python -m cineforge_worker"` |
 | `media-worker` | `cineforge/python-media:dev` (`media`) | - | `watchfiles ... "python -m cineforge_media_worker"` |
-| `dashboard` | `cineforge/dashboard:dev` (`dev`) | 3000 | `npm run dev --workspace @cineforge/dashboard` |
+| `dashboard` | `cineforge/dashboard:dev` (`dev`) | 127.0.0.1:3000 | `npm run dev --workspace @cineforge/dashboard` |
 
 Health checks: `redis-cli ping`; API `GET /health/live` (Python urllib, no curl in the
 image); dashboard `GET /` via Node `fetch`. API, worker and media-worker wait for
 Redis to be healthy. Ports can be changed with `API_PORT`, `DASHBOARD_PORT`, `REDIS_PORT`.
+
+All published ports bind to **`127.0.0.1` only**. There is no login yet: anyone who can
+reach the API can store keys and start paid productions. Keep it that way until auth
+exists.
+
+## Provider environment
+
+The Python services read provider settings from `.env` (or your shell) with safe
+defaults, so `make up` without a `.env` stays offline and free:
+
+| Variable | Default in compose |
+|---|---|
+| `PROVIDER_MODE` | `mock` |
+| `ALLOW_PAID_PROVIDERS` | `false` |
+| `PRICE_CATALOG_VERSION` | `mock-2026-10,open-sources-2026-10,anthropic-2026-10` |
+| `SECRETS_BACKEND` | `vault` (fixed: keys from the Sources page, shared by all services) |
+| `ANTHROPIC_API_KEY` | empty (use the Sources page) |
+| `ANTHROPIC_MODEL` | `claude-sonnet-4-5` |
+| `HTTP_USER_AGENT` | `CineForgeAI/0.2 (...)` (Wikimedia requires one) |
+
+`ANTHROPIC_BASE_URL` and `HTTP_TIMEOUT_SEC` pass through from `.env` when set. Containers
+pick up `.env` changes only when recreated: run `make up`, not `make restart`.
+Live providers need outbound internet from the containers. See [providers.md](providers.md).
 
 ## Images
 
@@ -32,7 +55,9 @@ Redis to be healthy. Ports can be changed with `API_PORT`, `DASHBOARD_PORT`, `RE
   editable. The venv is at `/opt/venv` (outside `/app`), so bind mounts never hide it.
 - `media`: `app` + `ffmpeg`, `ffprobe`, `fonts-dejavu-core` (for `drawtext`).
 
-The **dev dependency group** (pytest, httpx, fakeredis, ruff) is included by default
+Runtime dependencies (including `httpx`, which the engine now uses for real providers)
+come from `uv.lock` via `uv sync --frozen`, so nothing extra is installed by hand.
+The **dev dependency group** (pytest, fakeredis, ruff, ...) is included by default
 (`INSTALL_DEV=true`), so tests run inside the image:
 
 ```bash

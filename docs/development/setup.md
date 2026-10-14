@@ -34,6 +34,12 @@ Then open:
 The defaults run the full demo with **no cloud credentials and no paid API calls**
 (`PROVIDER_MODE=mock`, `ALLOW_PAID_PROVIDERS=false`). A `.env` file is optional.
 
+Real providers (Anthropic, Wikipedia, Wikimedia Commons, Openverse), the dashboard
+Sources page, API keys and `make demo-live` are covered in [providers.md](providers.md).
+
+The stack only listens on `127.0.0.1` (there is no login yet). Do not expose it on the
+LAN or the internet.
+
 ## Daily commands
 
 ```bash
@@ -55,6 +61,12 @@ make help               # everything else
 - Containers get their own values from `compose.yaml` (`host.docker.internal:54322`,
   `redis:6379`, `/data/media`), so the same `.env` works for both.
   Override container DB/Redis with `DOCKER_DATABASE_URL` / `DOCKER_REDIS_URL`.
+- Provider settings (`PROVIDER_MODE`, `ALLOW_PAID_PROVIDERS`, `PRICE_CATALOG_VERSION`,
+  `ANTHROPIC_*`, `HTTP_*`) flow from `.env` into the containers; missing values fall back
+  to mock + paid off. After changing `.env`, run `make up` (`make restart` keeps the
+  old environment).
+- A `.env` created before Phase 1 lacks the new provider variables and may pin
+  `PRICE_CATALOG_VERSION=mock-2026-10`. Compare it with `.env.example`.
 
 ## Running services on the host (without Docker)
 
@@ -73,6 +85,11 @@ On the host, media is stored under `./var/media` (ignored by Git).
 
 - **Port already in use** (3000, 8000, 6379): set `DASHBOARD_PORT`, `API_PORT` or
   `REDIS_PORT` in `.env`.
+- **Can't reach the dashboard from another device**: intended. Ports bind to
+  `127.0.0.1` until the app has login.
+- **Real providers never used**: check the status on the Sources page
+  (`blocked_mock_mode`, `disabled`, `blocked_paid_off`, `missing_key`); see
+  [providers.md](providers.md).
 - **API can't reach the DB**: run `supabase status`; the DB must listen on 54322.
 - **Low disk space**: `docker builder prune -f` removes build cache only. Do not prune
   volumes unless you want to lose data.
