@@ -9,7 +9,9 @@ from cineforge.cost.estimator import DefaultCostEstimator
 
 
 def load_price_catalog(settings: Settings) -> YamlPriceCatalog:
-    return YamlPriceCatalog.load(settings.configurations_dir, settings.price_catalog_version)
+    """``PRICE_CATALOG_VERSION`` may list several versions (comma-separated); they merge."""
+    versions = [v.strip() for v in settings.price_catalog_version.split(",") if v.strip()]
+    return YamlPriceCatalog.load_many(settings.configurations_dir, versions)
 
 
 def build_budget_service(settings: Settings) -> BudgetService:

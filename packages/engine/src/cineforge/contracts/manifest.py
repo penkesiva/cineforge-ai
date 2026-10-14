@@ -235,6 +235,16 @@ class AuditEntry(ContractModel):
     details: dict[str, Any] = Field(default_factory=dict)
 
 
+class ClaimReview(ContractModel):
+    """Human decision on a research claim at the approval gate (ENG-04)."""
+
+    claim_id: str = Field(pattern=r"^claim_")
+    decision: Literal["approved", "rejected"]
+    reviewed_by: str = "operator"
+    reviewed_at: datetime = Field(default_factory=utcnow)
+    note: str | None = None
+
+
 class ProductionManifest(ContractModel):
     schema_version: Literal["1.0"] = SCHEMA_VERSION  # type: ignore[assignment]
     production_id: str
@@ -258,6 +268,9 @@ class ProductionManifest(ContractModel):
     provenance_refs: list[str] = Field(default_factory=list)
     review_status: ReviewStatus = ReviewStatus.PENDING
     review_findings: list[ReviewFinding] = Field(default_factory=list)
+    claim_reviews: list[ClaimReview] = Field(
+        default_factory=list, description="Latest decision per claim wins"
+    )
     audit: list[AuditEntry] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)

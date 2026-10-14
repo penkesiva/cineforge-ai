@@ -17,6 +17,10 @@ on conflict (id, version) do update set name = excluded.name, config = excluded.
 -- ------------------------------------------------------------- price catalog
 insert into public.price_catalog (version, provider, model, capability, unit, unit_price,
     currency, credits_per_unit, effective_from, effective_to, simulated, notes) values
+    ('anthropic-2026-10', 'anthropic', 'claude-sonnet-4-5', 'llm_text', '1k_input_tokens', 0.003000, 'USD', null, '2026-10-01', null, false, '$3 / MTok input'),
+    ('anthropic-2026-10', 'anthropic', 'claude-sonnet-4-5', 'llm_text', '1k_output_tokens', 0.015000, 'USD', null, '2026-10-01', null, false, '$15 / MTok output'),
+    ('anthropic-2026-10', 'anthropic', 'claude-haiku-4-5', 'llm_text', '1k_input_tokens', 0.001000, 'USD', null, '2026-10-01', null, false, '$1 / MTok input'),
+    ('anthropic-2026-10', 'anthropic', 'claude-haiku-4-5', 'llm_text', '1k_output_tokens', 0.005000, 'USD', null, '2026-10-01', null, false, '$5 / MTok output'),
     ('mock-2026-10', 'mock-llm', 'mock-llm-standard', 'llm_text', '1k_tokens', 0.002000, 'USD', null, '2026-10-01', null, true, ''),
     ('mock-2026-10', 'mock-llm', 'mock-llm-premium', 'llm_text', '1k_tokens', 0.010000, 'USD', null, '2026-10-01', null, true, ''),
     ('mock-2026-10', 'mock-research', 'mock-search-v1', 'web_research', 'request', 0.005000, 'USD', null, '2026-10-01', null, true, ''),
@@ -27,7 +31,10 @@ insert into public.price_catalog (version, provider, model, capability, unit, un
     ('mock-2026-10', 'mock-voice', 'mock-tts-v1', 'voice_tts', '1k_characters', 0.015000, 'USD', null, '2026-10-01', null, true, ''),
     ('mock-2026-10', 'mock-music', 'mock-music-v1', 'music_generation', 'track', 0.050000, 'USD', null, '2026-10-01', null, true, ''),
     ('mock-2026-10', 'mock-sfx', 'mock-sfx-v1', 'sfx_generation', 'request', 0.010000, 'USD', null, '2026-10-01', null, true, ''),
-    ('mock-2026-10', 'mock-lipsync', 'mock-lipsync-v1', 'lip_sync', 'video_second', 0.080000, 'USD', null, '2026-10-01', null, true, '')
+    ('mock-2026-10', 'mock-lipsync', 'mock-lipsync-v1', 'lip_sync', 'video_second', 0.080000, 'USD', null, '2026-10-01', null, true, ''),
+    ('open-sources-2026-10', 'wikipedia', 'mediawiki-action-api', 'web_research', 'request', 0.000000, 'USD', null, '2026-10-01', null, false, 'Wikipedia search + extracts (free, keyless)'),
+    ('open-sources-2026-10', 'wikimedia-commons', 'mediawiki-action-api', 'media_search', 'request', 0.000000, 'USD', null, '2026-10-01', null, false, 'Commons file search + extmetadata licenses (free, keyless)'),
+    ('open-sources-2026-10', 'openverse', 'openverse-v1', 'media_search', 'request', 0.000000, 'USD', null, '2026-10-01', null, false, 'Openverse anonymous API (free, rate limited)')
 on conflict (version, provider, model, unit) do update set
     capability = excluded.capability, unit_price = excluded.unit_price,
     currency = excluded.currency, credits_per_unit = excluded.credits_per_unit,

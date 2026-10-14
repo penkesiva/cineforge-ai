@@ -11,6 +11,7 @@ from typing import Any, Protocol, runtime_checkable
 
 from cineforge.contracts.agents import AgentRun, AgentRunStatus
 from cineforge.contracts.manifest import ProductionManifest
+from cineforge.contracts.theme import ThemeProfile, ThemeSummary
 from cineforge.contracts.workflow import ProductionEvent, ProductionState
 
 
@@ -20,6 +21,33 @@ class NotFoundError(LookupError):
 
 class ConcurrentUpdateError(RuntimeError):
     """Optimistic-lock conflict: the manifest changed since it was read."""
+
+
+class ThemeVersionConflictError(ConcurrentUpdateError):
+    """A new theme version was based on a version that is no longer the latest."""
+
+
+@runtime_checkable
+class ThemeRepository(Protocol):
+    """Versioned theme registry (ENG-01). Versions are immutable once created; YAML files
+    in packages/configurations/themes seed version history."""
+
+    def summaries(self) -> list[ThemeSummary]:
+        """Latest version of every theme."""
+        ...
+
+    def get(self, theme_id: str, version: int | None = None) -> ThemeProfile:
+        """Latest when version is None. Raises cineforge.configuration.ThemeNotFoundError."""
+        ...
+
+    def versions(self, theme_id: str) -> list[ThemeProfile]:
+        """All versions, oldest first. Raises ThemeNotFoundError if the theme is unknown."""
+        ...
+
+    def create_version(self, profile: ThemeProfile, *, base_version: int) -> ThemeProfile:
+        """Store ``profile`` as version latest+1. Raises ThemeVersionConflictError when
+        ``base_version`` is not the latest, ThemeNotFoundError for unknown themes."""
+        ...
 
 
 @runtime_checkable

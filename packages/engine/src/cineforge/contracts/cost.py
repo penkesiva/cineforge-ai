@@ -136,6 +136,10 @@ class LedgerEvent(ContractModel):
     actual_cost: Money = money(0)
     currency: str = DEFAULT_CURRENCY
     status: LedgerStatus = LedgerStatus.RESERVED
+    status_reason: str | None = Field(
+        default=None,
+        description="Why the row is released/failed, or 'overspend: ...' when actual > reserved",
+    )
     attempt: int = Field(default=1, ge=1)
     retry_reason: str | None = None
     cache_hit: bool = False

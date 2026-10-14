@@ -50,7 +50,7 @@ def test_balanced_sample_estimate(estimator: CostEstimator) -> None:
     assert Decimal(0) < est.total_estimated < manifest.budget.limit
     assert set(est.by_scene) == {s.id for s in manifest.scenes}
     assert len(est.by_scene) == 5
-    assert est.price_catalog_version == "mock-2026-10"
+    assert est.price_catalog_version.split("+")[0] == "mock-2026-10"
     assert est.mode == ProductionMode.BALANCED
     assert sum(est.by_agent.values()) == est.total_estimated
     assert sum(i.estimated_cost for i in est.line_items) == est.total_estimated

@@ -64,6 +64,15 @@
     "ProviderInfo": {
       "$ref": "#/$defs/ProviderInfo"
     },
+    "ProviderCatalogEntry": {
+      "$ref": "#/$defs/ProviderCatalogEntry"
+    },
+    "ProvidersOverview": {
+      "$ref": "#/$defs/ProvidersOverview"
+    },
+    "ProviderTestResult": {
+      "$ref": "#/$defs/ProviderTestResult"
+    },
     "ProductionEvent": {
       "$ref": "#/$defs/ProductionEvent"
     },
@@ -72,6 +81,18 @@
     },
     "ApproveProductionRequest": {
       "$ref": "#/$defs/ApproveProductionRequest"
+    },
+    "ReviewClaimsRequest": {
+      "$ref": "#/$defs/ReviewClaimsRequest"
+    },
+    "UpdateProviderRequest": {
+      "$ref": "#/$defs/UpdateProviderRequest"
+    },
+    "SetProviderKeyRequest": {
+      "$ref": "#/$defs/SetProviderKeyRequest"
+    },
+    "CreateThemeVersionRequest": {
+      "$ref": "#/$defs/CreateThemeVersionRequest"
     }
   },
   "$defs": {
@@ -970,6 +991,46 @@
       "title": "BudgetSnapshot",
       "type": "object"
     },
+    "CapabilityGroup": {
+      "additionalProperties": false,
+      "properties": {
+        "capability": {
+          "$ref": "#/$defs/ProviderCapability"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "providers": {
+          "description": "Best (routable) first",
+          "items": {
+            "$ref": "#/$defs/ProviderCatalogEntry"
+          },
+          "title": "Providers",
+          "type": "array"
+        },
+        "active_provider": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What routing would pick right now, if anything",
+          "title": "Active Provider"
+        }
+      },
+      "required": [
+        "capability",
+        "label",
+        "providers"
+      ],
+      "title": "CapabilityGroup",
+      "type": "object"
+    },
     "Caption": {
       "additionalProperties": false,
       "properties": {
@@ -1018,6 +1079,90 @@
         }
       },
       "title": "CaptionTrack",
+      "type": "object"
+    },
+    "ClaimDecision": {
+      "additionalProperties": false,
+      "properties": {
+        "claim_id": {
+          "pattern": "^claim_",
+          "title": "Claim Id",
+          "type": "string"
+        },
+        "decision": {
+          "enum": [
+            "approved",
+            "rejected"
+          ],
+          "title": "Decision",
+          "type": "string"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "maxLength": 1000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        }
+      },
+      "required": [
+        "claim_id",
+        "decision"
+      ],
+      "title": "ClaimDecision",
+      "type": "object"
+    },
+    "ClaimReview": {
+      "additionalProperties": false,
+      "description": "Human decision on a research claim at the approval gate (ENG-04).",
+      "properties": {
+        "claim_id": {
+          "pattern": "^claim_",
+          "title": "Claim Id",
+          "type": "string"
+        },
+        "decision": {
+          "enum": [
+            "approved",
+            "rejected"
+          ],
+          "title": "Decision",
+          "type": "string"
+        },
+        "reviewed_by": {
+          "default": "operator",
+          "title": "Reviewed By",
+          "type": "string"
+        },
+        "reviewed_at": {
+          "format": "date-time",
+          "title": "Reviewed At",
+          "type": "string"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        }
+      },
+      "required": [
+        "claim_id",
+        "decision"
+      ],
+      "title": "ClaimReview",
       "type": "object"
     },
     "ClaimStatus": {
@@ -1449,6 +1594,20 @@
           "title": "Theme Id",
           "type": "string"
         },
+        "theme_version": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Latest when omitted",
+          "title": "Theme Version"
+        },
         "topic": {
           "maxLength": 500,
           "minLength": 3,
@@ -1522,6 +1681,27 @@
         "topic"
       ],
       "title": "CreateProductionRequest",
+      "type": "object"
+    },
+    "CreateThemeVersionRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "base_version": {
+          "description": "Must be the current latest version",
+          "minimum": 1,
+          "title": "Base Version",
+          "type": "integer"
+        },
+        "profile": {
+          "$ref": "#/$defs/ThemeProfile",
+          "description": "id/version are overwritten by the server"
+        }
+      },
+      "required": [
+        "base_version",
+        "profile"
+      ],
+      "title": "CreateThemeVersionRequest",
       "type": "object"
     },
     "CreativeBrief": {
@@ -1876,6 +2056,11 @@
           "title": "Paid Providers Enabled",
           "type": "boolean"
         },
+        "provider_mode": {
+          "default": "mock",
+          "title": "Provider Mode",
+          "type": "string"
+        },
         "checks": {
           "items": {
             "$ref": "#/$defs/DependencyHealth"
@@ -1900,6 +2085,15 @@
         "down"
       ],
       "title": "HealthStatus",
+      "type": "string"
+    },
+    "KeySource": {
+      "enum": [
+        "none",
+        "environment",
+        "stored"
+      ],
+      "title": "KeySource",
       "type": "string"
     },
     "LedgerEvent": {
@@ -2000,6 +2194,19 @@
         "status": {
           "$ref": "#/$defs/LedgerStatus",
           "default": "reserved"
+        },
+        "status_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Why the row is released/failed, or 'overspend: ...' when actual > reserved",
+          "title": "Status Reason"
         },
         "attempt": {
           "default": 1,
@@ -2596,6 +2803,8 @@
     "PriceUnit": {
       "enum": [
         "1k_tokens",
+        "1k_input_tokens",
+        "1k_output_tokens",
         "1k_characters",
         "image",
         "video_second",
@@ -2974,6 +3183,14 @@
             "$ref": "#/$defs/ReviewFinding"
           },
           "title": "Review Findings",
+          "type": "array"
+        },
+        "claim_reviews": {
+          "description": "Latest decision per claim wins",
+          "items": {
+            "$ref": "#/$defs/ClaimReview"
+          },
+          "title": "Claim Reviews",
           "type": "array"
         },
         "audit": {
@@ -3434,6 +3651,133 @@
       "title": "ProviderCapability",
       "type": "string"
     },
+    "ProviderCatalogEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "display_name": {
+          "title": "Display Name",
+          "type": "string"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "capabilities": {
+          "items": {
+            "$ref": "#/$defs/ProviderCapability"
+          },
+          "title": "Capabilities",
+          "type": "array"
+        },
+        "models": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Models",
+          "type": "array"
+        },
+        "is_mock": {
+          "title": "Is Mock",
+          "type": "boolean"
+        },
+        "is_paid": {
+          "title": "Is Paid",
+          "type": "boolean"
+        },
+        "requires_key": {
+          "default": false,
+          "title": "Requires Key",
+          "type": "boolean"
+        },
+        "key_env_var": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Key Env Var"
+        },
+        "docs_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Docs Url"
+        },
+        "planned_phase": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Set for providers listed but not implemented yet",
+          "title": "Planned Phase"
+        },
+        "enabled": {
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "priority": {
+          "title": "Priority",
+          "type": "integer"
+        },
+        "status": {
+          "$ref": "#/$defs/ProviderStatus"
+        },
+        "status_detail": {
+          "default": "",
+          "title": "Status Detail",
+          "type": "string"
+        },
+        "key_source": {
+          "$ref": "#/$defs/KeySource",
+          "default": "none"
+        },
+        "key_hint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "e.g. '...a1b2'; never the key",
+          "title": "Key Hint"
+        }
+      },
+      "required": [
+        "name",
+        "display_name",
+        "capabilities",
+        "is_mock",
+        "is_paid",
+        "enabled",
+        "priority",
+        "status"
+      ],
+      "title": "ProviderCatalogEntry",
+      "type": "object"
+    },
     "ProviderInfo": {
       "additionalProperties": false,
       "properties": {
@@ -3467,6 +3811,40 @@
           "description": "True if invoking it can incur real spend",
           "title": "Is Paid",
           "type": "boolean"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "requires_key": {
+          "default": false,
+          "title": "Requires Key",
+          "type": "boolean"
+        },
+        "key_env_var": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Key Env Var"
+        },
+        "docs_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Docs Url"
         }
       },
       "required": [
@@ -3603,6 +3981,89 @@
       "title": "ProviderPlan",
       "type": "object"
     },
+    "ProviderStatus": {
+      "enum": [
+        "ready",
+        "missing_key",
+        "disabled",
+        "blocked_paid_off",
+        "blocked_mock_mode",
+        "planned"
+      ],
+      "title": "ProviderStatus",
+      "type": "string"
+    },
+    "ProviderTestResult": {
+      "additionalProperties": false,
+      "properties": {
+        "provider": {
+          "title": "Provider",
+          "type": "string"
+        },
+        "ok": {
+          "title": "Ok",
+          "type": "boolean"
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string"
+        },
+        "latency_ms": {
+          "default": 0,
+          "title": "Latency Ms",
+          "type": "integer"
+        },
+        "paid_call": {
+          "default": false,
+          "description": "True if the check itself costs money",
+          "title": "Paid Call",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "provider",
+        "ok",
+        "detail"
+      ],
+      "title": "ProviderTestResult",
+      "type": "object"
+    },
+    "ProvidersOverview": {
+      "additionalProperties": false,
+      "properties": {
+        "provider_mode": {
+          "enum": [
+            "mock",
+            "live"
+          ],
+          "title": "Provider Mode",
+          "type": "string"
+        },
+        "paid_providers_allowed": {
+          "title": "Paid Providers Allowed",
+          "type": "boolean"
+        },
+        "secrets_backend": {
+          "title": "Secrets Backend",
+          "type": "string"
+        },
+        "groups": {
+          "items": {
+            "$ref": "#/$defs/CapabilityGroup"
+          },
+          "title": "Groups",
+          "type": "array"
+        }
+      },
+      "required": [
+        "provider_mode",
+        "paid_providers_allowed",
+        "secrets_backend",
+        "groups"
+      ],
+      "title": "ProvidersOverview",
+      "type": "object"
+    },
     "ResearchBrief": {
       "additionalProperties": false,
       "properties": {
@@ -3647,6 +4108,29 @@
       ],
       "title": "RetryScope",
       "type": "string"
+    },
+    "ReviewClaimsRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "reviewed_by": {
+          "default": "operator",
+          "title": "Reviewed By",
+          "type": "string"
+        },
+        "decisions": {
+          "items": {
+            "$ref": "#/$defs/ClaimDecision"
+          },
+          "minItems": 1,
+          "title": "Decisions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "decisions"
+      ],
+      "title": "ReviewClaimsRequest",
+      "type": "object"
     },
     "ReviewFinding": {
       "additionalProperties": false,
@@ -4053,6 +4537,23 @@
       "title": "ScriptLine",
       "type": "object"
     },
+    "SetProviderKeyRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "api_key": {
+          "maxLength": 500,
+          "minLength": 8,
+          "title": "Api Key",
+          "type": "string",
+          "writeOnly": true
+        }
+      },
+      "required": [
+        "api_key"
+      ],
+      "title": "SetProviderKeyRequest",
+      "type": "object"
+    },
     "Severity": {
       "enum": [
         "info",
@@ -4259,6 +4760,19 @@
           "format": "date-time",
           "title": "Retrieved At",
           "type": "string"
+        },
+        "excerpt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Source text supporting the claim (provenance check)",
+          "title": "Excerpt"
         }
       },
       "required": [
@@ -4433,6 +4947,39 @@
         "default_mode"
       ],
       "title": "ThemeSummary",
+      "type": "object"
+    },
+    "UpdateProviderRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Enabled"
+        },
+        "priority": {
+          "anyOf": [
+            {
+              "maximum": 1000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Priority"
+        }
+      },
+      "title": "UpdateProviderRequest",
       "type": "object"
     },
     "VisualSpec": {
@@ -4623,7 +5170,7 @@
         "web_research"
       ],
       "prompt_template_id": "a2_research",
-      "prompt_template_version": 1
+      "prompt_template_version": 2
     },
     {
       "id": "a3_media_discovery",
@@ -4672,7 +5219,7 @@
         "llm_text"
       ],
       "prompt_template_id": "a4_creative_director",
-      "prompt_template_version": 1
+      "prompt_template_version": 2
     },
     {
       "id": "a5_scriptwriter",
@@ -4697,7 +5244,7 @@
         "llm_text"
       ],
       "prompt_template_id": "a5_scriptwriter",
-      "prompt_template_version": 1
+      "prompt_template_version": 2
     },
     {
       "id": "a6_scene_director",
@@ -4721,7 +5268,7 @@
         "llm_text"
       ],
       "prompt_template_id": "a6_scene_director",
-      "prompt_template_version": 1
+      "prompt_template_version": 2
     },
     {
       "id": "a7_visual_production",

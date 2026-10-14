@@ -17,12 +17,30 @@ def catalog() -> YamlPriceCatalog:
 
 def test_loads_all_entries(catalog: YamlPriceCatalog) -> None:
     assert isinstance(catalog, PriceCatalog)
-    assert catalog.version == "mock-2026-10"
-    assert catalog.simulated is True
+    assert catalog.version == "mock-2026-10+open-sources-2026-10+anthropic-2026-10"
+    assert catalog.simulated is False
     entries = catalog.entries()
-    assert len(entries) == 11
-    assert {e.version for e in entries} == {"mock-2026-10"}
+    assert len([e for e in entries if e.version == "mock-2026-10"]) == 11
+    assert {e.version for e in entries} == {
+        "mock-2026-10",
+        "open-sources-2026-10",
+        "anthropic-2026-10",
+    }
     assert all(isinstance(e.unit_price, Decimal) for e in entries)
+
+
+def test_single_version_catalog_is_simulated() -> None:
+    mock_only = load_price_catalog(Settings(price_catalog_version="mock-2026-10"))
+    assert mock_only.version == "mock-2026-10"
+    assert mock_only.simulated is True
+    assert len(mock_only.entries()) == 11
+
+
+def test_anthropic_prices_split_input_and_output(catalog: YamlPriceCatalog) -> None:
+    model = Settings().anthropic_model
+    inp = catalog.get("anthropic", model, PriceUnit.INPUT_TOKENS_1K)
+    out = catalog.get("anthropic", model, PriceUnit.OUTPUT_TOKENS_1K)
+    assert Decimal(0) < inp.unit_price < out.unit_price
 
 
 def test_get_returns_exact_price(catalog: YamlPriceCatalog) -> None:

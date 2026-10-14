@@ -520,7 +520,7 @@ def test_a9_flags_missing_master_incomplete_shots_labels_claims_budget(chain: Ch
 def test_every_provider_call_goes_through_guard(chain: Chain) -> None:
     invoked = sum(len(p.invocations) for p in chain.services.providers._providers.values())
     assert invoked == len(chain.guard.calls) > 0
-    assert chain.ctx.extras[PROMPT_TEMPLATES][0] == "a6_scene_director@v1"
+    assert chain.ctx.extras[PROMPT_TEMPLATES][0] == "a6_scene_director@v2"
 
 
 def test_prompt_templates_exist_and_render() -> None:

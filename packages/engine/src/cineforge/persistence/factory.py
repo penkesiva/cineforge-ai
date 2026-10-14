@@ -3,7 +3,16 @@
 from __future__ import annotations
 
 from cineforge.config import Settings
+from cineforge.contracts.repositories import ThemeRepository
 from cineforge.runtime import Repositories
+
+
+def build_theme_repository(settings: Settings) -> ThemeRepository:
+    from cineforge.persistence.themes import InMemoryThemeRepository, PostgresThemeRepository
+
+    if settings.persistence_backend == "memory":
+        return InMemoryThemeRepository(settings.configurations_dir)
+    return PostgresThemeRepository(settings.database_url, settings.configurations_dir)
 
 
 def build_repositories(settings: Settings) -> Repositories:

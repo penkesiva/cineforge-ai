@@ -178,4 +178,4 @@ def test_cost_overview_and_catalog(client: TestClient) -> None:
     assert overview["total_actual"] > 0 and overview["simulated"] is True
     assert overview["credit_balances"]
     pricing = client.get("/api/v1/pricing").json()
-    assert len(pricing) == 11
+    assert len([p for p in pricing if p["version"] == "mock-2026-10"]) == 11

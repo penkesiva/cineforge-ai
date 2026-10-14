@@ -47,6 +47,23 @@ class YamlPriceCatalog:
         return cls.from_file(configurations_dir / "pricing" / f"{version}.yaml")
 
     @classmethod
+    def load_many(cls, configurations_dir: Path, versions: list[str]) -> YamlPriceCatalog:
+        """Merge several catalog files. Each entry keeps its own version; the merged
+        catalog is simulated only if every part is."""
+        if not versions:
+            raise ValueError("at least one price catalog version is required")
+        parts = [cls.load(configurations_dir, v) for v in versions]
+        if len(parts) == 1:
+            return parts[0]
+        entries = [e for part in parts for e in part.entries()]
+        return cls(
+            entries,
+            version="+".join(p.version for p in parts),
+            simulated=all(p.simulated for p in parts),
+            currency=parts[0].currency,
+        )
+
+    @classmethod
     def from_mapping(cls, raw: dict[str, Any]) -> YamlPriceCatalog:
         version = str(raw["version"])
         currency = str(raw.get("currency", DEFAULT_CURRENCY))
