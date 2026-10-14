@@ -92,6 +92,79 @@ echo "k" >"$repo/deploy.key"
 git -C "$repo" add -f deploy.key
 expect fail "tracked .key" "$repo"
 
+# Fake keys are assembled at runtime so this file never matches the scanner itself.
+rep() { local out="" i; for ((i = 0; i < $2; i++)); do out="$out$1"; done; echo "$out"; }
+ANT_KEY="sk-""ant-api03-$(rep aB3_ 8)"
+OPENAI_KEY="sk-""$(rep Ab12 10)"
+PROJ_KEY="sk-""proj-$(rep A1_- 6)"
+
+repo=$(new_repo anthropic-key)
+mkdir -p "$repo/src"
+echo "client = Anthropic(api_key=\"$ANT_KEY\")" >"$repo/src/llm.py"
+git -C "$repo" add -A && git -C "$repo" commit -qm init
+expect fail "Anthropic key in a tracked .py file" "$repo"
+
+repo=$(new_repo openai-key)
+echo "token: $OPENAI_KEY" >"$repo/config.yaml"
+git -C "$repo" add -A && git -C "$repo" commit -qm init
+expect fail "OpenAI-style key in a tracked .yaml file" "$repo"
+
+repo=$(new_repo openai-proj-key)
+echo "OPENAI=$PROJ_KEY" >"$repo/notes.txt"
+git -C "$repo" add -A && git -C "$repo" commit -qm init
+expect fail "OpenAI project key in a tracked file" "$repo"
+
+repo=$(new_repo staged-key)
+echo "x" >"$repo/README.md"
+git -C "$repo" add -A && git -C "$repo" commit -qm init
+echo "key = '$ANT_KEY'" >"$repo/leak.py"
+git -C "$repo" add leak.py
+expect fail "staged-only file with an Anthropic key" "$repo"
+
+repo=$(new_repo env-example-real-value)
+echo "ANTHROPIC_API_KEY=abc123notaplaceholder" >"$repo/.env.example"
+git -C "$repo" add -A && git -C "$repo" commit -qm init
+expect fail ".env.example with a real-looking ANTHROPIC_API_KEY value" "$repo"
+
+repo=$(new_repo env-file-quoted-export)
+mkdir -p "$repo/config"
+echo "export ANTHROPIC_API_KEY=\"abc123notaplaceholder\"  # oops" >"$repo/config/prod.env"
+git -C "$repo" add -A && git -C "$repo" commit -qm init
+expect fail "quoted export of ANTHROPIC_API_KEY in a tracked *.env file" "$repo"
+
+repo=$(new_repo env-example-service-role)
+echo "SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiJ9.payload" >"$repo/.env.example"
+git -C "$repo" add -A && git -C "$repo" commit -qm init
+expect fail ".env.example with a SUPABASE_SERVICE_ROLE_KEY value" "$repo"
+
+repo=$(new_repo env-example-placeholders)
+cat >"$repo/.env.example" <<'EOF'
+# Anthropic key is optional (Sources page)
+ANTHROPIC_API_KEY=
+OPENAI_API_KEY=""
+OTHER_API_KEY=<your-key>
+EXTRA_API_KEY=${EXTRA_API_KEY}
+MORE_API_KEY=xxxxxxxx
+GITHUB_TOKEN=   # optional
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+export WEBHOOK_SECRET='changeme'
+ANTHROPIC_MODEL=claude-sonnet-4-5
+DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres
+EOF
+git -C "$repo" add -A && git -C "$repo" commit -qm init
+expect pass ".env.example with empty and placeholder key values" "$repo"
+
+repo=$(new_repo docs-mention-key)
+mkdir -p "$repo/docs"
+cat >"$repo/docs/providers.md" <<'EOF'
+Set `ANTHROPIC_API_KEY=sk-ant-...` in .env, or ANTHROPIC_API_KEY=your-key.
+Example: ANTHROPIC_API_KEY=abc123notaplaceholder (docs are not env files).
+EOF
+echo "short = 'sk-ant-short'" >"$repo/docs/short.py"
+echo "id = 'mask-$(rep Ab12 10)'" >"$repo/docs/ids.py"
+git -C "$repo" add -A && git -C "$repo" commit -qm init
+expect pass "docs mentioning the key variable, short sk- strings, embedded 'sk-'" "$repo"
+
 repo=$(new_repo large)
 head -c 4096 /dev/zero >"$repo/blob.bin"
 git -C "$repo" add -A
