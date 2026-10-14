@@ -60,6 +60,7 @@ def _def(
     key_checks: list[str],
     states: list[ProductionState],
     caps: list[ProviderCapability],
+    version: int = 1,
 ) -> AgentDefinition:
     return AgentDefinition(
         id=agent_id,
@@ -73,6 +74,7 @@ def _def(
         workflow_states=states,
         capabilities=caps,
         prompt_template_id=agent_id.value,
+        prompt_template_version=version,
     )
 
 
@@ -84,7 +86,7 @@ AGENT_DEFINITIONS: tuple[AgentDefinition, ...] = (
     _def(AgentId.RESEARCH, "A2", "Research & Fact Agent",
          "Topics, source discovery, evidence and claim verification.",
          "ResearchInput", "ResearchBrief", ["ResearchBrief", "FactClaims"],
-         ["claim citations", "ambiguity"], [S.RESEARCHING], [C.LLM_TEXT, C.WEB_RESEARCH]),
+         ["claim citations", "ambiguity"], [S.RESEARCHING], [C.LLM_TEXT, C.WEB_RESEARCH], 2),
     _def(AgentId.MEDIA_DISCOVERY, "A3", "Media Discovery Agent",
          "Federated image/video search, rights checks, dedup and asset selection.",
          "MediaDiscoveryInput", "AssetSelection", ["AssetCandidates", "AssetSelections"],
@@ -92,15 +94,15 @@ AGENT_DEFINITIONS: tuple[AgentDefinition, ...] = (
     _def(AgentId.CREATIVE_DIRECTOR, "A4", "Creative Director",
          "Theme, genre, narrative style, visual language and creative brief.",
          "CreativeInput", "CreativeTreatment", ["CreativeTreatment", "StyleBible"],
-         ["consistency", "novelty"], [S.RESEARCHING], [C.LLM_TEXT]),
+         ["consistency", "novelty"], [S.RESEARCHING], [C.LLM_TEXT], 2),
     _def(AgentId.SCRIPTWRITER, "A5", "Scriptwriter & Reasoner",
          "Hook, story beats, screenplay, dialogue and pacing.",
          "ScriptInput", "Script", ["Script", "StoryBeats"],
-         ["coherence", "fact use", "word budget"], [S.SCRIPTING], [C.LLM_TEXT]),
+         ["coherence", "fact use", "word budget"], [S.SCRIPTING], [C.LLM_TEXT], 2),
     _def(AgentId.SCENE_DIRECTOR, "A6", "Scene Director",
          "Scene decomposition, storyboards, shots, cinematography and prompt compilation.",
          "SceneDirectionInput", "SceneGraph", ["SceneGraph", "ShotSpecs"],
-         ["continuity", "feasible shots"], [S.STORYBOARDING], [C.LLM_TEXT]),
+         ["continuity", "feasible shots"], [S.STORYBOARDING], [C.LLM_TEXT], 2),
     _def(AgentId.VISUAL_PRODUCTION, "A7", "Visual Production Agent",
          "Image/video provider routing, generation, reuse and shot repairs.",
          "ShotProductionInput", "RenderedShotRef", ["RenderedShotRefs"],
@@ -150,6 +152,9 @@ class SourceCitation(ContractModel):
     publisher: str | None = None
     published_at: date | None = None
     retrieved_at: datetime = Field(default_factory=utcnow)
+    excerpt: str | None = Field(
+        default=None, description="Source text supporting the claim (provenance check)"
+    )
 
 
 class ClaimStatus(StrEnum):
@@ -328,6 +333,9 @@ class ScriptInput(ContractModel):
     assets: AssetSelection
     scene_count: int = Field(ge=1)
     duration_target_sec: float = Field(gt=0)
+    excluded_claim_ids: list[str] = Field(
+        default_factory=list, description="Claims a reviewer rejected; never cite them"
+    )
 
 
 class SceneDirectionInput(ContractModel):
@@ -347,9 +355,14 @@ class ShotProductionInput(ContractModel):
 
 
 class AudioInput(ContractModel):
+    """The orchestrator calls A8 once per scene (narration/lip-sync) and once for the
+    music bed, so a failed line retries alone instead of rerunning all audio."""
+
     scenes: list[Scene]
     script: Script
     language: str = "en-US"
+    include_narration: bool = True
+    include_music: bool = True
 
 
 class ReviewInput(ContractModel):

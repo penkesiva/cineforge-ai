@@ -47,6 +47,9 @@ RESPONSE_MODELS: list[type[BaseModel]] = [
     theme.ThemeProfile,
     theme.ProductionModePolicy,
     providers.ProviderInfo,
+    providers.ProviderCatalogEntry,
+    api.ProvidersOverview,
+    api.ProviderTestResult,
     wf.ProductionEvent,
 ]
 
@@ -54,6 +57,10 @@ RESPONSE_MODELS: list[type[BaseModel]] = [
 REQUEST_MODELS: list[type[BaseModel]] = [
     api.CreateProductionRequest,
     api.ApproveProductionRequest,
+    api.ReviewClaimsRequest,
+    api.UpdateProviderRequest,
+    api.SetProviderKeyRequest,
+    api.CreateThemeVersionRequest,
 ]
 
 

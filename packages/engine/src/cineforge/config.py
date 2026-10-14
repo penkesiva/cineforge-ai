@@ -35,9 +35,22 @@ class Settings(BaseSettings):
     supabase_service_role_key: str = ""
     supabase_storage_bucket: str = "cineforge-media"
 
-    provider_mode: Literal["mock"] = "mock"
+    # mock: only mock providers are routable (offline, $0). live: real providers that are
+    # enabled on the Sources page and ready (key present, paid calls allowed) win by priority.
+    provider_mode: Literal["mock", "live"] = "mock"
     allow_paid_providers: bool = False
-    price_catalog_version: str = "mock-2026-10"
+    # Comma-separated catalog versions, merged (packages/configurations/pricing/<v>.yaml).
+    price_catalog_version: str = "mock-2026-10,open-sources-2026-10,anthropic-2026-10"
+    # Where API keys entered on the Sources page live. vault = Supabase Vault (encrypted in
+    # Postgres, shared by api + workers); memory = per-process (tests only).
+    secrets_backend: Literal["vault", "memory"] = "vault"
+    # Keys from the environment take priority over stored keys.
+    anthropic_api_key: str = ""
+    anthropic_model: str = "claude-sonnet-4-5"
+    anthropic_base_url: str = "https://api.anthropic.com"
+    http_timeout_sec: float = Field(default=20.0, gt=0, le=120)
+    # Wikimedia APIs require a descriptive User-Agent with contact info.
+    http_user_agent: str = "CineForgeAI/0.2 (https://github.com/penkesiva/cineforge-ai)"
     # Demo knobs (mock providers only): pause between workflow steps so progress is
     # visible, and a deterministic failure rate to exercise bounded retries.
     mock_step_delay_sec: float = Field(default=0.0, ge=0, le=10)

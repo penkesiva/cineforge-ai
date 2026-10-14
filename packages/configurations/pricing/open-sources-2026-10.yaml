@@ -1,0 +1,11 @@
+# Free, keyless open-data sources used for research and media search (Phase 1).
+# Calls still go through the PaidCallGuard so the ledger shows every request.
+# Rate limits apply; downloads of full-resolution media are NOT part of these calls.
+version: open-sources-2026-10
+currency: USD
+effective_from: 2026-10-01
+simulated: false
+entries:
+  - {provider: wikipedia, model: mediawiki-action-api, capability: web_research, unit: request, unit_price: 0, notes: "Wikipedia search + extracts (free, keyless)"}
+  - {provider: wikimedia-commons, model: mediawiki-action-api, capability: media_search, unit: request, unit_price: 0, notes: "Commons file search + extmetadata licenses (free, keyless)"}
+  - {provider: openverse, model: openverse-v1, capability: media_search, unit: request, unit_price: 0, notes: "Openverse anonymous API (free, rate limited)"}

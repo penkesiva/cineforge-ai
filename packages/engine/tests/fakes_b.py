@@ -76,9 +76,8 @@ class FakePriceCatalog:
 
     @classmethod
     def load(cls, settings: Settings) -> FakePriceCatalog:
-        path = (
-            Path(settings.configurations_dir) / "pricing" / f"{settings.price_catalog_version}.yaml"
-        )
+        version = settings.price_catalog_version.split(",")[0].strip()
+        path = Path(settings.configurations_dir) / "pricing" / f"{version}.yaml"
         raw = yaml.safe_load(path.read_text())
         entries = [
             PriceCatalogEntry(

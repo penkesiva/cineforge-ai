@@ -1,0 +1,13 @@
+# Anthropic Claude list prices (USD per 1k tokens). REVIEW BEFORE ENABLING PAID CALLS:
+# verify against https://www.anthropic.com/pricing and add a NEW versioned file if they
+# changed; never edit this one after use. A model missing here cannot be called
+# (UnknownPriceError fails closed), so ANTHROPIC_MODEL must match an entry.
+version: anthropic-2026-10
+currency: USD
+effective_from: 2026-10-01
+simulated: false
+entries:
+  - {provider: anthropic, model: claude-sonnet-4-5, capability: llm_text, unit: 1k_input_tokens, unit_price: 0.003, notes: "$3 / MTok input"}
+  - {provider: anthropic, model: claude-sonnet-4-5, capability: llm_text, unit: 1k_output_tokens, unit_price: 0.015, notes: "$15 / MTok output"}
+  - {provider: anthropic, model: claude-haiku-4-5, capability: llm_text, unit: 1k_input_tokens, unit_price: 0.001, notes: "$1 / MTok input"}
+  - {provider: anthropic, model: claude-haiku-4-5, capability: llm_text, unit: 1k_output_tokens, unit_price: 0.005, notes: "$5 / MTok output"}

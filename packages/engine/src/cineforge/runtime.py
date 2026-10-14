@@ -12,7 +12,12 @@ docs/architecture/contracts.md):
 - cineforge.media.factory.build_storage(settings) -> StorageBackend            [D]
 - cineforge.media.factory.build_asset_repository(settings) -> AssetRepository  [D]
 - cineforge.media.factory.build_rights_gate(settings) -> RightsGate            [D]
-- cineforge.providers.factory.build_provider_registry(settings) -> ProviderRegistry [D]
+- cineforge.persistence.factory.build_theme_repository(settings) -> ThemeRepository [B]
+- cineforge.providers.factory.build_secret_store(settings) -> SecretStore      [D]
+- cineforge.providers.factory.build_provider_settings_repository(settings)
+      -> ProviderSettingsRepository                                             [D]
+- cineforge.providers.factory.build_provider_registry(
+      settings, *, secrets, provider_settings) -> ProviderRegistry             [D]
 - cineforge.providers.factory.build_paid_call_guard(settings, budget, catalog) -> PaidCallGuard [D]
 
 Imports are lazy so each workstream can test its own pieces in isolation.
@@ -29,8 +34,17 @@ from cineforge.contracts.agents import AgentRegistry
 from cineforge.contracts.cost import BudgetService, CostEstimator, PriceCatalog
 from cineforge.contracts.jobs import TaskQueue
 from cineforge.contracts.media import AssetRepository, RightsGate, StorageBackend
-from cineforge.contracts.providers import PaidCallGuard, ProviderRegistry
-from cineforge.contracts.repositories import AgentRunRepository, ProductionRepository
+from cineforge.contracts.providers import (
+    PaidCallGuard,
+    ProviderRegistry,
+    ProviderSettingsRepository,
+    SecretStore,
+)
+from cineforge.contracts.repositories import (
+    AgentRunRepository,
+    ProductionRepository,
+    ThemeRepository,
+)
 
 
 @dataclass(frozen=True)
@@ -106,10 +120,30 @@ class Runtime:
         return build_rights_gate(self.settings)
 
     @cached_property
+    def themes(self) -> ThemeRepository:
+        from cineforge.persistence.factory import build_theme_repository
+
+        return build_theme_repository(self.settings)
+
+    @cached_property
+    def secrets(self) -> SecretStore:
+        from cineforge.providers.factory import build_secret_store
+
+        return build_secret_store(self.settings)
+
+    @cached_property
+    def provider_settings(self) -> ProviderSettingsRepository:
+        from cineforge.providers.factory import build_provider_settings_repository
+
+        return build_provider_settings_repository(self.settings)
+
+    @cached_property
     def providers(self) -> ProviderRegistry:
         from cineforge.providers.factory import build_provider_registry
 
-        return build_provider_registry(self.settings)
+        return build_provider_registry(
+            self.settings, secrets=self.secrets, provider_settings=self.provider_settings
+        )
 
     @cached_property
     def paid_calls(self) -> PaidCallGuard:

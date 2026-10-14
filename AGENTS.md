@@ -43,7 +43,7 @@ Read `docs/architecture/contracts.md` before writing code.
 6. **Stay in your lane.** Only edit files your workstream owns (table below).
 7. **Tests are mandatory.** Every change ships with tests; your workstream's test command must pass.
 
-## Workstream ownership (Phase 0)
+## Workstream ownership (Phase 0 and Phase 1)
 
 | Workstream | Branch | Owns (exclusive write access) |
 |---|---|---|
@@ -58,9 +58,10 @@ Engine tests live next to the code they test: `packages/engine/tests/<area>/`
 
 ## Git and worktrees
 
-- Integration branch: `phase0/foundation`. `main` only receives reviewed PRs after all
+- Integration branch: `phase1/foundation` (Phase 1; `phase0/foundation` for Phase 0), branches
+ `phase1/<x>`. `main` only receives reviewed PRs after all
   acceptance criteria pass.
-- One worktree per workstream: `git worktree add ../cineforge-ai-wt/<x> -b phase0/<x> phase0/foundation`.
+- One worktree per workstream: `git worktree add ../cineforge-ai-wt/<x> -b phase1/<x> phase1/foundation`.
 - Small, focused commits: `<area>: <imperative summary>` (e.g. `cost: add postgres budget reservations`).
 - Never rewrite shared history, never force-push shared branches, never commit to `main` directly.
 

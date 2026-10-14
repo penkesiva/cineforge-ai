@@ -12,6 +12,9 @@ Change log:
 - `phase0-contracts-frozen` - initial freeze (A10 input carries the deterministic `CostEstimate`).
 - Integration - `ReviewFinding.blocking` / `ReviewReport.passed` (computed) are ignored on
   input so dumps round-trip. RQ-safe job IDs are derived from the logical IDs below.
+- `phase1-contracts-frozen` - research and preproduction (section 9 below): live provider
+  mode, provider catalog/settings/secrets, input/output token pricing, theme registry,
+  claim review, prompt v2 for A2/A4/A5/A6, per-scene audio, ledger `status_reason`.
 
 ## 1. Modules
 
@@ -154,3 +157,70 @@ but still go through reservation → commit so accounting is exercised end to en
 `PaidCallGuard` raises `PaidProviderNotAllowedError` for any `is_paid=True` provider
 unless `ALLOW_PAID_PROVIDERS=true`. `MOCK_FAILURE_RATE` makes mock media providers
 fail deterministically (seeded by idempotency key) to exercise bounded retries.
+
+## 9. Phase 1 additions (research and preproduction)
+
+### Settings
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `PROVIDER_MODE` | `mock` | `mock`: only mock providers route. `live`: enabled + ready real providers win by priority |
+| `ALLOW_PAID_PROVIDERS` | `false` | Hard switch for any `is_paid` provider (guard + router) |
+| `PRICE_CATALOG_VERSION` | `mock-2026-10,open-sources-2026-10,anthropic-2026-10` | Comma list, merged; entries keep their own version |
+| `SECRETS_BACKEND` | `vault` | `vault` = Supabase Vault (encrypted, shared by api + workers); `memory` = tests |
+| `ANTHROPIC_API_KEY` | empty | Env key wins over a stored key |
+| `ANTHROPIC_MODEL` | `claude-sonnet-4-5` | Must exist in the price catalog (unknown price fails closed) |
+
+### Providers and routing (ENG-12)
+
+- `ProviderRegistry.route(capability, tenant_id=...)` returns the READY provider with the
+  lowest priority; `route_all` returns all READY ones (federated media search). Agents use
+  these, not `for_capability`. Readiness rules: `cineforge/providers/registry.py` docstring.
+- `ProviderStatus`: `ready | missing_key | disabled | blocked_paid_off | blocked_mock_mode | planned`.
+- Defaults: mock and free providers enabled, paid disabled; real priority 10, mock 100.
+- `ProviderSetting` rows (`provider_settings` table) override defaults per tenant.
+- `SecretStore` is write-only from the API: keys are stored under the provider name and
+  never returned; the catalog shows `key_source` and a `key_hint` (`...a1b2`).
+- Payloads: LLM structured output via `parameters["response_schema"]` ->
+  `output_data["structured"]`; research -> `output_data["sources"]` (`ResearchSource[]`);
+  media search -> `output_data["items"]` (`MediaSearchItem[]`).
+- `ProviderUsage.breakdown` (e.g. `1k_input_tokens` + `1k_output_tokens`) is priced line by
+  line by the guard; the ledger row records the aggregate `1k_tokens`.
+
+| Factory | Returns | Owner |
+|---|---|---|
+| `cineforge.persistence.factory.build_theme_repository(settings)` | `ThemeRepository` (memory / Postgres `theme_profiles`) | B |
+| `cineforge.providers.factory.build_secret_store(settings)` | `SecretStore` (`vault` / `memory`) | D |
+| `cineforge.providers.factory.build_provider_settings_repository(settings)` | `ProviderSettingsRepository` (memory / Postgres) | D |
+| `cineforge.providers.factory.build_provider_registry(settings, *, secrets, provider_settings)` | `ProviderRegistry` (mock + real + planned) | D |
+
+### Workflow changes
+
+- A2 cites only fetched sources; a claim whose URL was not fetched or whose excerpt is not in
+  the source text is downgraded to `unverified` (ENG-04). A5 never cites unverified,
+  disputed or rejected claims (`ScriptInput.excluded_claim_ids`).
+- At `AWAITING_APPROVAL` reviewers record `ClaimReview`s (`manifest.claim_reviews`).
+  Approval is refused (409) while a script line cites a rejected claim; the operator can
+  send the production back to scripting (`AWAITING_APPROVAL -> NEEDS_REVIEW -> SCRIPTING`).
+- A8 runs once per scene (`include_music=false`, scope `scene_id`) and once for music
+  (`include_narration=false`, scope `music`), each with bounded retries.
+- Ledger rows carry `status_reason` (release/failure reason, or `overspend: ...` when the
+  committed actual exceeds the reservation).
+
+### REST additions (`/api/v1`)
+
+| Method & path | Body | Response |
+|---|---|---|
+| `GET /providers` | | `ProvidersOverview` (groups per capability) |
+| `PATCH /providers/{name}` | `UpdateProviderRequest` | `ProviderCatalogEntry` |
+| `PUT /providers/{name}/key` | `SetProviderKeyRequest` | `ProviderCatalogEntry` (key never echoed) |
+| `DELETE /providers/{name}/key` | | `ProviderCatalogEntry` |
+| `POST /providers/{name}/test` | | `ProviderTestResult` (free check where possible) |
+| `GET /themes/{id}?version=N` | | `ThemeProfile` |
+| `GET /themes/{id}/versions` | | `ThemeProfile[]` (oldest first) |
+| `POST /themes/{id}/versions` | `CreateThemeVersionRequest` | 201 `ThemeProfile` (409 if `base_version` is stale) |
+| `POST /productions/{id}/claims` | `ReviewClaimsRequest` | `ProductionDetail` (AWAITING_APPROVAL / PAUSED_BUDGET only) |
+| `POST /productions/{id}/rewrite-script` | | 202 `ActionResponse` (back to SCRIPTING, rejected claims excluded) |
+
+Database: `supabase/migrations/20261014000000_phase1_providers.sql` adds
+`provider_settings`, `cost_ledger.status_reason` and enables `supabase_vault`.
