@@ -7,7 +7,7 @@ import { api, errorMessage, isApiError } from "@/lib/api";
 import { formatUsd } from "@/lib/format";
 import { usePolling, useResource } from "@/lib/hooks";
 import { claimCitations, rejectedCitedClaimIds, type ClaimDecisionValue } from "@/lib/review";
-import { isReviewState, isWorkingState } from "@/lib/workflow";
+import { canRewriteScript, isWorkingState } from "@/lib/workflow";
 import { AppConfirmDialog } from "../dialogs/AppConfirmDialog";
 import { AppNoticeDialog, type NoticeState } from "../dialogs/AppNoticeDialog";
 import { IconAlert } from "../icons";
@@ -109,7 +109,9 @@ export function ProductionDetailContainer({ id }: { id: string }) {
           action === "approve" &&
           isApiError(err) &&
           err.status === 409 &&
-          (rejectedCitedClaimIds(data).length > 0 || /claim/i.test(`${err.body?.error ?? ""} ${err.message}`));
+          (err.body?.error === "approval_blocked" ||
+            rejectedCitedClaimIds(data).length > 0 ||
+            /claim/i.test(err.message));
         setNotice({
           variant: "error",
           title: action === "rewrite" ? "Could not rewrite script" : `Could not ${action} production`,
@@ -304,7 +306,7 @@ export function ProductionDetailContainer({ id }: { id: string }) {
         title={notice?.title ?? ""}
         message={notice?.message}
         note={notice?.note}
-        secondaryLabel={notice?.offerRewrite && isReviewState(data.summary.state) ? "Rewrite script" : undefined}
+        secondaryLabel={notice?.offerRewrite && canRewriteScript(data.summary.state) ? "Rewrite script" : undefined}
         onSecondary={() => {
           setNotice(null);
           setConfirming("rewrite");

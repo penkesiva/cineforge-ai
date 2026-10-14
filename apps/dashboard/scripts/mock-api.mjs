@@ -440,13 +440,13 @@ createServer(async (req, res) => {
       const decisions = Array.isArray(body.decisions) ? body.decisions : [];
       if (decisions.length === 0) return fail(res, 422, "validation_error", "decisions: List should have at least 1 item");
       const unknown = decisions.find((d) => !known.has(d.claim_id));
-      if (unknown) return fail(res, 404, "claim_not_found", `Claim ${unknown.claim_id} not found`);
+      if (unknown) return fail(res, 422, "validation_error", `unknown claim id(s): ${unknown.claim_id}`);
       for (const d of decisions) p.manifest.claim_reviews.push({ claim_id: d.claim_id, decision: d.decision, note: d.note ?? null, reviewed_by: body.reviewed_by ?? "operator", reviewed_at: now() });
       return send(res, 200, detail(p));
     }
     if (sub === "POST rewrite-script") {
-      if (!["AWAITING_APPROVAL", "PAUSED_BUDGET"].includes(p.manifest.state)) return fail(res, 409, "invalid_state_transition", `Cannot rewrite the script from ${p.manifest.state}`);
-      event(p, p.manifest.state, "NEEDS_REVIEW", "Script cites rejected claims");
+      if (!["AWAITING_APPROVAL", "NEEDS_REVIEW"].includes(p.manifest.state)) return fail(res, 409, "invalid_state_transition", `Cannot rewrite the script from ${p.manifest.state}`);
+      if (p.manifest.state === "AWAITING_APPROVAL") event(p, "AWAITING_APPROVAL", "NEEDS_REVIEW", "Script cites rejected claims");
       event(p, "NEEDS_REVIEW", "SCRIPTING", "Rewriting script without rejected claims");
       return send(res, 202, { production_id: p.id, state: "SCRIPTING", message: "Script rewrite queued.", job_id: null });
     }
@@ -454,7 +454,7 @@ createServer(async (req, res) => {
       const blocking = citedRejected(p);
       if (blocking.length && ["AWAITING_APPROVAL", "PAUSED_BUDGET"].includes(p.manifest.state)) {
         const first = blocking[0];
-        return fail(res, 409, "rejected_claim_cited", `Script line in scene ${first.scene} cites rejected claim ${first.id}. Rewrite the script before approving.`);
+        return send(res, 409, { error: "approval_blocked", detail: `script scene(s) [${first.scene}] cite rejected claims; request a script rewrite first` });
       }
       return action(res, p, ["AWAITING_APPROVAL", "PAUSED_BUDGET"], "GENERATING", "Approve", () => {
         if (body.raise_budget_to_usd != null) p.manifest.budget.limit = Number(body.raise_budget_to_usd);

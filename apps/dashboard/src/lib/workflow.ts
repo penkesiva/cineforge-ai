@@ -25,6 +25,10 @@ export const canTransition = (from: ProductionState, to: ProductionState): boole
 export const isReviewState = (state: ProductionState): boolean =>
   state === "AWAITING_APPROVAL" || state === "PAUSED_BUDGET";
 
+/** `POST /rewrite-script` goes AWAITING_APPROVAL -> NEEDS_REVIEW -> SCRIPTING, so only these two states qualify. */
+export const canRewriteScript = (state: ProductionState): boolean =>
+  state === "AWAITING_APPROVAL" || state === "NEEDS_REVIEW";
+
 export function isHappyPathState(state: ProductionState): state is HappyPathState {
   return (HAPPY_PATH as readonly ProductionState[]).includes(state);
 }
