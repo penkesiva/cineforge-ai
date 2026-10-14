@@ -23,8 +23,8 @@ define dashboard_npm
 endef
 
 .PHONY: help setup db-start db-stop db-reset up down down-all restart rebuild build logs ps \
-	shell test test-py test-integration test-js test-e2e test-docker lint fmt contracts \
-	contracts-check demo check-media check-media-selftest clean-media
+	shell test test-py test-integration test-js test-e2e test-docker test-live test-scripts \
+	lint fmt contracts contracts-check demo demo-live check-media check-media-selftest clean-media
 
 help: ## Show this help
 	@echo "CineForge AI - make targets"
@@ -33,6 +33,7 @@ help: ## Show this help
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2}'
 	@echo
 	@echo "Examples: make logs s=api | make shell s=worker | make clean-media CONFIRM=1"
+	@echo "Paid/live targets (demo-live, test-live) need explicit opt-in: docs/development/providers.md"
 
 # --- Setup ---------------------------------------------------------------------
 
@@ -102,24 +103,37 @@ shell: ## Open a shell in a running service (s=api by default)
 	$(COMPOSE) exec $(or $(s),api) bash
 
 # --- Tests and quality -------------------------------------------------------------
+# Default test targets pin RUN_LIVE_TESTS=0 so they never hit the network; only
+# `make test-live` opts in.
 
 test: test-py test-js ## Run Python + dashboard unit tests
 
-test-py: ## Python tests (integration tests skip without DB)
-	uv run pytest -q
+test-py: ## Python tests (integration tests skip without DB, live tests always skip)
+	RUN_LIVE_TESTS=0 uv run pytest -q
 
 test-integration: ## Python integration tests (needs `make db-start` + redis)
-	uv run pytest -q -m integration
+	RUN_LIVE_TESTS=0 uv run pytest -q -m integration
 
 test-js: ## Dashboard tests
 	$(call dashboard_npm,test)
 
 test-e2e: ## End-to-end tests against the running stack (`make up` first)
-	uv run pytest -q -m e2e tests/e2e
+	RUN_LIVE_TESTS=0 uv run pytest -q -m e2e tests/e2e
 
 test-docker: ## Run Python tests inside the media-worker image (has ffmpeg)
-	$(COMPOSE) run --rm --no-deps -v ./supabase:/app/supabase:ro -v ./tests:/app/tests:ro \
-		media-worker pytest -q
+	$(COMPOSE) run --rm --no-deps -e RUN_LIVE_TESTS=0 \
+		-v ./supabase:/app/supabase:ro -v ./tests:/app/tests:ro media-worker pytest -q
+
+test-live: ## CAN COST MONEY: live tests with real network/provider calls (RUN_LIVE_TESTS=1)
+	@echo "WARNING: live tests call real providers over the internet. Paid providers (Anthropic)"
+	@echo "can cost real money when a key is set (ANTHROPIC_API_KEY). Ctrl-C now to abort."
+	@sleep 3
+	@set +e; RUN_LIVE_TESTS=1 uv run pytest -q -m live; code=$$?; \
+		if [ $$code -eq 5 ]; then echo "no live tests collected"; exit 0; fi; exit $$code
+
+test-scripts: ## Self-tests for scripts/ (check-media, demo-live gating; no network)
+	bash scripts/tests/test_check_no_media.sh
+	bash scripts/tests/test_demo_live.sh
 
 lint: ## Ruff lint + format check, dashboard lint + typecheck
 	uv run ruff check .
@@ -144,6 +158,9 @@ contracts-check: ## Fail if generated contract artifacts are stale
 
 demo: ## Create + run a sample production (stack must be up)
 	API_URL=$(API_URL) DASHBOARD_URL=$(DASHBOARD_URL) bash scripts/demo.sh
+
+demo-live: ## CAN COST MONEY: live preproduction demo (needs PROVIDER_MODE=live, ALLOW_PAID_PROVIDERS=true)
+	API_URL=$(API_URL) DASHBOARD_URL=$(DASHBOARD_URL) bash scripts/demo_live.sh
 
 check-media: ## Fail if Git tracks media, files > 5 MB, or secrets
 	bash scripts/check_no_media.sh
