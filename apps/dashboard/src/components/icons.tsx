@@ -124,6 +124,42 @@ export const IconExternal = (p: IconProps) => (
   </Svg>
 );
 
+export const IconPlug = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M9 2v5M15 2v5" />
+    <path d="M6 7h12v4a6 6 0 01-12 0z" />
+    <path d="M12 17v5" />
+  </Svg>
+);
+
+export const IconPalette = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 3a9 9 0 100 18c1.1 0 1.8-.8 1.8-1.8 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-1 .8-1.8 1.8-1.8H17a4 4 0 004-4c0-4.4-4-8-9-8z" />
+    <circle cx="7.5" cy="11" r="1" />
+    <circle cx="10" cy="7" r="1" />
+    <circle cx="15" cy="7.5" r="1" />
+  </Svg>
+);
+
+export const IconChevronUp = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M6 15l6-6 6 6" />
+  </Svg>
+);
+
+export const IconChevronDown = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M6 9l6 6 6-6" />
+  </Svg>
+);
+
+export const IconKey = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="8" cy="15" r="4" />
+    <path d="M11 12l9-9M17 6l3 3M15 8l2 2" />
+  </Svg>
+);
+
 export function Logo({ size = 30 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true" focusable="false">

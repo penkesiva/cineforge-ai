@@ -57,6 +57,11 @@ export function HealthIndicator() {
     >
       <HealthDot level={level} />
       <span>{LABELS[level]}</span>
+      {data?.provider_mode && (
+        <span data-testid="provider-mode" className="border-l border-white/10 pl-2 text-zinc-500">
+          {data.provider_mode === "live" ? "Live providers" : "Mock mode"}
+        </span>
+      )}
     </div>
   );
 }

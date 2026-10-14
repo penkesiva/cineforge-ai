@@ -3,7 +3,7 @@ import type { ComponentPropsWithRef, ReactNode } from "react";
 import { errorMessage, isApiError } from "@/lib/api";
 import { humanize } from "@/lib/format";
 import { isWorkingState } from "@/lib/workflow";
-import { IconAlert, IconRefresh } from "./icons";
+import { IconAlert, IconExternal, IconRefresh } from "./icons";
 
 export function cx(...classes: Array<string | false | null | undefined>): string {
   return classes.filter(Boolean).join(" ");
@@ -52,7 +52,7 @@ export function Card({
   );
 }
 
-type Tone = "neutral" | "info" | "working" | "success" | "warning" | "danger" | "gold" | "violet";
+export type Tone = "neutral" | "info" | "working" | "success" | "warning" | "danger" | "gold" | "violet";
 
 const TONES: Record<Tone, string> = {
   neutral: "border-zinc-600/40 bg-zinc-500/10 text-zinc-300",
@@ -323,6 +323,68 @@ export function PageHeader({
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
+  );
+}
+
+export function Switch({
+  checked,
+  onChange,
+  label,
+  labelledBy,
+  disabled = false,
+}: {
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  /** Accessible name when there is no visible label element. */
+  label?: string;
+  labelledBy?: string;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={labelledBy ? undefined : label}
+      aria-labelledby={labelledBy}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={cx(
+        "relative h-6 w-11 shrink-0 rounded-full transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-400 disabled:cursor-not-allowed disabled:opacity-40",
+        checked ? "bg-gold-500" : "bg-white/10",
+      )}
+    >
+      <span
+        aria-hidden="true"
+        className={cx(
+          "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-[left] duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
+          checked ? "left-[22px]" : "left-0.5",
+        )}
+      />
+    </button>
+  );
+}
+
+export const inputClass =
+  "w-full rounded-lg border border-white/10 bg-ink-950/60 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none transition focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/20 aria-[invalid=true]:border-rose-500/60 disabled:opacity-50";
+
+/** Only http(s) URLs are rendered as links; anything else is shown as text. */
+export function safeHref(url: string | null | undefined): string | undefined {
+  return url && /^https?:\/\//i.test(url) ? url : undefined;
+}
+
+export function ExternalLink({ href, children, className }: { href: string; children: ReactNode; className?: string }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={cx("inline-flex items-center gap-1 text-sky-300 hover:text-sky-200 hover:underline", className)}
+    >
+      {children}
+      <IconExternal size={11} />
+      <span className="sr-only">(opens in a new tab)</span>
+    </a>
   );
 }
 
