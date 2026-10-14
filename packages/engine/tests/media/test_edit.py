@@ -277,3 +277,27 @@ def test_forced_rerender_requires_ready(rt: Runtime) -> None:
     with pytest.raises(RenderError, match="READY"):
         jobs.render_master(production_id=PID, tenant_id=TENANT, idempotency_key="r", force=True)
     assert rt.productions.get(PID, TENANT).state == ProductionState.GENERATING
+
+
+@pytest.mark.ffmpeg
+def test_fit_narration_shortens_pauses_then_speeds_up(tmp_path: Path, require_ffmpeg: None) -> None:
+    speech = tmp_path / "speech.wav"
+    _ffmpeg(
+        "-f", "lavfi", "-i", "sine=f=440:d=1,apad=pad_dur=2",
+        "-f", "lavfi", "-i", "sine=f=440:d=1",
+        "-filter_complex", "[0][1]concat=n=2:v=0:a=1", str(speech),
+    )  # fmt: skip
+
+    def seconds(path: Path) -> float:
+        return probe_summary(probe(path))["duration_sec"]
+
+    assert seconds(speech) == pytest.approx(4.0, abs=0.05)
+    assert edit.fit_narration(speech, 5.0, tmp_path, name="a") == speech
+
+    squeezed = edit.fit_narration(speech, 3.0, tmp_path, name="b")
+    assert squeezed.name == "b_pauses.wav"
+    assert 2.0 < seconds(squeezed) <= 3.0
+
+    faster = edit.fit_narration(speech, 1.5, tmp_path, name="c")
+    assert faster.name == "c_tempo.wav"
+    assert seconds(faster) == pytest.approx(seconds(squeezed) / edit.NARRATION_MAX_TEMPO, abs=0.1)

@@ -9,7 +9,8 @@ Per shot (first match wins):
 3. a colour slate with the scene title.
 
 Audio: each scene's latest real narration (``AssetRole.AUDIO`` on any of its shots) is
-placed at the scene start and trimmed to the scene; an optional real music bed sits
+placed at the scene start, fitted to the scene (long pauses shortened, then at most 1.2x
+faster) and trimmed to it; an optional real music bed sits
 under it; silence otherwise; loudness-normalized to the soundtrack target.
 
 Text (needs drawtext + a font): burned-in captions, the disclosure label on synthetic
@@ -24,7 +25,7 @@ import subprocess
 import tempfile
 import textwrap
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Literal
 
@@ -42,6 +43,8 @@ from cineforge.media.render import (
     _binary,
     find_font,
     has_drawtext,
+    probe,
+    probe_summary,
 )
 
 RENDERER = "ffmpeg-edit-v1"
@@ -51,6 +54,9 @@ DEFAULT_ZOOM = 1.08
 STILL_OVERSCAN = 1.5
 CAPTION_MAX_WORDS = 9
 NARRATION_FADE_SEC = 0.15
+NARRATION_PAUSE_SEC = 0.3
+NARRATION_MAX_TEMPO = 1.2
+NARRATION_HEADROOM_SEC = 0.2
 MUSIC_VOLUME = 0.12
 DEFAULT_AI_LABEL = "AI-generated"
 END_CARD_TITLE = "Made with CineForge AI"
@@ -490,6 +496,46 @@ def build_edit_command(
     ]  # fmt: skip
 
 
+def _media_duration(path: Path) -> float:
+    return float(probe_summary(probe(path)).get("duration_sec") or 0.0)
+
+
+def _run_ffmpeg(args: list[str], timeout: float) -> None:
+    cmd = [_binary("ffmpeg"), "-hide_banner", "-nostdin", "-loglevel", "error", "-y", *args]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False)
+    except subprocess.TimeoutExpired as exc:
+        raise RenderError(f"ffmpeg timed out after {timeout}s") from exc
+    if result.returncode != 0:
+        raise RenderError(f"ffmpeg failed ({result.returncode}): {result.stderr.strip()[-500:]}")
+
+
+def fit_narration(
+    src: Path, target: float, workdir: Path, *, name: str, timeout: float = RENDER_TIMEOUT_SEC
+) -> Path:
+    """Fit a narration file into ``target`` seconds: shorten pauses longer than
+    ``NARRATION_PAUSE_SEC``, then speed up by at most ``NARRATION_MAX_TEMPO``. Files that
+    already fit are returned unchanged; anything still too long is trimmed by the mix."""
+    if target <= 0 or _media_duration(src) <= target:
+        return src
+    squeezed = workdir / f"{name}_pauses.wav"
+    pause = NARRATION_PAUSE_SEC
+    _run_ffmpeg(
+        ["-i", str(src), "-af",
+         "silenceremove=start_periods=1:start_threshold=-40dB:stop_periods=-1"
+         f":stop_duration={pause}:stop_threshold=-40dB:stop_silence={pause}",
+         str(squeezed)],
+        timeout,
+    )  # fmt: skip
+    length = _media_duration(squeezed)
+    if length <= target:
+        return squeezed
+    tempo = min(NARRATION_MAX_TEMPO, length / target)
+    faster = workdir / f"{name}_tempo.wav"
+    _run_ffmpeg(["-i", str(squeezed), "-af", f"atempo={tempo:.4f}", str(faster)], timeout)
+    return faster
+
+
 def render_master_edit(
     plan: EditPlan,
     output: OutputProfile,
@@ -504,6 +550,22 @@ def render_master_edit(
     text = font is not None and has_drawtext()
     with tempfile.TemporaryDirectory(prefix="cineforge-edit-") as workdir:
         work = Path(workdir)
+        plan = replace(
+            plan,
+            narration=[
+                replace(
+                    track,
+                    path=fit_narration(
+                        track.path,
+                        track.duration - NARRATION_HEADROOM_SEC,
+                        work,
+                        name=f"narration{j}",
+                        timeout=timeout,
+                    ),
+                )
+                for j, track in enumerate(plan.narration)
+            ],
+        )
         if text:
             os.symlink(font, work / "font.ttf")
             for name, content in text_files(plan, output).items():
