@@ -50,4 +50,8 @@ describe("workflow constants", () => {
     expect(canTransition("AWAITING_APPROVAL", "NEEDS_REVIEW") && canTransition("NEEDS_REVIEW", "SCRIPTING")).toBe(true);
     expect(canTransition("PAUSED_BUDGET", "NEEDS_REVIEW")).toBe(false);
   });
+
+  it("offers a re-render only in READY", () => {
+    expect(schemas.PRODUCTION_STATES.filter((s) => availableActions(s).rerender)).toEqual(["READY"]);
+  });
 });

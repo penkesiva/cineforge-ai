@@ -1,10 +1,10 @@
 import type { ProductionDetail } from "@cineforge/schemas";
 import { formatDateTime, formatDuration, humanize } from "@/lib/format";
 import { availableActions } from "@/lib/workflow";
-import { IconCheck, IconPlay, IconSend, IconStop } from "../icons";
+import { IconCheck, IconPlay, IconRefresh, IconSend, IconStop } from "../icons";
 import { Badge, Button, SimulatedBadge, Spinner, StateBadge } from "../ui";
 
-export type ProductionAction = "run" | "approve" | "cancel" | "deliver";
+export type ProductionAction = "run" | "approve" | "cancel" | "deliver" | "rerender";
 /** Header actions plus review-only actions that should also lock the header. */
 export type BusyAction = ProductionAction | "rewrite";
 
@@ -72,6 +72,16 @@ export function ProductionHeader({
             busy={busyAction === "deliver"}
           >
             <IconSend size={15} /> Deliver
+          </Button>
+        )}
+        {actions.rerender && (
+          <Button
+            variant="secondary"
+            onClick={() => onAction?.("rerender")}
+            disabled={disabled}
+            busy={busyAction === "rerender"}
+          >
+            <IconRefresh size={15} /> Re-render
           </Button>
         )}
         {actions.cancel && (

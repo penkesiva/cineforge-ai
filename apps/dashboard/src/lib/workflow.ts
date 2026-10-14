@@ -38,6 +38,7 @@ export interface AvailableActions {
   approve: boolean;
   cancel: boolean;
   deliver: boolean;
+  rerender: boolean;
 }
 
 export function availableActions(state: ProductionState): AvailableActions {
@@ -46,6 +47,7 @@ export function availableActions(state: ProductionState): AvailableActions {
     approve: isReviewState(state),
     cancel: !isTerminalState(state),
     deliver: state === "READY",
+    rerender: state === "READY",
   };
 }
 
