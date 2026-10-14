@@ -71,5 +71,6 @@ def health(rt: RuntimeDep) -> HealthResponse:
         version=rt.settings.app_version,
         environment=rt.settings.cineforge_env,
         paid_providers_enabled=rt.settings.allow_paid_providers,
+        provider_mode=rt.settings.provider_mode,
         checks=checks,
     )

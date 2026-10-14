@@ -150,6 +150,51 @@ class FakeProvider:
         )
 
 
+@dataclass
+class ScriptedProvider:
+    """Stands in for a real (non-mock) provider: returns canned ``output_data`` dicts (or
+    raises canned exceptions) in order; the last item repeats. Priced per request."""
+
+    info: ProviderInfo
+    responses: list[dict[str, Any] | Exception]
+    invocations: list[ProviderRequest] = field(default_factory=list)
+
+    def estimate_usage(self, request: ProviderRequest) -> ProviderUsage:
+        return ProviderUsage(units=Decimal(1), unit=PriceUnit.REQUEST)
+
+    def invoke(self, request: ProviderRequest) -> ProviderResponse:
+        self.invocations.append(request)
+        item = self.responses.pop(0) if len(self.responses) > 1 else self.responses[0]
+        if isinstance(item, Exception):
+            raise item
+        return ProviderResponse(
+            provider=self.info.name,
+            model=request.model,
+            capability=request.capability,
+            provider_request_id=f"req_{self.info.name}_{len(self.invocations)}",
+            output_data=item,
+            usage=self.estimate_usage(request),
+        )
+
+
+def scripted(
+    name: str,
+    capability: ProviderCapability,
+    responses: list[dict[str, Any] | Exception],
+    *,
+    is_paid: bool = False,
+) -> ScriptedProvider:
+    info = ProviderInfo(
+        name=name,
+        display_name=name,
+        capabilities=[capability],
+        models=[f"{name}-v1"],
+        is_mock=False,
+        is_paid=is_paid,
+    )
+    return ScriptedProvider(info=info, responses=list(responses))
+
+
 _PROVIDERS: tuple[tuple[str, list[ProviderCapability], list[str]], ...] = (
     ("mock-llm", [C.LLM_TEXT], ["mock-llm-standard", "mock-llm-premium"]),
     ("mock-research", [C.WEB_RESEARCH], ["mock-search-v1"]),
@@ -168,8 +213,11 @@ _PROVIDERS: tuple[tuple[str, list[ProviderCapability], list[str]], ...] = (
 
 
 class FakeProviderRegistry:
+    """Routes like the real registry: enabled providers by priority (real 10, mock 100)."""
+
     def __init__(self) -> None:
         self._providers: dict[str, Provider] = {}
+        self.disabled: set[str] = set()
 
     @classmethod
     def mock(cls, catalog: FakePriceCatalog) -> FakeProviderRegistry:
@@ -203,6 +251,23 @@ class FakeProviderRegistry:
 
     def list(self) -> list[ProviderInfo]:
         return [p.info for p in self._providers.values()]
+
+    def route_all(self, capability: ProviderCapability, *, tenant_id: str) -> list[Provider]:
+        ranked = [
+            (10 if not p.info.is_mock else 100, i, p)
+            for i, p in enumerate(self._providers.values())
+            if capability in p.info.capabilities and p.info.name not in self.disabled
+        ]
+        return [p for _, _, p in sorted(ranked, key=lambda r: (r[0], r[1]))]
+
+    def route(self, capability: ProviderCapability, *, tenant_id: str) -> Provider:
+        ready = self.route_all(capability, tenant_id=tenant_id)
+        if not ready:
+            raise UnsupportedCapabilityError(capability)
+        return ready[0]
+
+    def catalog(self, tenant_id: str) -> list:
+        return []
 
 
 # --------------------------------------------------------------------------- budget
@@ -688,6 +753,23 @@ class FakeServices:
 
     def provider(self, name: str) -> FakeProvider:
         return self.providers.get(name)  # type: ignore[return-value]
+
+    def add_real(self, provider: ScriptedProvider, unit_price: str = "0.01") -> ScriptedProvider:
+        """Register a scripted real provider (routes before mocks) with a request price."""
+        info = provider.info
+        self.catalog._entries.append(
+            PriceCatalogEntry(
+                provider=info.name,
+                model=info.models[0],
+                capability=info.capabilities[0],
+                unit=PriceUnit.REQUEST,
+                unit_price=money(unit_price),
+                version=self.catalog.version,
+                effective_from="2026-10-01",
+            )
+        )
+        self.providers.register(provider)
+        return provider
 
 
 def make_runtime(

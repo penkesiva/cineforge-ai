@@ -1,4 +1,8 @@
-"""A8 Audio & Performance Agent: narration per scene, one music bed, lip-sync where needed."""
+"""A8 Audio & Performance Agent: narration per scene, one music bed, lip-sync where needed.
+
+``include_narration`` / ``include_music`` let the orchestrator run narration per scene
+and the music bed as separate, individually retried steps.
+"""
 
 from __future__ import annotations
 
@@ -35,7 +39,7 @@ class AudioPerformanceAgent(BaseAgent):
         tracks: list[AudioTrack] = []
         alignments: list[AlignmentRef] = []
 
-        for scene in payload.scenes:
+        for scene in payload.scenes if payload.include_narration else []:
             text = scene.narration or (lines[scene.order].text if scene.order in lines else "")
             if not text:
                 continue
@@ -88,6 +92,8 @@ class AudioPerformanceAgent(BaseAgent):
                     AlignmentRef(shot_id=shot.id, audio_track_id=track.id, method="lip_sync")
                 )
 
+        if not payload.include_music:
+            return AudioPackage(tracks=tracks, alignments=alignments)
         total = sum(s.duration_sec for s in payload.scenes)
         cue = next(
             (sh.audio.music_cue for s in payload.scenes for sh in s.shots if sh.audio.music_cue),

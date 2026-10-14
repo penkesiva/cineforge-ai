@@ -5,6 +5,10 @@ Deterministic guarantees (validated by the manifest contract and tests):
 - shot durations sum exactly to their scene, scenes sum to ``duration_target_sec``;
 - strategies only from ``mode_policy.allowed_strategies``; generative share ~=
   ``generative_shot_ratio``; generative shots carry disclosure labels.
+
+A real LLM (``StoryboardDraft``) only contributes scene titles and per-shot
+description, shot type, camera motion, lighting and atmosphere. Timing, strategies,
+asset binding, provider routing and disclosure stay deterministic.
 """
 
 from __future__ import annotations
@@ -12,6 +16,7 @@ from __future__ import annotations
 import re
 
 from cineforge.agents.base import BaseAgent
+from cineforge.agents.drafts import SceneDraft, ShotDraft, StoryboardDraft
 from cineforge.agents.planning import split_centis, stable_int
 from cineforge.agents.prompts import PromptTemplate
 from cineforge.contracts.agents import AgentContext, SceneDirectionInput, SceneGraph
@@ -28,7 +33,7 @@ from cineforge.contracts.manifest import (
     Shot,
     VisualSpec,
 )
-from cineforge.contracts.providers import ProviderCapability
+from cineforge.contracts.providers import ProviderCapability, UnsupportedCapabilityError
 from cineforge.contracts.theme import ProductionModePolicy
 
 G = GenerationStrategy
@@ -52,6 +57,10 @@ def _cycle(items: list[str], idx: int, default: str | None) -> str | None:
     return items[idx % len(items)] if items else default
 
 
+def _motion(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_")[:40] or "static"
+
+
 class SceneDirectorAgent(BaseAgent):
     agent_id = AgentId.SCENE_DIRECTOR
     input_model = SceneDirectionInput
@@ -70,11 +79,17 @@ class SceneDirectorAgent(BaseAgent):
             duration_sec=output.duration_target_sec,
             max_shots=payload.max_shots_per_scene,
             camera_grammar=", ".join(theme.direction.camera_grammar),
+            lighting=", ".join(theme.direction.lighting) or "natural",
+            atmosphere=", ".join(theme.direction.atmosphere) or "neutral",
             mode=policy.mode.value,
             generative_ratio=policy.generative_shot_ratio,
             allowed_strategies=", ".join(s.value for s in policy.allowed_strategies),
+            lines="\n".join(f"{i}: {line.text}" for i, line in enumerate(lines, 1)),
         )
-        self._llm(ctx, prompt, "storyboard", max_tokens=1000)
+        draft = self.structured(ctx, StoryboardDraft, prompt, scope="storyboard", max_tokens=2500)
+        if draft is None:
+            self._llm(ctx, prompt, "storyboard", max_tokens=1000)
+        drafted: dict[int, SceneDraft] = {s.order: s for s in draft.scenes} if draft else {}
 
         weights = [0.8 if i == 0 else 1.0 for i in range(len(lines))]
         scene_durations = split_centis(output.duration_target_sec, weights)
@@ -101,9 +116,13 @@ class SceneDirectorAgent(BaseAgent):
         ):
             scene_id = f"scene_{s_idx + 1:02d}"
             beat = payload.script.beats[s_idx].beat if s_idx < len(payload.script.beats) else ""
+            scene_draft = drafted.get(s_idx + 1)
             shot_durations = split_centis(scene_dur, [1.0] * n_shots)
             shots: list[Shot] = []
             for j, shot_dur in enumerate(shot_durations):
+                shot_draft: ShotDraft | None = (
+                    scene_draft.shots[j] if scene_draft and j < len(scene_draft.shots) else None
+                )
                 shot_id = f"{scene_id}_shot_{j + 1:02d}"
                 is_last = j == n_shots - 1
                 generative = shot_id in generative_ids
@@ -123,6 +142,8 @@ class SceneDirectorAgent(BaseAgent):
                 character = theme.performance.recurring_character if hook_close_up else None
                 if hook_close_up:
                     shot_type = "close_up"
+                elif shot_draft is not None:
+                    shot_type = shot_draft.shot_type
                 elif j == 0:
                     shot_type = "wide"
                 else:
@@ -130,18 +151,28 @@ class SceneDirectorAgent(BaseAgent):
                 if hook_close_up:
                     motion = "slow_push"
                 elif generative:
-                    motion = _cycle(theme.direction.camera_grammar, global_idx, "slow_push")
+                    motion = (
+                        _motion(shot_draft.camera_motion)
+                        if shot_draft is not None
+                        else _cycle(theme.direction.camera_grammar, global_idx, "slow_push")
+                    )
                 else:
                     motion = "ken_burns" if j == 0 else "slow_push"
                 visual = VisualSpec(
                     shot_type=shot_type,
                     camera_motion=motion or "static",
-                    lighting=_cycle(theme.direction.lighting, s_idx, None),
-                    atmosphere=_cycle(theme.direction.atmosphere, global_idx, None),
+                    lighting=(shot_draft.lighting if shot_draft else None)
+                    or _cycle(theme.direction.lighting, s_idx, None),
+                    atmosphere=(shot_draft.atmosphere if shot_draft else None)
+                    or _cycle(theme.direction.atmosphere, global_idx, None),
                     color_grade=theme.visual_style.split(",")[0][:60],
                     vfx=["period_cleanup"] if generative and reconstruction else [],
                 )
-                description = f"{beat or 'Scene'}: {line.text}"[:200]
+                description = (
+                    shot_draft.description
+                    if shot_draft is not None
+                    else f"{beat or 'Scene'}: {line.text}"
+                )[:200]
 
                 assets: list[AssetRef] = []
                 refs: list[str] = []
@@ -218,7 +249,11 @@ class SceneDirectorAgent(BaseAgent):
                 Scene(
                     id=scene_id,
                     order=s_idx + 1,
-                    title=(beat or f"Scene {s_idx + 1}").replace("-", " ").title()[:80],
+                    title=(
+                        scene_draft.title
+                        if scene_draft is not None
+                        else (beat or f"Scene {s_idx + 1}").replace("-", " ").title()
+                    )[:80],
                     duration_sec=scene_dur,
                     story_beat=beat,
                     narration=line.text,
@@ -252,7 +287,10 @@ class SceneDirectorAgent(BaseAgent):
 
     @staticmethod
     def _provider_for(ctx: AgentContext, capability: ProviderCapability) -> tuple[str, list[str]]:
-        provider = ctx.providers.for_capability(capability)
+        try:
+            provider = ctx.providers.route(capability, tenant_id=ctx.tenant_id)
+        except UnsupportedCapabilityError:
+            return "unassigned", []
         return provider.info.name, list(provider.info.models)
 
     @staticmethod

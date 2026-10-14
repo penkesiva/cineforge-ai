@@ -27,7 +27,8 @@ commit or release).
 | A9 | `a9_editor_qc` | `editor_qc.py` | REVIEWING | `ReviewInput` -> `ReviewReport` | LLM |
 | A10 | `a10_cost_optimizer` | `cost_optimizer.py` | STORYBOARDING | `CostPlanningInput` -> `CostPlan` | none (pure planning) |
 
-What each agent does in Phase 0:
+What each agent does with mock providers (Phase 0 behaviour; see "Mock vs real
+providers" for the Phase 1 live paths):
 
 - **A1 Master Orchestrator**: emits the `ProductionPlan` (ordered steps, owners,
   approval gate, retry and budget policy from the mode).
@@ -101,27 +102,55 @@ a released version in place: runs must stay reproducible.
 6. Add tests in `packages/engine/tests/agents/` (schema-valid output, deterministic
    behaviour, policy rules).
 
-## Mock vs real providers
+## Mock vs real providers (Phase 1)
 
-Phase 0 runs only **mock providers** (`mock-llm`, `mock-research`,
-`mock-media-search`, `mock-image`, `mock-video`, `mock-voice`, `mock-lipsync`,
-`mock-music`, `mock-sfx`). They are free,
-deterministic and priced from the mock price catalog (`packages/configurations/pricing`)
-so budgets, reservations and the ledger behave like production.
+Agents route per tenant with `ctx.providers.route(capability, tenant_id=...)`
+(readiness rules and priorities: Sources page, `cineforge/providers/registry.py`).
+With `PROVIDER_MODE=mock` (the default) only the free, deterministic mock providers
+run, so behaviour is identical to Phase 0.
 
-Agents do **not parse provider text** in Phase 0. Artifacts are built
-deterministically from the brief, theme and mode; LLM responses are only attached
-as notes. This keeps tests stable and makes real providers a drop-in change later.
+When a real LLM is ready, agents use **structured output**:
 
-Real providers are a Workstream D concern:
+1. `BaseAgent.structured(ctx, DraftModel, prompt, scope=...)` sends the draft's JSON
+   Schema (`response_schema`, `$ref`s inlined) through the `PaidCallGuard`.
+2. The reply (`output_data["structured"]`) is validated with Pydantic. On failure it
+   retries once with the validation errors (`llm-<scope>-fix`), then returns `None`.
+3. `None` (mock LLM, no ready LLM, provider error, still invalid) means the agent
+   uses its deterministic path. Budget errors always propagate (production pauses).
+4. Drafts live in `cineforge/agents/drafts.py` and are agent-internal. Deterministic
+   code turns them into contract artifacts and enforces the rules:
+   - **A2**: claims must cite a numbered source with a verbatim excerpt; a failed
+     citation check downgrades the claim to `unverified`. Without an LLM, claims are
+     verbatim source sentences. No sources means no claims (never invented).
+   - **A3**: real media providers are searched one by one (one failing source never
+     fails the search), deduplicated and ranked by code; the mock catalog is used
+     only when no real media provider is ready. Rights stay `unknown` for `RightsGate`.
+   - **A4**: the style bible always comes from the theme; the LLM adds logline,
+     narrative style, visual language and notes.
+   - **A5**: exactly one line per scene, only verified claims (dramatized only in the
+     hook) that a reviewer did not reject, per-line word budget, theme CTA.
+   - **A6**: the LLM only supplies titles and shot descriptions, types, motion,
+     lighting and atmosphere; timing, strategies, assets, routing and disclosure stay
+     deterministic.
 
-- Register them in the provider registry with real model names and catalog prices.
-- They are blocked unless `ALLOW_PAID_PROVIDERS=true`; the `PaidCallGuard` raises
-  `PaidProviderNotAllowedError` otherwise.
-- Agents route by capability (`ctx.providers.for_capability(...)`) or by the
-  provider named in the shot's `ProviderPlan`, so no agent code changes are needed.
-- When agents start using real LLM output, parse it into the same contract models
-  and keep the deterministic path as a fallback.
+Real LLMs are never called just for notes (`_llm` only runs on mock LLMs). The
+agent's `extras["reasoning"]` records `structured:<provider>/<model>` or
+`deterministic`.
+
+## Claim review and script rewrite (ENG-04)
+
+At `AWAITING_APPROVAL` (or `PAUSED_BUDGET`) an editor can approve or reject claims
+(`POST /productions/{id}/claims`; latest decision per claim wins). Approval is
+refused (409 `approval_blocked`) while a script line cites a rejected claim.
+`POST /productions/{id}/rewrite-script` goes back to `SCRIPTING` via `NEEDS_REVIEW`;
+A5/A6/A10 then run with `attempt = script revision` so new runs are recorded and
+rejected claims are passed as `excluded_claim_ids`.
+
+## Audio
+
+The orchestrator calls A8 once per scene (`include_music=False`, scope = scene id)
+and once for the music bed (`include_narration=False`, scope `music`), each with the
+mode's bounded retries. A failed line retries alone; succeeded runs are reused.
 
 ## Running locally
 
