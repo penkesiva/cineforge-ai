@@ -1,18 +1,29 @@
 """BaseAgent: common plumbing for the 10 logical agents.
 
-Phase 0 rule: agents never parse provider output text. They build typed artifacts
-deterministically from the brief/theme (mock reasoning). Provider calls exist for
-cost accounting and to attach optional notes, and they ALWAYS go through
-``ctx.paid_calls`` (``PaidCallGuard``: price lookup -> budget reservation -> invoke).
+Every provider call goes through ``ctx.paid_calls`` (``PaidCallGuard``: price lookup ->
+budget reservation -> invoke) and providers are routed per tenant
+(``ProviderRegistry.route``).
+
+Reasoning modes:
+
+- **Structured (Phase 1):** ``structured()`` asks the routed LLM for JSON matching a
+  Pydantic draft model, validates it, retries once with the validation errors, and
+  returns ``None`` when the LLM is a mock or the output stays invalid. Agents then
+  apply deterministic checks before building the contract artifact.
+- **Deterministic fallback (Phase 0 behaviour):** artifacts are built from the brief,
+  theme and mode. Mock LLM calls still run for cost accounting (``_llm`` notes); real
+  LLMs are never called just for notes.
 """
 
 from __future__ import annotations
 
+import copy
+import json
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar
+from typing import Any, ClassVar, TypeVar
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from cineforge.agents.prompts import PromptLibrary, PromptTemplate
 from cineforge.contracts.agents import AgentContext, AgentDefinition, agent_definition
@@ -24,6 +35,7 @@ from cineforge.contracts.providers import (
     ProviderError,
     ProviderRequest,
     ProviderResponse,
+    UnsupportedCapabilityError,
 )
 
 log = logging.getLogger(__name__)
@@ -32,6 +44,10 @@ log = logging.getLogger(__name__)
 LEDGER_EVENTS = "ledger_events"
 PROMPT_TEMPLATES = "prompt_templates"
 NOTES = "notes"
+REASONING = "reasoning"  # "structured:<provider>/<model>" or "deterministic"
+
+DraftT = TypeVar("DraftT", bound=BaseModel)
+MAX_VALIDATION_ERRORS_IN_PROMPT = 8
 
 
 class BaseAgent(ABC):
@@ -111,6 +127,82 @@ class BaseAgent(ABC):
         ctx.extras.setdefault(LEDGER_EVENTS, []).append(event)
         return response, event
 
+    def structured(
+        self,
+        ctx: AgentContext,
+        draft_model: type[DraftT],
+        prompt: str,
+        *,
+        scope: str,
+        system: str | None = None,
+        max_tokens: int = 2000,
+        scene_id: str | None = None,
+    ) -> DraftT | None:
+        """Typed LLM output or ``None`` (mock LLM, no ready LLM, provider error, or output
+        still invalid after one corrective retry). Budget errors propagate."""
+        provider = self._llm_provider(ctx)
+        if provider is None or provider.info.is_mock:
+            ctx.extras.setdefault(REASONING, "deterministic")
+            return None
+        schema = inline_schema(draft_model.model_json_schema())
+        base_system = system or (
+            f"You are the {self.definition.name} of a cinematic short-video studio. "
+            "Answer only through the provided tool, in the brief's language."
+        )
+        attempt_prompt = prompt
+        for round_no in (1, 2):
+            sub = f"llm-{scope}" if round_no == 1 else f"llm-{scope}-fix"
+            try:
+                response, _ = self.call_provider(
+                    ctx,
+                    ProviderCapability.LLM_TEXT,
+                    sub_scope=sub,
+                    provider_name=provider.info.name,
+                    prompt=attempt_prompt,
+                    scene_id=scene_id,
+                    parameters={
+                        "response_schema": schema,
+                        "schema_name": draft_model.__name__,
+                        "system": base_system,
+                        "max_tokens": max_tokens,
+                        "temperature": 0.4,
+                    },
+                )
+            except ProviderError as exc:
+                log.warning("%s: structured LLM call failed (%s); falling back", self.agent_id, exc)
+                self._note(ctx, f"LLM unavailable ({exc}); deterministic fallback used")
+                ctx.extras[REASONING] = "deterministic"
+                return None
+            data = response.output_data.get("structured")
+            try:
+                if not isinstance(data, dict):
+                    raise ValueError("no structured output returned")
+                draft = draft_model.model_validate(data)
+            except (ValidationError, ValueError) as exc:
+                log.info(
+                    "%s: structured output invalid (round %s): %s", self.agent_id, round_no, exc
+                )
+                attempt_prompt = (
+                    f"{prompt}\n\nYour previous answer was invalid:\n{_errors(exc)}\n"
+                    "Return a corrected, complete answer that satisfies the schema."
+                )
+                continue
+            ctx.extras[REASONING] = f"structured:{response.provider}/{response.model}"
+            return draft
+        self._note(ctx, "LLM output failed validation twice; deterministic fallback used")
+        ctx.extras[REASONING] = "deterministic"
+        return None
+
+    def _llm_provider(self, ctx: AgentContext) -> Provider | None:
+        try:
+            return self._resolve_provider(ctx, ProviderCapability.LLM_TEXT, None)
+        except UnsupportedCapabilityError:
+            return None
+
+    @staticmethod
+    def _note(ctx: AgentContext, text: str) -> None:
+        ctx.extras.setdefault(NOTES, []).append(_one_line(text))
+
     def _llm(
         self,
         ctx: AgentContext,
@@ -120,8 +212,12 @@ class BaseAgent(ABC):
         scene_id: str | None = None,
         max_tokens: int = 800,
     ) -> ProviderResponse | None:
-        """LLM call for notes only. Provider failures are non-fatal (text is never parsed);
-        budget errors propagate so the orchestrator can pause."""
+        """Mock-LLM call for notes and cost accounting only. Provider failures are
+        non-fatal (text is never parsed); budget errors propagate so the orchestrator
+        can pause. Real (possibly paid) LLMs are skipped: they only run via ``structured``."""
+        provider = self._llm_provider(ctx)
+        if provider is None or not provider.info.is_mock:
+            return None
         try:
             response, _ = self.call_provider(
                 ctx,
@@ -149,7 +245,7 @@ class BaseAgent(ABC):
                     return provider
             except LookupError:
                 log.info("provider %s not registered; routing by capability", provider_name)
-        return ctx.providers.for_capability(capability)
+        return ctx.providers.route(capability, tenant_id=ctx.tenant_id)
 
     @staticmethod
     def _default_model(ctx: AgentContext, provider: Provider) -> str:
@@ -161,6 +257,43 @@ class BaseAgent(ABC):
             if premium:
                 return premium[0]
         return models[0]
+
+
+def inline_schema(schema: dict[str, Any]) -> dict[str, Any]:
+    """Resolve local ``$ref``s into one self-contained JSON Schema (tool input schemas
+    are simpler for LLMs without ``$defs``) and drop titles to save tokens."""
+    defs = schema.get("$defs", {})
+
+    def resolve(node: Any, depth: int = 0) -> Any:
+        if depth > 20:
+            return {}
+        if isinstance(node, list):
+            return [resolve(n, depth) for n in node]
+        if not isinstance(node, dict):
+            return node
+        ref = node.get("$ref")
+        if isinstance(ref, str) and ref.startswith("#/$defs/"):
+            target = copy.deepcopy(defs.get(ref.removeprefix("#/$defs/"), {}))
+            merged = {**target, **{k: v for k, v in node.items() if k != "$ref"}}
+            return resolve(merged, depth + 1)
+        return {k: resolve(v, depth) for k, v in node.items() if k not in ("$defs", "title")}
+
+    return resolve(schema)
+
+
+def _errors(exc: Exception) -> str:
+    if isinstance(exc, ValidationError):
+        items = exc.errors()[:MAX_VALIDATION_ERRORS_IN_PROMPT]
+        return "\n".join(
+            f"- {'.'.join(str(p) for p in e.get('loc', ())) or 'root'}: {e.get('msg')}"
+            for e in items
+        )
+    return f"- {exc}"
+
+
+def dump_json(value: Any, limit: int = 4000) -> str:
+    text = json.dumps(value, ensure_ascii=False, default=str)
+    return text if len(text) <= limit else text[: limit - 1] + "\u2026"
 
 
 def _one_line(text: str, limit: int = 280) -> str:

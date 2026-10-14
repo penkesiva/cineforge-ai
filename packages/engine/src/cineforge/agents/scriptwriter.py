@@ -1,8 +1,14 @@
-"""A5 Scriptwriter & Reasoner: hook, story beats and one narration line per scene."""
+"""A5 Scriptwriter & Reasoner: hook, story beats and one narration line per scene.
+
+Deterministic guarantees hold whether or not a real LLM wrote the lines: exactly one
+line per scene, only usable claims that a reviewer did not reject (verified, or
+dramatized for the hook only), per-line word budget, and the theme's call to action.
+"""
 
 from __future__ import annotations
 
 from cineforge.agents.base import BaseAgent
+from cineforge.agents.drafts import ScriptDraft
 from cineforge.agents.planning import beats_for_scenes, word_budget
 from cineforge.contracts.agents import (
     AgentContext,
@@ -58,6 +64,13 @@ class ScriptwriterAgent(BaseAgent):
         topic = payload.brief.topic
         theme = ctx.theme
         beats = beats_for_scenes(theme.narrative.story_beats, payload.scene_count)
+        excluded = set(payload.excluded_claim_ids)
+        usable: list[FactClaim] = [
+            c for c in payload.research.claims if c.status in _USABLE and c.id not in excluded
+        ]
+        by_id = {c.id: c for c in usable}
+        budget = word_budget(payload.duration_target_sec)
+        per_line = max(8, budget // payload.scene_count)
         prompt = self.render_prompt(
             ctx,
             topic=topic,
@@ -67,28 +80,43 @@ class ScriptwriterAgent(BaseAgent):
             beats=", ".join(beats),
             scene_count=payload.scene_count,
             duration_sec=payload.duration_target_sec,
-            word_budget=word_budget(payload.duration_target_sec),
-            claims="; ".join(f"{c.id} ({c.status.value})" for c in payload.research.claims),
+            word_budget=budget,
+            words_per_line=per_line,
+            claims="\n".join(f"- {c.id}: {c.status.value}: {c.text}" for c in usable) or "none",
+            cta=theme.narrative.cta or "none",
         )
-        self._llm(ctx, prompt, "script", max_tokens=1200)
+        draft = self.structured(ctx, ScriptDraft, prompt, scope="script", max_tokens=1500)
+        if draft is None:
+            self._llm(ctx, prompt, "script", max_tokens=1200)
 
-        usable: list[FactClaim] = [c for c in payload.research.claims if c.status in _USABLE]
         verified = [c for c in usable if c.status == ClaimStatus.VERIFIED]
         dramatized = [c for c in usable if c.status == ClaimStatus.DRAMATIZED]
         in_sentence = topic[0].lower() + topic[1:] if topic.startswith("The ") else topic
         hook = f"Picture this: you are standing at {in_sentence}. What happens next?"
+        if draft is not None:
+            hook = _fit(draft.hook, 15)
+        drafted = {line.scene_order: line for line in draft.lines} if draft else {}
         # After the hook, refer to a long topic by a short subject to respect the word budget.
         subject = topic if len(topic.split()) <= 5 else _SHORT_SUBJECT.get(theme.id, "this story")
-        per_line = max(8, word_budget(payload.duration_target_sec) // payload.scene_count)
 
         lines: list[ScriptLine] = []
         for order, beat in enumerate(beats, 1):
-            claim: FactClaim | None
-            if order == 1:
-                claim = dramatized[0] if dramatized else (verified[0] if verified else None)
+            claims: list[FactClaim]
+            drafted_line = drafted.get(order)
+            if drafted_line is not None:
+                claims = [
+                    by_id[cid]
+                    for cid in dict.fromkeys(drafted_line.claim_ids)
+                    if cid in by_id and (order == 1 or by_id[cid].status == ClaimStatus.VERIFIED)
+                ]
+                text = drafted_line.text.strip()
+            elif order == 1:
+                first = dramatized[0] if dramatized else (verified[0] if verified else None)
+                claims = [first] if first else []
                 text = hook
             else:
                 claim = verified[(order - 2) % len(verified)] if verified else None
+                claims = [claim] if claim else []
                 text = claim.text.replace(topic, subject) if claim else f"The {beat} of {subject}."
                 text = text[0].upper() + text[1:]
             text = _fit(text, per_line)
@@ -98,8 +126,8 @@ class ScriptwriterAgent(BaseAgent):
                 ScriptLine(
                     scene_order=order,
                     text=text,
-                    claim_ids=[claim.id] if claim else [],
-                    dramatized=bool(claim and claim.status == ClaimStatus.DRAMATIZED),
+                    claim_ids=[c.id for c in claims],
+                    dramatized=any(c.status == ClaimStatus.DRAMATIZED for c in claims),
                 )
             )
         word_count = sum(len(line.text.split()) for line in lines)
