@@ -86,6 +86,48 @@ describe("api client requests", () => {
     expect(client.assetContentUrl("asset 1")).toBe("/proxy/api/v1/assets/asset%201/content");
   });
 
+  it("uses the provider routes with the right verbs and bodies", async () => {
+    const { client, call } = setup(jsonResponse({}));
+    await client.getProviders();
+    await client.updateProvider("anthropic", { enabled: true });
+    await client.setProviderKey("anthropic", "sk-secret");
+    await client.deleteProviderKey("anthropic");
+    await client.testProvider("open library");
+    expect(call(0)).toMatchObject({ url: "/api/v1/providers", init: { method: "GET" } });
+    expect(call(1)).toMatchObject({ url: "/api/v1/providers/anthropic", init: { method: "PATCH" } });
+    expect(JSON.parse(String(call(1).init.body))).toEqual({ enabled: true });
+    expect(call(2)).toMatchObject({ url: "/api/v1/providers/anthropic/key", init: { method: "PUT" } });
+    expect(JSON.parse(String(call(2).init.body))).toEqual({ api_key: "sk-secret" });
+    expect(call(3)).toMatchObject({ url: "/api/v1/providers/anthropic/key", init: { method: "DELETE" } });
+    expect(call(3).init.body).toBeUndefined();
+    expect(call(4)).toMatchObject({ url: "/api/v1/providers/open%20library/test", init: { method: "POST" } });
+  });
+
+  it("uses the theme version routes", async () => {
+    const { client, call } = setup(jsonResponse({}));
+    await client.getTheme("time-traveler");
+    await client.getTheme("time-traveler", 2);
+    await client.listThemeVersions("time-traveler");
+    await client.createThemeVersion("time-traveler", { base_version: 2, profile: {} as never });
+    expect(call(0).url).toBe("/api/v1/themes/time-traveler");
+    expect(call(1).url).toBe("/api/v1/themes/time-traveler?version=2");
+    expect(call(2).url).toBe("/api/v1/themes/time-traveler/versions");
+    expect(call(3)).toMatchObject({ url: "/api/v1/themes/time-traveler/versions", init: { method: "POST" } });
+    expect(JSON.parse(String(call(3).init.body))).toEqual({ base_version: 2, profile: {} });
+  });
+
+  it("posts claim decisions and script rewrites", async () => {
+    const { client, call } = setup(jsonResponse({}));
+    await client.reviewClaims("p1", { reviewed_by: "operator", decisions: [{ claim_id: "c1", decision: "rejected" }] });
+    await client.rewriteScript("p1");
+    expect(call(0)).toMatchObject({ url: "/api/v1/productions/p1/claims", init: { method: "POST" } });
+    expect(JSON.parse(String(call(0).init.body))).toEqual({
+      reviewed_by: "operator",
+      decisions: [{ claim_id: "c1", decision: "rejected" }],
+    });
+    expect(call(1)).toMatchObject({ url: "/api/v1/productions/p1/rewrite-script", init: { method: "POST" } });
+  });
+
   it("builds the master render content URL", () => {
     expect(createApiClient().assetContentUrl("ast_1")).toBe("/api/v1/assets/ast_1/content");
   });
