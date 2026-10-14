@@ -128,6 +128,19 @@ describe("api client requests", () => {
     expect(call(1)).toMatchObject({ url: "/api/v1/productions/p1/rewrite-script", init: { method: "POST" } });
   });
 
+  it("POSTs a RenderRequest to the re-render route", async () => {
+    const { client, call } = setup(
+      jsonResponse({ production_id: "p1", state: "ASSEMBLING", message: "Re-render queued.", job_id: "job_42" }, 202),
+    );
+    const result = await client.renderProduction("prod/1", { requested_by: "operator", reason: "new narration" });
+    expect(result).toEqual({ production_id: "p1", state: "ASSEMBLING", message: "Re-render queued.", job_id: "job_42" });
+    expect(call()).toMatchObject({ url: "/api/v1/productions/prod%2F1/render", init: { method: "POST" } });
+    expect(JSON.parse(String(call().init.body))).toEqual({ requested_by: "operator", reason: "new narration" });
+
+    await client.renderProduction("p1");
+    expect(JSON.parse(String(call(1).init.body))).toEqual({});
+  });
+
   it("builds the master render content URL", () => {
     expect(createApiClient().assetContentUrl("ast_1")).toBe("/api/v1/assets/ast_1/content");
   });
@@ -145,6 +158,23 @@ describe("api client errors", () => {
     expect(apiError.body).toEqual({ error: "invalid_state_transition", detail: { message: "Cannot run from READY" } });
     expect(apiError.message).toBe("Cannot run from READY");
     expect(apiError.unavailable).toBe(false);
+  });
+
+  it("parses a 409 from the re-render route outside READY", async () => {
+    const { client } = setup(
+      jsonResponse({ error: "invalid_transition", detail: { message: "Cannot re-render from GENERATING" } }, 409),
+    );
+    const error = (await client.renderProduction("p1").catch((e: unknown) => e)) as ApiError;
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error.status).toBe(409);
+    expect(error.body?.error).toBe("invalid_transition");
+    expect(error.message).toBe("Cannot re-render from GENERATING");
+    expect(errorMessage(error)).toBe("Cannot re-render from GENERATING");
+    expect(error.unavailable).toBe(false);
+
+    const bare = setup(jsonResponse({ error: "invalid_transition", detail: {} }, 409));
+    const fallback = (await bare.client.renderProduction("p1").catch((e: unknown) => e)) as ApiError;
+    expect(fallback.message).toBe("invalid_transition");
   });
 
   it("uses string and list details from ErrorResponse bodies", async () => {
