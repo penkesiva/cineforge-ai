@@ -4,12 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { HealthIndicator } from "./HealthIndicator";
-import { IconAgents, IconCoins, IconFilm, IconOverview, Logo } from "./icons";
+import { IconAgents, IconCoins, IconFilm, IconOverview, IconPalette, IconPlug, Logo } from "./icons";
 import { cx } from "./ui";
 
 const NAV = [
   { href: "/", label: "Overview", icon: IconOverview },
   { href: "/productions", label: "Productions", icon: IconFilm },
+  { href: "/themes", label: "Themes", icon: IconPalette },
+  { href: "/sources", label: "Sources", icon: IconPlug },
   { href: "/agents", label: "Agents", icon: IconAgents },
   { href: "/costs", label: "Costs", icon: IconCoins },
 ] as const;
@@ -58,8 +60,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           })}
         </nav>
         <div className="mt-auto rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 text-[11px] leading-relaxed text-zinc-500">
-          <p className="font-semibold text-zinc-400">Phase 0 demo</p>
-          Mock providers only. No paid API calls are made.
+          <p className="font-semibold text-zinc-400">Phase 1 preview</p>
+          Mock mode by default. Paid calls stay off until spend is approved.{" "}
+          <Link href="/sources" className="text-gold-300/80 hover:text-gold-300">
+            Sources
+          </Link>
         </div>
       </aside>
 
