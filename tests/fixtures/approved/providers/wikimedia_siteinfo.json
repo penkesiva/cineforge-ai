@@ -1,0 +1,12 @@
+{
+  "batchcomplete": true,
+  "query": {
+    "general": {
+      "mainpage": "Main Page",
+      "base": "https://en.wikipedia.org/wiki/Main_Page",
+      "sitename": "Wikipedia",
+      "generator": "MediaWiki 1.45.0-wmf.1",
+      "lang": "en"
+    }
+  }
+}
