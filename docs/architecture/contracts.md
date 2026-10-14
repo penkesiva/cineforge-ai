@@ -258,6 +258,11 @@ an operator) still follows reserve, then generate, then commit:
    appends a `ProviderAttempt` and commits the ledger row with `credits_used`.
 4. `POST .../external-generations/{event_id}/release` frees a reservation on failure.
 
+Allowed states: `AWAITING_APPROVAL`, `PAUSED_BUDGET`, `NEEDS_REVIEW`, `READY` (else 409
+`invalid_state`). A source still that is not rights-approved at completion gives 409
+`rights_blocked` and the row is marked failed with the credits spent. A refused download
+(host, type, size) gives 422 and leaves the reservation open for a retry or release.
+
 | Method & path | Body | Response |
 |---|---|---|
 | `GET /productions/{id}/generation-pack` | | `GenerationPack` |
