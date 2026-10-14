@@ -1,13 +1,16 @@
-"""Read-only catalog endpoints: agents, themes, production modes, pricing."""
+"""Catalog endpoints: agents, theme registry (ENG-01), production modes, pricing."""
 
 from __future__ import annotations
 
-from cineforge.configuration import get_theme, load_mode_policies, theme_summaries
+from typing import Annotated
+
+from cineforge.configuration import load_mode_policies
 from cineforge.contracts.agents import AgentDefinition
+from cineforge.contracts.api import CreateThemeVersionRequest
 from cineforge.contracts.common import ProductionMode
 from cineforge.contracts.cost import PriceCatalogEntry
 from cineforge.contracts.theme import ProductionModePolicy, ThemeProfile, ThemeSummary
-from fastapi import APIRouter
+from fastapi import APIRouter, Query, status
 
 from cineforge_api.deps import RuntimeDep
 
@@ -21,12 +24,35 @@ def list_agents(rt: RuntimeDep) -> list[AgentDefinition]:
 
 @router.get("/themes", response_model=list[ThemeSummary], tags=["themes"])
 def list_themes(rt: RuntimeDep) -> list[ThemeSummary]:
-    return theme_summaries(rt.settings.configurations_dir)
+    return rt.themes.summaries()
 
 
 @router.get("/themes/{theme_id}", response_model=ThemeProfile, tags=["themes"])
-def get_theme_profile(theme_id: str, rt: RuntimeDep) -> ThemeProfile:
-    return get_theme(rt.settings.configurations_dir, theme_id)
+def get_theme_profile(
+    theme_id: str,
+    rt: RuntimeDep,
+    version: Annotated[int | None, Query(ge=1, description="Default: latest")] = None,
+) -> ThemeProfile:
+    return rt.themes.get(theme_id, version)
+
+
+@router.get("/themes/{theme_id}/versions", response_model=list[ThemeProfile], tags=["themes"])
+def list_theme_versions(theme_id: str, rt: RuntimeDep) -> list[ThemeProfile]:
+    return rt.themes.versions(theme_id)
+
+
+@router.post(
+    "/themes/{theme_id}/versions",
+    response_model=ThemeProfile,
+    status_code=status.HTTP_201_CREATED,
+    tags=["themes"],
+    summary="Save an edited theme as a new immutable version (409 if base is stale)",
+)
+def create_theme_version(
+    theme_id: str, body: CreateThemeVersionRequest, rt: RuntimeDep
+) -> ThemeProfile:
+    profile = body.profile.model_copy(update={"id": theme_id})
+    return rt.themes.create_version(profile, base_version=body.base_version)
 
 
 @router.get("/modes", response_model=list[ProductionModePolicy], tags=["themes"])

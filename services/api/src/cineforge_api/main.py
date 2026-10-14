@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from cineforge_api.errors import install_error_handlers
-from cineforge_api.routers import assets, catalog, health, productions
+from cineforge_api.routers import assets, catalog, health, productions, providers
 
 TAGS = [
     {"name": "health", "description": "Liveness and dependency checks."},
@@ -21,6 +21,7 @@ TAGS = [
     {"name": "agents", "description": "The 10 logical agents (A1-A10)."},
     {"name": "themes", "description": "Theme profiles and production modes."},
     {"name": "assets", "description": "Tenant-scoped media content."},
+    {"name": "providers", "description": "Sources page: provider settings, keys and checks."},
 ]
 
 
@@ -31,7 +32,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         title="CineForge AI API",
         version=settings.app_version,
         description=(
-            "Theme-driven multi-agent cinematic short-video engine (Phase 0, mock providers)."
+            "Theme-driven multi-agent cinematic short-video engine "
+            f"(provider mode: {settings.provider_mode})."
         ),
         openapi_tags=TAGS,
     )
@@ -47,6 +49,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(catalog.router)
     app.include_router(productions.router)
     app.include_router(assets.router)
+    app.include_router(providers.router)
     return app
 
 
