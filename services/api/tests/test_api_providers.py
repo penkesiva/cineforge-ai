@@ -11,7 +11,7 @@ from cineforge.runtime import Runtime, set_runtime
 from cineforge_api.main import create_app
 from fastapi.testclient import TestClient
 
-FAKE_KEY = "sk-ant-test-0000000000000000wxyz"
+FAKE_KEY = "fake-ant-test-0000000000000000wxyz"
 
 
 def _client(**overrides) -> Iterator[TestClient]:
