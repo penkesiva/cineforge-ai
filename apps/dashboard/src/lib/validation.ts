@@ -11,6 +11,8 @@ const MODES: readonly ProductionMode[] = ["economy", "balanced", "premium"];
 
 export interface CreateProductionFormValues {
   themeId: string;
+  /** Empty or missing = latest version. */
+  themeVersion?: string;
   topic: string;
   title: string;
   mode: ProductionMode | "";
@@ -38,6 +40,12 @@ export function validateCreateProduction(values: CreateProductionFormValues): Va
   const errors: CreateProductionFormErrors = {};
 
   if (!values.themeId) errors.themeId = "Choose a theme.";
+
+  const themeVersionRaw = values.themeVersion?.trim() ?? "";
+  const themeVersion = /^\d+$/.test(themeVersionRaw) ? Number(themeVersionRaw) : null;
+  if (themeVersionRaw && (themeVersion === null || themeVersion < 1)) {
+    errors.themeVersion = "Theme version must be a whole number of at least 1.";
+  }
 
   const topic = values.topic.trim();
   if (topic.length < TOPIC_MIN) errors.topic = `Topic must be at least ${TOPIC_MIN} characters.`;
@@ -68,6 +76,7 @@ export function validateCreateProduction(values: CreateProductionFormValues): Va
     duration_target_sec: duration as number,
     auto_approve: values.autoApprove,
   };
+  if (themeVersion !== null) request.theme_version = themeVersion;
   const title = values.title.trim();
   if (title) request.title = title;
   if (budget !== null) request.budget_limit_usd = budget;
