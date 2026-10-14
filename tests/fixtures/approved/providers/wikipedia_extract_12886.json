@@ -1,0 +1,19 @@
+{
+  "batchcomplete": true,
+  "query": {
+    "pages": [
+      {
+        "pageid": 12886,
+        "ns": 0,
+        "title": "Gustave Eiffel",
+        "extract": "Alexandre Gustave Eiffel was a French civil engineer. A graduate of the Ecole Centrale des Arts et Manufactures, he made his name with various bridges for the French railway network.",
+        "contentmodel": "wikitext",
+        "pagelanguage": "en",
+        "lastrevid": 1375000000,
+        "length": 40210,
+        "fullurl": "https://en.wikipedia.org/wiki/Gustave_Eiffel",
+        "canonicalurl": "https://en.wikipedia.org/wiki/Gustave_Eiffel"
+      }
+    ]
+  }
+}

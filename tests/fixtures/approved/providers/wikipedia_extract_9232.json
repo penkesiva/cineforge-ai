@@ -1,0 +1,20 @@
+{
+  "batchcomplete": true,
+  "query": {
+    "pages": [
+      {
+        "pageid": 9232,
+        "ns": 0,
+        "title": "Eiffel Tower",
+        "extract": "The Eiffel Tower is a lattice tower on the Champ de Mars in Paris, France. It is named after the engineer Gustave Eiffel, whose company designed and built the tower from 1887 to 1889.\n\nLocally nicknamed \"La dame de fer\" (French for \"Iron Lady\"), it was constructed as the centrepiece of the 1889 World's Fair.",
+        "contentmodel": "wikitext",
+        "pagelanguage": "en",
+        "touched": "2026-10-13T20:34:23Z",
+        "lastrevid": 1376706466,
+        "length": 96499,
+        "fullurl": "https://en.wikipedia.org/wiki/Eiffel_Tower",
+        "canonicalurl": "https://en.wikipedia.org/wiki/Eiffel_Tower"
+      }
+    ]
+  }
+}

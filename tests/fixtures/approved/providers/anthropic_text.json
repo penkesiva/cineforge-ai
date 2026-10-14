@@ -1,0 +1,13 @@
+{
+  "id": "msg_01TextFixture",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-sonnet-4-5-20250929",
+  "content": [
+    {"type": "text", "text": "In 1889 the Eiffel Tower "},
+    {"type": "text", "text": "was the tallest structure in the world."}
+  ],
+  "stop_reason": "end_turn",
+  "stop_sequence": null,
+  "usage": {"input_tokens": 40, "output_tokens": 15}
+}

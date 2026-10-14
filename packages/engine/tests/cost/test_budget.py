@@ -199,12 +199,49 @@ def test_commit_overage_is_recorded_but_scope_capped(backend) -> None:
     ev = svc.reserve(_req(backend, pid, "0.90"))
     committed = svc.commit(ev.event_id, actual_cost=D("1.20"))
     assert committed.actual_cost == D("1.2")  # ledger keeps the real spend
+    assert committed.status_reason == "overspend: reserved 0.900000, actual 1.200000"
     budget = svc.get_budget(pid)
     assert budget.actual_amount == D("1") and budget.reserved_amount == 0
     with pytest.raises(BudgetExceededError):
         svc.reserve(_req(backend, pid, "0.01"))
     summary = svc.summary(pid)
     assert summary.actual == D("1.2") and summary.remaining == 0
+    (stored,) = svc.ledger(pid)
+    assert stored.status_reason == committed.status_reason
+
+
+def test_status_reason_on_release_fail_and_normal_commit(backend) -> None:
+    svc = backend.service
+    pid = backend.new_production("10.00")
+    ok = svc.reserve(_req(backend, pid, "1.00"))
+    assert svc.commit(ok.event_id, actual_cost=D("1.00")).status_reason is None
+    failed = svc.reserve(_req(backend, pid, "1.00", attempt=2))
+    assert (
+        svc.release(failed.event_id, reason="upstream 503", failed=True).status_reason
+        == "upstream 503"
+    )
+    released = svc.reserve(_req(backend, pid, "1.00"))
+    svc.release(released.event_id, reason="RuntimeError: bug")
+    reasons = {e.event_id: e.status_reason for e in svc.ledger(pid)}
+    assert reasons == {
+        ok.event_id: None,
+        failed.event_id: "upstream 503",
+        released.event_id: "RuntimeError: bug",
+    }
+    assert svc.get_budget(pid).reserved_amount == 0
+
+
+def test_simulated_false_once_a_real_provider_is_used(backend) -> None:
+    svc = backend.service
+    pid = backend.new_production("10.00")
+    ev = svc.reserve(_req(backend, pid, "0.10"))
+    svc.commit(ev.event_id, actual_cost=D("0.10"))
+    assert svc.summary(pid).simulated is True
+    assert svc.overview(backend.tenant_id).simulated is True
+    real = svc.reserve(_req(backend, pid, "0", provider="wikipedia"))
+    svc.commit(real.event_id, actual_cost=D("0"))
+    assert svc.summary(pid).simulated is False
+    assert svc.overview(backend.tenant_id).simulated is False
 
 
 def test_summary_numbers(backend) -> None:

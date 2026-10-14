@@ -1,0 +1,23 @@
+{
+  "id": "msg_01ToolUseFixture",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-sonnet-4-5-20250929",
+  "content": [
+    {"type": "text", "text": "Here is the structured result."},
+    {
+      "type": "tool_use",
+      "id": "toolu_01Fixture",
+      "name": "research_digest",
+      "input": {
+        "topic": "Eiffel Tower",
+        "claims": [
+          {"text": "The tower was completed in 1889.", "source_url": "https://en.wikipedia.org/wiki/Eiffel_Tower"}
+        ]
+      }
+    }
+  ],
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "usage": {"input_tokens": 1234, "output_tokens": 567}
+}

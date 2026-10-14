@@ -102,28 +102,47 @@ class InMemoryProviderRegistry:
 
     # ------------------------------------------------------------------ routing
     def route(self, capability: ProviderCapability, *, tenant_id: str) -> Provider:
-        ready = self.route_all(capability, tenant_id=tenant_id)
+        stored = self._stored_settings(tenant_id)
+        ready = self._ready(capability, tenant_id, stored)
         if ready:
             return ready[0]
         candidates = [p for p in self._providers.values() if capability in p.info.capabilities]
         if not candidates:
             raise UnsupportedCapabilityError(f"no registered provider supports {capability}")
         reasons = ", ".join(
-            f"{p.info.name}: {self._status(p.info, tenant_id)[0].value}" for p in candidates
+            f"{p.info.name}: {self._status(p.info, tenant_id, stored)[0].value}" for p in candidates
         )
         raise ProviderNotReadyError(f"no ready provider for {capability} ({reasons})")
 
     def route_all(
         self, capability: ProviderCapability, *, tenant_id: str
     ) -> builtins.list[Provider]:
+        return self._ready(capability, tenant_id, self._stored_settings(tenant_id))
+
+    def _ready(
+        self,
+        capability: ProviderCapability,
+        tenant_id: str,
+        stored: dict[str, ProviderSetting],
+    ) -> builtins.list[Provider]:
         ranked: builtins.list[tuple[int, int, Provider]] = []
         for index, provider in enumerate(self._providers.values()):
             if capability not in provider.info.capabilities:
                 continue
-            status, _ = self._status(provider.info, tenant_id)
+            status, _ = self._status(provider.info, tenant_id, stored)
             if status == ProviderStatus.READY:
-                ranked.append((self._setting(provider.info, tenant_id).priority, index, provider))
+                priority = self._setting(provider.info, tenant_id, stored).priority
+                ranked.append((priority, index, provider))
         return [p for _, _, p in sorted(ranked, key=lambda r: (r[0], r[1]))]
+
+    def status(self, provider_name: str, tenant_id: str) -> tuple[ProviderStatus, str]:
+        """Readiness of one registered or planned provider for the tenant."""
+        provider = self._providers.get(provider_name)
+        if provider is None:
+            if any(p.name == provider_name for p in self.planned):
+                return ProviderStatus.PLANNED, "Not implemented yet"
+            raise LookupError(f"provider {provider_name!r} is not registered")
+        return self._status(provider.info, tenant_id, self._stored_settings(tenant_id))
 
     # ------------------------------------------------------------------ keys
     def resolve_key(self, provider_name: str, tenant_id: str) -> tuple[str | None, KeySource]:
@@ -142,10 +161,11 @@ class InMemoryProviderRegistry:
     # ------------------------------------------------------------------ catalog
     def catalog(self, tenant_id: str) -> builtins.list[ProviderCatalogEntry]:
         entries: builtins.list[ProviderCatalogEntry] = []
+        stored = self._stored_settings(tenant_id)
         for provider in self._providers.values():
             info = provider.info
-            setting = self._setting(info, tenant_id)
-            status, detail = self._status(info, tenant_id)
+            setting = self._setting(info, tenant_id, stored)
+            status, detail = self._status(info, tenant_id, stored)
             key, source = (
                 self.resolve_key(info.name, tenant_id)
                 if info.requires_key
@@ -198,14 +218,17 @@ class InMemoryProviderRegistry:
         return name in self._providers or any(p.name == name for p in self.planned)
 
     # ------------------------------------------------------------------ internals
-    def _setting(self, info: ProviderInfo, tenant_id: str) -> ProviderSetting:
-        stored = (
-            self.provider_settings.get(tenant_id, info.name)
-            if self.provider_settings is not None
-            else None
-        )
-        if stored is not None:
-            return stored
+    def _stored_settings(self, tenant_id: str) -> dict[str, ProviderSetting]:
+        """All stored settings for the tenant in one repository call."""
+        if self.provider_settings is None:
+            return {}
+        return {s.provider: s for s in self.provider_settings.list(tenant_id)}
+
+    def _setting(
+        self, info: ProviderInfo, tenant_id: str, stored: dict[str, ProviderSetting]
+    ) -> ProviderSetting:
+        if info.name in stored:
+            return stored[info.name]
         return ProviderSetting(
             tenant_id=tenant_id or DEMO_TENANT_ID,
             provider=info.name,
@@ -213,12 +236,14 @@ class InMemoryProviderRegistry:
             priority=MOCK_DEFAULT_PRIORITY if info.is_mock else REAL_DEFAULT_PRIORITY,
         )
 
-    def _status(self, info: ProviderInfo, tenant_id: str) -> tuple[ProviderStatus, str]:
+    def _status(
+        self, info: ProviderInfo, tenant_id: str, stored: dict[str, ProviderSetting]
+    ) -> tuple[ProviderStatus, str]:
         mode = self.settings.provider_mode if self.settings is not None else "mock"
         allow_paid = self.settings.allow_paid_providers if self.settings is not None else False
         if mode == "mock" and not info.is_mock:
             return ProviderStatus.BLOCKED_MOCK_MODE, "PROVIDER_MODE=mock: only mock providers run"
-        if not self._setting(info, tenant_id).enabled:
+        if not self._setting(info, tenant_id, stored).enabled:
             return ProviderStatus.DISABLED, "Disabled on the Sources page"
         if info.is_paid and not allow_paid:
             return ProviderStatus.BLOCKED_PAID_OFF, "ALLOW_PAID_PROVIDERS=false"

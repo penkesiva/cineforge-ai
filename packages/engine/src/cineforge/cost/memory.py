@@ -31,6 +31,7 @@ from cineforge.cost.reporting import (
     capped_actual,
     group_events,
     is_simulated_provider,
+    overspend_reason,
     rows,
     scene_group_key,
     scope_key,
@@ -214,15 +215,12 @@ class InMemoryBudgetService:
                 return event.model_copy()
             if event.status != LedgerStatus.RESERVED:
                 raise ValueError(f"ledger event {event_id} is {event.status}, cannot commit")
-            if actual > event.reserved_cost:
-                log.warning(
-                    "ledger %s overran reservation: reserved %s, actual %s",
-                    event_id,
-                    event.reserved_cost,
-                    actual,
-                )
+            reason = overspend_reason(reserved=event.reserved_cost, actual=actual)
+            if reason:
+                log.warning("ledger %s %s", event_id, reason)
             self._settle(event, actual)
             event.status = LedgerStatus.COMMITTED
+            event.status_reason = reason
             event.actual_cost = actual
             if usage_units is not None:
                 event.usage_units = usage_units
@@ -246,6 +244,7 @@ class InMemoryBudgetService:
                 raise ValueError(f"ledger event {event_id} is committed, cannot release")
             self._settle(event, actual)
             event.status = LedgerStatus.FAILED if failed else LedgerStatus.RELEASED
+            event.status_reason = reason
             event.actual_cost = actual
             event.updated_at = utcnow()
             log.info("ledger %s %s: %s", event_id, event.status, reason)

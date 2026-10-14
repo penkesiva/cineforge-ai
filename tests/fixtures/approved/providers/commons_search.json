@@ -1,0 +1,99 @@
+{
+  "batchcomplete": true,
+  "continue": {"gsroffset": 5, "continue": "gsroffset||"},
+  "query": {
+    "pages": [
+      {
+        "pageid": 1001, "ns": 6, "title": "File:Tour Eiffel Wikimedia Commons.jpg", "index": 2,
+        "imageinfo": [{
+          "thumburl": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a8/Tour_Eiffel_Wikimedia_Commons.jpg/640px-Tour_Eiffel_Wikimedia_Commons.jpg",
+          "thumbwidth": 640, "thumbheight": 959,
+          "url": "https://upload.wikimedia.org/wikipedia/commons/a/a8/Tour_Eiffel_Wikimedia_Commons.jpg",
+          "descriptionurl": "https://commons.wikimedia.org/wiki/File:Tour_Eiffel_Wikimedia_Commons.jpg",
+          "size": 2150000, "width": 2900, "height": 4347, "mime": "image/jpeg",
+          "extmetadata": {
+            "ImageDescription": {"value": "The <b>Eiffel Tower</b> seen from the Champ de Mars &amp; gardens", "source": "commons-desc-page"},
+            "Artist": {"value": "<a href=\"//commons.wikimedia.org/wiki/User:Benh\" title=\"User:Benh\">Benh LIEU SONG</a>", "source": "commons-desc-page"},
+            "LicenseShortName": {"value": "Public domain", "source": "commons-desc-page"},
+            "License": {"value": "pd", "source": "commons-templates"},
+            "UsageTerms": {"value": "Public domain", "source": "commons-desc-page"},
+            "AttributionRequired": {"value": "false", "source": "commons-desc-page"},
+            "Copyrighted": {"value": "False", "source": "commons-desc-page"},
+            "Restrictions": {"value": "", "source": "commons-desc-page"}
+          }
+        }]
+      },
+      {
+        "pageid": 1002, "ns": 6, "title": "File:Tour eiffel at sunrise from the trocadero.jpg", "index": 1,
+        "imageinfo": [{
+          "thumburl": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Tour_eiffel_at_sunrise_from_the_trocadero.jpg/640px-Tour_eiffel_at_sunrise_from_the_trocadero.jpg",
+          "thumbwidth": 640, "thumbheight": 960,
+          "url": "https://upload.wikimedia.org/wikipedia/commons/e/e6/Tour_eiffel_at_sunrise_from_the_trocadero.jpg",
+          "descriptionurl": "https://commons.wikimedia.org/wiki/File:Tour_eiffel_at_sunrise_from_the_trocadero.jpg",
+          "size": 1450000, "width": 2336, "height": 3504, "mime": "image/jpeg",
+          "extmetadata": {
+            "ImageDescription": {"value": "Eiffel tower at sunrise", "source": "commons-desc-page"},
+            "Artist": {"value": "<a href=\"//commons.wikimedia.org/wiki/User:Nitot\" title=\"User:Nitot\">Tristan Nitot</a>", "source": "commons-desc-page"},
+            "LicenseShortName": {"value": "CC BY-SA 3.0", "source": "commons-desc-page"},
+            "License": {"value": "cc-by-sa-3.0", "source": "commons-templates"},
+            "LicenseUrl": {"value": "http://creativecommons.org/licenses/by-sa/3.0/", "source": "commons-desc-page"},
+            "UsageTerms": {"value": "Creative Commons Attribution-Share Alike 3.0", "source": "commons-desc-page"},
+            "AttributionRequired": {"value": "true", "source": "commons-desc-page"},
+            "Copyrighted": {"value": "True", "source": "commons-desc-page"},
+            "Restrictions": {"value": "", "source": "commons-desc-page"}
+          }
+        }]
+      },
+      {
+        "pageid": 1003, "ns": 6, "title": "File:Eiffel Tower night lights.png", "index": 3,
+        "imageinfo": [{
+          "thumburl": "https://upload.wikimedia.org/wikipedia/commons/thumb/0/01/Eiffel_Tower_night_lights.png/640px-Eiffel_Tower_night_lights.png",
+          "thumbwidth": 640, "thumbheight": 427,
+          "url": "https://upload.wikimedia.org/wikipedia/commons/0/01/Eiffel_Tower_night_lights.png",
+          "descriptionurl": "https://commons.wikimedia.org/wiki/File:Eiffel_Tower_night_lights.png",
+          "size": 980000, "width": 1920, "height": 1280, "mime": "image/png",
+          "extmetadata": {
+            "Artist": {"value": "Jane Doe", "source": "commons-desc-page"},
+            "LicenseShortName": {"value": "CC BY-NC 4.0", "source": "commons-desc-page"},
+            "License": {"value": "cc-by-nc-4.0", "source": "commons-templates"},
+            "LicenseUrl": {"value": "https://creativecommons.org/licenses/by-nc/4.0", "source": "commons-desc-page"},
+            "AttributionRequired": {"value": "true", "source": "commons-desc-page"},
+            "Restrictions": {"value": "", "source": "commons-desc-page"}
+          }
+        }]
+      },
+      {
+        "pageid": 1004, "ns": 6, "title": "File:Eiffel Tower logo sign.jpg", "index": 4,
+        "imageinfo": [{
+          "thumburl": "https://upload.wikimedia.org/wikipedia/commons/thumb/9/99/Eiffel_Tower_logo_sign.jpg/640px-Eiffel_Tower_logo_sign.jpg",
+          "thumbwidth": 640, "thumbheight": 480,
+          "url": "https://upload.wikimedia.org/wikipedia/commons/9/99/Eiffel_Tower_logo_sign.jpg",
+          "descriptionurl": "https://commons.wikimedia.org/wiki/File:Eiffel_Tower_logo_sign.jpg",
+          "size": 300000, "width": 1600, "height": 1200, "mime": "image/jpeg",
+          "extmetadata": {
+            "Artist": {"value": "John Roe", "source": "commons-desc-page"},
+            "LicenseShortName": {"value": "CC BY 4.0", "source": "commons-desc-page"},
+            "License": {"value": "cc-by-4.0", "source": "commons-templates"},
+            "LicenseUrl": {"value": "https://creativecommons.org/licenses/by/4.0", "source": "commons-desc-page"},
+            "AttributionRequired": {"value": "true", "source": "commons-desc-page"},
+            "Restrictions": {"value": "trademarked|personality", "source": "commons-desc-page"}
+          }
+        }]
+      },
+      {
+        "pageid": 1005, "ns": 6, "title": "File:Eiffel Tower 1900 postcard.jpg", "index": 5,
+        "imageinfo": [{
+          "url": "https://upload.wikimedia.org/wikipedia/commons/5/55/Eiffel_Tower_1900_postcard.jpg",
+          "descriptionurl": "https://commons.wikimedia.org/wiki/File:Eiffel_Tower_1900_postcard.jpg",
+          "size": 120000, "width": 800, "height": 520, "mime": "image/jpeg",
+          "extmetadata": {
+            "Artist": {"value": "Unknown author", "source": "commons-desc-page"},
+            "LicenseShortName": {"value": "CC BY-SA 2.0 de", "source": "commons-desc-page"},
+            "License": {"value": "cc-by-sa-2.0-de", "source": "commons-templates"},
+            "AttributionRequired": {"value": "true", "source": "commons-desc-page"}
+          }
+        }]
+      }
+    ]
+  }
+}
