@@ -24,6 +24,8 @@ export interface ClaimsReviewProps extends ClaimsReviewHandlers {
   reviews?: readonly ClaimReview[];
   /** Decisions are accepted only at the approval gate / budget pause. */
   canReview: boolean;
+  /** The API accepts a rewrite only from AWAITING_APPROVAL / NEEDS_REVIEW. */
+  canRewrite?: boolean;
 }
 
 function Sources({ claim }: { claim: FactClaim }) {
@@ -72,6 +74,7 @@ export function ClaimsReview({
   script,
   reviews,
   canReview,
+  canRewrite = false,
   onDecide,
   onRewrite,
   busyClaimId = null,
@@ -108,9 +111,10 @@ export function ClaimsReview({
             <span>
               Approval is blocked until the script is rewritten: it cites{" "}
               {rejectedCited.length === 1 ? "a rejected claim" : `${rejectedCited.length} rejected claims`}.
+              {!canRewrite && " A rewrite is possible once the production is back at the approval gate."}
             </span>
           </p>
-          {canReview && onRewrite && (
+          {canRewrite && onRewrite && (
             <Button variant="warning" className="px-3 py-1.5 text-xs" onClick={onRewrite} busy={rewriting}>
               Rewrite script
             </Button>
