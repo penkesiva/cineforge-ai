@@ -22,6 +22,7 @@ from cineforge.contracts.providers import (
     ProviderRequest,
     ProviderResponse,
     ProviderUsage,
+    UsageLine,
 )
 from cineforge.cost.catalog import YamlPriceCatalog
 from cineforge.cost.factory import load_price_catalog
@@ -288,3 +289,118 @@ def test_capability_mismatch_rejected(budget, catalog, calls) -> None:
             SpyProvider(_mock("mock-video"), calls), req, agent_id=AgentId.VISUAL_PRODUCTION
         )
     assert calls == []
+
+
+class FakeTokenProvider:
+    """Anthropic-shaped usage: aggregate 1k_tokens plus an input/output breakdown."""
+
+    info = ProviderInfo(
+        name="anthropic",
+        display_name="Fake Anthropic",
+        capabilities=[C.LLM_TEXT],
+        models=["claude-sonnet-4-5"],
+        is_mock=False,
+        is_paid=True,
+    )
+
+    def __init__(self, calls: list[str]) -> None:
+        self.calls = calls
+
+    @staticmethod
+    def _usage(tokens_in: str, tokens_out: str) -> ProviderUsage:
+        i, o = Decimal(tokens_in), Decimal(tokens_out)
+        return ProviderUsage(
+            units=i + o,
+            unit=PriceUnit.TOKENS_1K,
+            breakdown=[
+                UsageLine(unit=PriceUnit.INPUT_TOKENS_1K, units=i),
+                UsageLine(unit=PriceUnit.OUTPUT_TOKENS_1K, units=o),
+            ],
+        )
+
+    def estimate_usage(self, request: ProviderRequest) -> ProviderUsage:
+        self.calls.append("estimate")
+        return self._usage("2", "1")
+
+    def invoke(self, request: ProviderRequest) -> ProviderResponse:
+        self.calls.append("invoke")
+        return ProviderResponse(
+            provider="anthropic",
+            model=request.model,
+            capability=C.LLM_TEXT,
+            provider_request_id="msg_1",
+            output_text="hi",
+            usage=self._usage("1.5", "0.5"),
+        )
+
+
+def _llm_request(model: str = "claude-sonnet-4-5") -> ProviderRequest:
+    return ProviderRequest(
+        tenant_id="tenant_demo",
+        production_id=PID,
+        capability=C.LLM_TEXT,
+        model=model,
+        prompt="hello",
+        idempotency_key=f"{PID}:RESEARCHING:a2:1:anthropic:{model}",
+    )
+
+
+def test_breakdown_prices_input_and_output_separately(budget, catalog, calls) -> None:
+    guard = _guard(budget, catalog, allow_paid_providers=True)
+    response, event = guard.call(
+        FakeTokenProvider(calls), _llm_request(), agent_id=AgentId.RESEARCH
+    )
+    assert response.provider_request_id == event.provider_request_id == "msg_1"
+    # estimate: 2k in x $0.003 + 1k out x $0.015; actual: 1.5k x 0.003 + 0.5k x 0.015
+    assert event.estimated_cost == Decimal("0.021")
+    assert event.actual_cost == Decimal("0.012")
+    assert event.usage_unit == PriceUnit.TOKENS_1K and event.usage_units == Decimal("2")
+    assert event.unit_price_version == "anthropic-2026-10"
+    assert event.status == LedgerStatus.COMMITTED and event.status_reason is None
+    assert calls == ["estimate", "reserve", "invoke", "commit"]
+    assert budget.get_budget(PID).actual_amount == Decimal("0.012")
+
+
+def test_breakdown_unknown_model_fails_closed_before_reserve(budget, catalog, calls) -> None:
+    guard = _guard(budget, catalog, allow_paid_providers=True)
+    with pytest.raises(UnknownPriceError):
+        guard.call(
+            FakeTokenProvider(calls), _llm_request("claude-unknown-9"), agent_id=AgentId.RESEARCH
+        )
+    assert calls == ["estimate"]
+    assert budget.ledger(PID) == []
+
+
+def test_breakdown_partial_price_fails_closed(budget, calls) -> None:
+    only_input = YamlPriceCatalog.from_mapping(
+        {
+            "version": "half",
+            "effective_from": "2026-10-01",
+            "entries": [
+                {"provider": "anthropic", "model": "claude-sonnet-4-5", "capability": "llm_text",
+                 "unit": "1k_input_tokens", "unit_price": 0.003},
+            ],
+        }
+    )  # fmt: skip
+    guard = _guard(budget, only_input, allow_paid_providers=True)
+    with pytest.raises(UnknownPriceError):
+        guard.call(FakeTokenProvider(calls), _llm_request(), agent_id=AgentId.RESEARCH)
+    assert calls == ["estimate"] and budget.ledger(PID) == []
+
+
+def test_paid_token_provider_refused_when_paid_off(budget, catalog, calls) -> None:
+    with pytest.raises(PaidProviderNotAllowedError):
+        _guard(budget, catalog).call(
+            FakeTokenProvider(calls), _llm_request(), agent_id=AgentId.RESEARCH
+        )
+    assert calls == []
+
+
+def test_release_reason_reaches_the_ledger(budget, catalog, calls) -> None:
+    provider = SpyProvider(
+        _mock("mock-video"), calls, error=ProviderError("upstream 503", retryable=True)
+    )
+    with pytest.raises(ProviderError):
+        _guard(budget, catalog).call(provider, _video_request(), agent_id=AgentId.VISUAL_PRODUCTION)
+    (event,) = budget.ledger(PID)
+    assert event.status == LedgerStatus.FAILED and event.status_reason == "upstream 503"
