@@ -62,6 +62,13 @@ def capped_actual(
     return max(Decimal(0), min(amount, headroom))
 
 
+def overspend_reason(*, reserved: Decimal, actual: Decimal) -> str | None:
+    """``status_reason`` for a commit whose actual cost exceeds its reservation."""
+    if money(actual) <= money(reserved):
+        return None
+    return f"overspend: reserved {money(reserved)}, actual {money(actual)}"
+
+
 def group_events(
     events: Iterable[LedgerEvent], key: Callable[[LedgerEvent], str]
 ) -> dict[str, Totals]:
@@ -151,4 +158,6 @@ def build_summary(
 
 
 def is_simulated_provider(provider: str) -> bool:
+    """Mock providers are named ``mock-*``; any other ledger row is real (even if free),
+    so ``CostSummary.simulated`` / ``CostOverview.simulated`` turn False."""
     return provider.startswith("mock-")

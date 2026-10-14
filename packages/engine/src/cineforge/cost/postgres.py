@@ -34,6 +34,7 @@ from cineforge.cost.reporting import (
     agent_label,
     build_summary,
     capped_actual,
+    overspend_reason,
     rows,
     scope_key,
 )
@@ -44,7 +45,8 @@ log = logging.getLogger(__name__)
 _LEDGER_COLUMNS = (
     "event_id, tenant_id, production_id, scene_id, shot_id, agent_id, provider, model, "
     "capability, provider_request_id, usage_units, usage_unit, unit_price_version, "
-    "estimated_cost, reserved_cost, actual_cost, currency, status, attempt, retry_reason, "
+    "estimated_cost, reserved_cost, actual_cost, currency, status, status_reason, attempt, "
+    "retry_reason, "
     'cache_hit, credits_used, idempotency_key, "timestamp", updated_at'
 )
 
@@ -299,25 +301,22 @@ class PostgresBudgetService:
                 return _event(event)
             if event["status"] != LedgerStatus.RESERVED:
                 raise ValueError(f"ledger event {event_id} is {event['status']}, cannot commit")
-            if actual > event["reserved_cost"]:
-                log.warning(
-                    "ledger %s overran reservation: reserved %s, actual %s",
-                    event_id,
-                    event["reserved_cost"],
-                    actual,
-                )
+            reason = overspend_reason(reserved=event["reserved_cost"], actual=actual)
+            if reason:
+                log.warning("ledger %s %s", event_id, reason)
             self._settle(conn, event, actual)
             row = conn.execute(
                 f"""
                 update cost_ledger
-                set status = 'committed', actual_cost = %s,
+                set status = 'committed', status_reason = %s, actual_cost = %s,
                     usage_units = coalesce(%s, usage_units), provider_request_id = %s,
                     cache_hit = %s, credits_used = %s, updated_at = now()
                 where event_id = %s
                 returning {_LEDGER_COLUMNS}
                 """,
-                (actual, usage_units, provider_request_id, cache_hit, credits_used, event_id),
-            ).fetchone()
+                (reason, actual, usage_units, provider_request_id, cache_hit, credits_used,
+                 event_id),
+            ).fetchone()  # fmt: skip
             if credits_used:
                 start = self._initial_credits.get(event["provider"], Decimal(0))
                 conn.execute(
@@ -345,11 +344,12 @@ class PostgresBudgetService:
             status = LedgerStatus.FAILED if failed else LedgerStatus.RELEASED
             row = conn.execute(
                 f"""
-                update cost_ledger set status = %s, actual_cost = %s, updated_at = now()
+                update cost_ledger
+                set status = %s, status_reason = %s, actual_cost = %s, updated_at = now()
                 where event_id = %s
                 returning {_LEDGER_COLUMNS}
                 """,
-                (status.value, actual, event_id),
+                (status.value, reason, actual, event_id),
             ).fetchone()
             log.info("ledger %s %s: %s", event_id, status, reason)
             return _event(row)
