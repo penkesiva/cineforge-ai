@@ -7,8 +7,10 @@ import logging
 from cineforge.configuration import ThemeNotFoundError
 from cineforge.contracts.agents import AgentSchemaError
 from cineforge.contracts.api import ErrorResponse
+from cineforge.contracts.cost import BudgetExceededError, UnknownPriceError
 from cineforge.contracts.repositories import NotFoundError, ThemeVersionConflictError
 from cineforge.contracts.workflow import InvalidStateTransitionError
+from cineforge.orchestration import external
 from cineforge.orchestration.workflow import ApprovalBlockedError, InvalidClaimReviewError
 from fastapi import FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
@@ -65,6 +67,51 @@ def install_error_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(InvalidClaimReviewError)
     async def _bad_claims(_: Request, exc: InvalidClaimReviewError) -> JSONResponse:
+        return error_response(status.HTTP_422_UNPROCESSABLE_CONTENT, "validation_error", str(exc))
+
+    @app.exception_handler(external.PaidProvidersDisabledError)
+    async def _paid_disabled(_: Request, exc: external.PaidProvidersDisabledError) -> JSONResponse:
+        return error_response(status.HTTP_403_FORBIDDEN, "paid_providers_disabled", str(exc))
+
+    @app.exception_handler(UnknownPriceError)
+    async def _unknown_price(_: Request, exc: UnknownPriceError) -> JSONResponse:
+        return error_response(status.HTTP_422_UNPROCESSABLE_CONTENT, "unknown_price", str(exc))
+
+    @app.exception_handler(BudgetExceededError)
+    async def _budget(_: Request, exc: BudgetExceededError) -> JSONResponse:
+        return error_response(
+            status.HTTP_409_CONFLICT,
+            "budget_exceeded",
+            {
+                "message": str(exc),
+                "requested": str(exc.requested),
+                "available": str(exc.available),
+            },
+        )
+
+    @app.exception_handler(external.CreditCapExceededError)
+    async def _credit_cap(_: Request, exc: external.CreditCapExceededError) -> JSONResponse:
+        return error_response(
+            status.HTTP_409_CONFLICT,
+            "budget_exceeded",
+            {
+                "message": str(exc),
+                "used": str(exc.used),
+                "quoted": str(exc.quoted),
+                "cap": str(exc.cap),
+            },
+        )
+
+    @app.exception_handler(external.ExternalStateError)
+    async def _external_state(_: Request, exc: external.ExternalStateError) -> JSONResponse:
+        return error_response(status.HTTP_409_CONFLICT, "invalid_state", str(exc))
+
+    @app.exception_handler(external.SourceRightsError)
+    async def _source_rights(_: Request, exc: external.SourceRightsError) -> JSONResponse:
+        return error_response(status.HTTP_409_CONFLICT, "rights_blocked", str(exc))
+
+    @app.exception_handler(external.ExternalGenerationError)
+    async def _external_bad(_: Request, exc: external.ExternalGenerationError) -> JSONResponse:
         return error_response(status.HTTP_422_UNPROCESSABLE_CONTENT, "validation_error", str(exc))
 
     @app.exception_handler(RequestValidationError)

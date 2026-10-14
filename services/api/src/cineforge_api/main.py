@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from cineforge_api.errors import install_error_handlers
-from cineforge_api.routers import assets, catalog, health, productions, providers
+from cineforge_api.routers import assets, catalog, external, health, productions, providers
 
 TAGS = [
     {"name": "health", "description": "Liveness and dependency checks."},
@@ -48,6 +48,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health.router)
     app.include_router(catalog.router)
     app.include_router(productions.router)
+    app.include_router(external.router)
     app.include_router(assets.router)
     app.include_router(providers.router)
     return app
