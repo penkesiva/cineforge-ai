@@ -1,0 +1,19 @@
+# SIMULATED price catalog for mock providers. Not real vendor prices.
+# Real provider prices are an open decision (PRD 3 section 15) and must be added
+# as a NEW versioned file, never by editing this one.
+version: mock-2026-10
+currency: USD
+effective_from: 2026-10-01
+simulated: true
+entries:
+  - {provider: mock-llm, model: mock-llm-standard, capability: llm_text, unit: 1k_tokens, unit_price: 0.002}
+  - {provider: mock-llm, model: mock-llm-premium, capability: llm_text, unit: 1k_tokens, unit_price: 0.010}
+  - {provider: mock-research, model: mock-search-v1, capability: web_research, unit: request, unit_price: 0.005}
+  - {provider: mock-media-search, model: mock-media-v1, capability: media_search, unit: request, unit_price: 0.001}
+  - {provider: mock-image, model: mock-image-v1, capability: image_generation, unit: image, unit_price: 0.040}
+  - {provider: mock-video, model: mock-video-draft, capability: image_to_video, unit: video_second, unit_price: 0.050}
+  - {provider: mock-video, model: mock-video-cinematic, capability: video_generation, unit: video_second, unit_price: 0.250}
+  - {provider: mock-voice, model: mock-tts-v1, capability: voice_tts, unit: 1k_characters, unit_price: 0.015}
+  - {provider: mock-music, model: mock-music-v1, capability: music_generation, unit: track, unit_price: 0.050}
+  - {provider: mock-sfx, model: mock-sfx-v1, capability: sfx_generation, unit: request, unit_price: 0.010}
+  - {provider: mock-lipsync, model: mock-lipsync-v1, capability: lip_sync, unit: video_second, unit_price: 0.080}

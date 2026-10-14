@@ -1,0 +1,24 @@
+---
+description: Python engine and services conventions (Pydantic contracts, money, guards, tests)
+globs: packages/engine/**,services/**
+alwaysApply: false
+---
+
+# Python (engine + services)
+
+- Python 3.12, type hints everywhere, sync code. No global mutable state outside
+  `cineforge.runtime`; get dependencies via `cineforge.runtime.get_runtime()`.
+- Contracts are Pydantic v2 models in `cineforge.contracts.*` (frozen). Inter-agent
+  hand-offs are contract models, never free-form prose. Validate at boundaries.
+- Money is `Decimal` via `cineforge.contracts.common.money()`. Never float math for
+  budgets, prices or ledger amounts.
+- Every provider call goes through `PaidCallGuard.call` (budget reservation first,
+  commit/release after). Never call a provider directly.
+- `RightsGate` fails closed: unknown or missing license = blocked.
+- Jobs and agent runs are idempotent. Use the idempotency key formats in
+  `docs/architecture/contracts.md` (agent runs, ledger reservations, job ids).
+- Job functions take keyword arguments only.
+- Tests live next to the code: `packages/engine/tests/<area>/`, `services/<svc>/tests/`.
+  Mark DB/Redis tests `@pytest.mark.integration`, FFmpeg tests `@pytest.mark.ffmpeg`.
+- `uv run ruff check . && uv run ruff format --check .` must pass (line length 100).
+- Settings come from env via `cineforge.config.Settings`; never hardcode URLs or keys.

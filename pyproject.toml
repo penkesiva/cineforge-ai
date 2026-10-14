@@ -1,0 +1,60 @@
+[project]
+name = "cineforge-workspace"
+version = "0.1.0"
+description = "CineForge AI monorepo (uv workspace root)"
+requires-python = ">=3.12"
+dependencies = [
+    "cineforge-engine",
+    "cineforge-api",
+    "cineforge-worker",
+    "cineforge-media-worker",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "httpx>=0.27",
+    "fakeredis>=2.26",
+    "ruff>=0.7",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = [
+    "packages/engine",
+    "services/api",
+    "services/worker",
+    "services/media-worker",
+]
+
+[tool.uv.sources]
+cineforge-engine = { workspace = true }
+cineforge-api = { workspace = true }
+cineforge-worker = { workspace = true }
+cineforge-media-worker = { workspace = true }
+
+[tool.pytest.ini_options]
+testpaths = [
+    "packages/engine/tests",
+    "services/api/tests",
+    "services/worker/tests",
+    "services/media-worker/tests",
+    "tests",
+]
+addopts = "-ra --strict-markers --import-mode=importlib"
+markers = [
+    "integration: requires running Postgres/Redis (DATABASE_URL / REDIS_URL)",
+    "ffmpeg: requires the ffmpeg/ffprobe binaries",
+    "e2e: end-to-end against the running Docker Compose stack",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["apps", "node_modules"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+ignore = ["RUF012"]

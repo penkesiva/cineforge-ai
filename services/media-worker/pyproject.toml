@@ -1,0 +1,16 @@
+[project]
+name = "cineforge-media-worker"
+version = "0.1.0"
+description = "CineForge media worker (FFmpeg rendering, ffprobe validation)"
+requires-python = ">=3.12"
+dependencies = ["cineforge-engine"]
+
+[tool.uv.sources]
+cineforge-engine = { workspace = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cineforge_media_worker"]

@@ -1,0 +1,34 @@
+# Production mode policies (PRD 3 section 9). Balanced is the default.
+modes:
+  - mode: economy
+    description: Reuse licensed imagery, deterministic camera motion, minimal generated video.
+    default_budget_usd: 3.00
+    max_attempts_per_shot: 2
+    expected_retry_rate: 0.10
+    generative_shot_ratio: 0.0
+    draft_first: true
+    storyboard_preflight: true
+    quality_tier: draft
+    allowed_strategies: [licensed_still_motion, reuse]
+
+  - mode: balanced
+    description: Hybrid licensed imagery plus selectively generated video, storyboard preflight, per-shot routing.
+    default_budget_usd: 10.00
+    max_attempts_per_shot: 3
+    expected_retry_rate: 0.20
+    generative_shot_ratio: 0.30
+    draft_first: true
+    storyboard_preflight: true
+    quality_tier: standard
+    allowed_strategies: [licensed_still_motion, hybrid, generative, reuse]
+
+  - mode: premium
+    description: Higher-fidelity shots, richer VFX, more takes, stricter review, larger budget.
+    default_budget_usd: 40.00
+    max_attempts_per_shot: 5
+    expected_retry_rate: 0.35
+    generative_shot_ratio: 0.70
+    draft_first: false
+    storyboard_preflight: true
+    quality_tier: high
+    allowed_strategies: [licensed_still_motion, hybrid, generative, reuse]

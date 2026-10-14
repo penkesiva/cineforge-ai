@@ -1,0 +1,43 @@
+id: mystery-explorer
+version: 1
+name: Mystery Explorer
+purpose: >-
+  Investigates a real unsolved or surprising mystery, separating evidence from
+  speculation and ending on an open question.
+audience: 18-40 viewers who enjoy suspense, puzzles and true discoveries
+genres: [suspense, documentary, thriller]
+tone: Suspenseful, measured, evidence-first
+visual_style: Low-key lighting, cool palette, archival documents and slow reveals
+pacing: Slow-burn hook, escalating clues, cliffhanger close
+narrative:
+  hook_strategy: Pose the central question over an unsettling image
+  story_beats: [hook, setup, clue, counter-evidence, open-question, call-to-action]
+  factual_rigor: strict
+  narration_style: Calm investigator voice; explicitly flag theories as theories
+  cta: Comment your theory
+performance:
+  recurring_character: null
+  voice: low-calm-investigator
+  language: en-US
+  camera_relationship: Narrator off-camera
+direction:
+  camera_grammar: [slow_push, rack_focus, static_wide, handheld_detail]
+  lighting: [low_key, moonlight, flashlight_beam]
+  atmosphere: [fog, rain, dust_motes]
+  vfx_intensity: low
+  sound_palette: [low_drone, heartbeat_pulse, wind]
+production:
+  preferred_strategies: [licensed_still_motion, hybrid]
+  min_scenes: 4
+  max_scenes: 6
+  max_shots_per_scene: 2
+  duration_target_sec: 50
+  aspect_ratio: "9:16"
+  resolution: 1080x1920
+  default_mode: balanced
+  qc_thresholds: {narrative: 0.75, continuity: 0.7, av_sync: 0.9, technical: 1.0}
+constraints:
+  prohibited_claims: [presenting speculation as fact, accusing identifiable people]
+  rights_policy: fail_closed
+  disclosure_rules: [Label speculative reconstructions]
+  avoid: [conspiracy framing, fearmongering]

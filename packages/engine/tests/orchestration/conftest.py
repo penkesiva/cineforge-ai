@@ -1,0 +1,19 @@
+from __future__ import annotations
+
+import sys
+from collections.abc import Iterator
+from pathlib import Path
+
+import pytest
+
+_TESTS_ROOT = str(Path(__file__).resolve().parents[1])
+if _TESTS_ROOT not in sys.path:
+    sys.path.insert(0, _TESTS_ROOT)
+
+
+@pytest.fixture(autouse=True)
+def _reset_runtime() -> Iterator[None]:
+    from cineforge.runtime import set_runtime
+
+    yield
+    set_runtime(None)

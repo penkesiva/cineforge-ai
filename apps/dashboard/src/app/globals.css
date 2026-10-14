@@ -1,0 +1,111 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Inter", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+
+  --color-ink-950: #06060a;
+  --color-ink-900: #0b0b12;
+  --color-ink-850: #10101a;
+  --color-ink-800: #161622;
+  --color-ink-700: #22222f;
+  --color-ink-600: #2f2f3f;
+
+  --color-gold-300: #fcd88a;
+  --color-gold-400: #f5c060;
+  --color-gold-500: #eba53b;
+  --color-gold-600: #c9801e;
+
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --animate-dialog-in: dialog-in 420ms var(--ease-spring) both;
+  --animate-backdrop-in: backdrop-in 220ms ease-out both;
+  --animate-badge-pop: badge-pop 520ms var(--ease-spring) 80ms both;
+  --animate-fade-up: fade-up 320ms ease-out both;
+
+  @keyframes dialog-in {
+    0% {
+      opacity: 0;
+      transform: translateY(16px) scale(0.9);
+    }
+    60% {
+      opacity: 1;
+      transform: translateY(-3px) scale(1.015);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+  @keyframes backdrop-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes badge-pop {
+    0% {
+      transform: scale(0.4) rotate(-12deg);
+      opacity: 0;
+    }
+    100% {
+      transform: scale(1) rotate(0);
+      opacity: 1;
+    }
+  }
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background-color: var(--color-ink-950);
+}
+
+body {
+  background-image:
+    radial-gradient(1200px 600px at 85% -10%, rgb(235 165 59 / 0.09), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgb(139 92 246 / 0.08), transparent 60%);
+  background-attachment: fixed;
+}
+
+.film-grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background-image: repeating-linear-gradient(0deg, rgb(255 255 255 / 0.015) 0 1px, transparent 1px 3px);
+}
+
+.bar-striped {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgb(255 255 255 / 0.18) 0 6px,
+    transparent 6px 12px
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}

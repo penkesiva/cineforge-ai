@@ -1,0 +1,165 @@
+# CineForge AI local stack. Docs: docs/development/docker.md
+#
+# Postgres is NOT in this file: it is the Supabase CLI local stack (`supabase start`,
+# host port 54322). Containers reach it through host.docker.internal.
+#
+# Works with no .env file. Host-oriented values in .env (DATABASE_URL, REDIS_URL,
+# STORAGE_LOCAL_ROOT with 127.0.0.1 / ./var paths) are overridden below for containers.
+
+name: cineforge
+
+x-python-build: &python-build
+  context: .
+  dockerfile: infrastructure/docker/python.Dockerfile
+
+x-python-service: &python-service
+  env_file:
+    - path: .env
+      required: false
+  environment:
+    CINEFORGE_ENV: ${CINEFORGE_ENV:-development}
+    PERSISTENCE_BACKEND: postgres
+    DATABASE_URL: ${DOCKER_DATABASE_URL:-postgresql://postgres:postgres@host.docker.internal:54322/postgres}
+    QUEUE_BACKEND: redis
+    REDIS_URL: ${DOCKER_REDIS_URL:-redis://redis:6379/0}
+    STORAGE_BACKEND: local
+    STORAGE_LOCAL_ROOT: /data/media
+    CONFIGURATIONS_DIR: /app/packages/configurations
+    PROMPTS_DIR: /app/packages/prompts
+    PROVIDER_MODE: mock
+    ALLOW_PAID_PROVIDERS: "false"
+    MOCK_STEP_DELAY_SEC: ${MOCK_STEP_DELAY_SEC:-1.0}
+    # Simulated transient media-provider failures (exercises bounded retries).
+    # 0.05 with 3 attempts per shot => roughly 1 in 700 demo productions ends FAILED.
+    MOCK_FAILURE_RATE: ${MOCK_FAILURE_RATE:-0.05}
+    CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+  volumes:
+    - ./packages:/app/packages
+    - ./services:/app/services
+    - ./scripts:/app/scripts
+    - cineforge-media:/data/media
+  init: true
+  restart: unless-stopped
+  depends_on:
+    redis:
+      condition: service_healthy
+
+services:
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    <<: *python-service
+    build:
+      <<: *python-build
+      target: app
+    image: cineforge/python-app:dev
+    command:
+      - uvicorn
+      - cineforge_api.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --reload
+      - --reload-dir
+      - /app/services/api/src
+      - --reload-dir
+      - /app/packages/engine/src
+    ports:
+      - "${API_PORT:-8000}:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  worker:
+    <<: *python-service
+    build:
+      <<: *python-build
+      target: app
+    image: cineforge/python-app:dev
+    command:
+      - watchfiles
+      - --filter
+      - python
+      - python -m cineforge_worker
+      - /app/packages/engine/src
+      - /app/services/worker/src
+
+  media-worker:
+    <<: *python-service
+    build:
+      <<: *python-build
+      target: media
+    image: cineforge/python-media:dev
+    command:
+      - watchfiles
+      - --filter
+      - python
+      - python -m cineforge_media_worker
+      - /app/packages/engine/src
+      - /app/services/media-worker/src
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/dashboard.Dockerfile
+      target: dev
+    image: cineforge/dashboard:dev
+    environment:
+      API_INTERNAL_URL: http://api:8000
+      NEXT_PUBLIC_API_BASE_PATH: /api/v1
+      WATCHPACK_POLLING: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+      PORT: "3000"
+      HOSTNAME: 0.0.0.0
+    ports:
+      - "${DASHBOARD_PORT:-3000}:3000"
+    volumes:
+      - ./apps/dashboard:/app/apps/dashboard
+      - ./packages/schemas:/app/packages/schemas
+      # Keep container-built deps and build cache; never use the host's (macOS) copies.
+      - /app/apps/dashboard/node_modules
+      - /app/apps/dashboard/.next
+      - /app/packages/schemas/node_modules
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))"
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_started
+
+volumes:
+  # Generated media (renders, assets). Survives `docker compose down`; only
+  # `docker compose down -v` or `make clean-media CONFIRM=1` deletes it.
+  cineforge-media:
+    name: cineforge-media
+  redis-data:

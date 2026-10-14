@@ -1,0 +1,127 @@
+import type { Scene, Shot } from "@cineforge/schemas";
+import { formatDuration, formatUsd, humanize } from "@/lib/format";
+import { Badge, Card, EmptyState, StatusBadge } from "../ui";
+
+function ShotRow({ shot }: { shot: Shot }) {
+  const attempts = shot.attempts ?? [];
+  const failed = attempts.filter((a) => a.status === "failed").length;
+  const plan = shot.provider_plan;
+  const disclosure = shot.disclosure;
+  return (
+    <tr data-testid="shot-row" className="border-t border-white/[0.05] align-top">
+      <td className="py-2 pr-3 text-zinc-500 tabular-nums">{shot.order}</td>
+      <td className="py-2 pr-3">
+        <p className="text-zinc-200">{humanize(shot.visual.shot_type)}</p>
+        <p className="text-xs text-zinc-500">{humanize(shot.visual.camera_motion)}</p>
+      </td>
+      <td className="py-2 pr-3">
+        <p className="text-zinc-300">{humanize(plan?.strategy ?? "generative")}</p>
+        <p className="font-mono text-[11px] text-zinc-500">
+          {plan?.provider ?? "-"}/{plan?.model ?? "-"}
+        </p>
+      </td>
+      <td className="py-2 pr-3 tabular-nums text-zinc-300">
+        <span title={`${attempts.length} attempts, ${failed} failed`}>{attempts.length}</span>
+        {failed > 0 && <span className="ml-1 text-xs text-amber-300">({failed} failed)</span>}
+      </td>
+      <td className="py-2 pr-3">
+        <div className="flex flex-wrap gap-1">
+          {shot.performance?.lip_sync_required && <Badge tone="info">Lip-sync</Badge>}
+          {disclosure?.synthetic_media && (
+            <Badge tone="violet" title="Synthetic media disclosure">
+              {disclosure.label_text || "Synthetic"}
+            </Badge>
+          )}
+          {disclosure?.reconstruction && !disclosure.label_text && <Badge tone="violet">Reconstruction</Badge>}
+        </div>
+      </td>
+      <td className="py-2 pr-3 text-right tabular-nums text-zinc-400">
+        {formatUsd(shot.estimated_cost ?? 0)}
+        <span className="block text-zinc-200">{formatUsd(shot.actual_cost ?? 0)}</span>
+      </td>
+      <td className="py-2 text-right">
+        <StatusBadge status={shot.status} />
+      </td>
+    </tr>
+  );
+}
+
+function SceneCard({ scene }: { scene: Scene }) {
+  return (
+    <article
+      data-testid="scene"
+      aria-label={`Scene ${scene.order}: ${scene.title || "Untitled"}`}
+      className="rounded-xl border border-white/[0.06] bg-white/[0.015] p-4"
+    >
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gold-500/10 text-sm font-semibold text-gold-300 ring-1 ring-gold-500/20">
+            {scene.order}
+          </span>
+          <div>
+            <h3 className="text-sm font-semibold text-zinc-100">{scene.title || `Scene ${scene.order}`}</h3>
+            <p className="text-xs text-zinc-500">
+              {scene.story_beat ? humanize(scene.story_beat) : "No beat"} · {formatDuration(scene.duration_sec)}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 text-xs">
+          <span className="text-zinc-500">
+            est <span className="tabular-nums text-zinc-300">{formatUsd(scene.estimated_cost ?? 0)}</span>
+          </span>
+          <span className="text-zinc-500">
+            actual <span className="tabular-nums text-zinc-100">{formatUsd(scene.actual_cost ?? 0)}</span>
+          </span>
+          <StatusBadge status={scene.status} />
+        </div>
+      </header>
+      {scene.narration && <p className="mt-3 text-sm italic text-zinc-400">&ldquo;{scene.narration}&rdquo;</p>}
+      <div className="mt-3 overflow-x-auto">
+        <table className="w-full min-w-[640px] text-left text-sm">
+          <caption className="sr-only">Shots in scene {scene.order}</caption>
+          <thead className="text-[11px] uppercase tracking-wider text-zinc-500">
+            <tr>
+              <th scope="col" className="pb-1.5 pr-3 font-medium">#</th>
+              <th scope="col" className="pb-1.5 pr-3 font-medium">Shot / camera</th>
+              <th scope="col" className="pb-1.5 pr-3 font-medium">Strategy / provider</th>
+              <th scope="col" className="pb-1.5 pr-3 font-medium">Attempts</th>
+              <th scope="col" className="pb-1.5 pr-3 font-medium">Flags</th>
+              <th scope="col" className="pb-1.5 pr-3 text-right font-medium">Est / actual</th>
+              <th scope="col" className="pb-1.5 text-right font-medium">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {scene.shots.map((shot) => (
+              <ShotRow key={shot.id} shot={shot} />
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </article>
+  );
+}
+
+export function ScenesPanel({ scenes }: { scenes: readonly Scene[] }) {
+  const sorted = [...scenes].sort((a, b) => a.order - b.order);
+  return (
+    <Card
+      id="scenes"
+      title="Scenes & shots"
+      description={
+        scenes.length
+          ? `${scenes.length} scenes, ${scenes.reduce((n, s) => n + s.shots.length, 0)} shots`
+          : undefined
+      }
+    >
+      {sorted.length === 0 ? (
+        <EmptyState title="No scenes yet">The Scene Director (A6) builds the scene graph during storyboarding.</EmptyState>
+      ) : (
+        <div className="space-y-3">
+          {sorted.map((scene) => (
+            <SceneCard key={scene.id} scene={scene} />
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}

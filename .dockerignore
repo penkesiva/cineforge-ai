@@ -1,0 +1,95 @@
+# Build context = repo root. Keep it small: no VCS, deps, caches, media or secrets.
+
+# VCS / editors / OS
+.git
+.github
+.cursor
+.idea
+.vscode
+**/.DS_Store
+
+# Secrets (keep the placeholder template)
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets
+.secrets
+
+# Python
+.venv
+**/.venv
+**/__pycache__
+**/*.py[cod]
+**/*.egg-info
+.pytest_cache
+**/.pytest_cache
+.ruff_cache
+**/.ruff_cache
+.mypy_cache
+.coverage
+coverage.xml
+htmlcov
+build
+dist
+
+# Node / Next.js
+node_modules
+**/node_modules
+**/.next
+apps/*/out
+**/*.tsbuildinfo
+**/next-env.d.ts
+coverage
+**/coverage
+.turbo
+npm-debug.log*
+
+# Local runtime data and media
+var
+data
+media
+renders
+outputs
+uploads
+tmp
+.cache
+**/*.log
+**/*.mp4
+**/*.mov
+**/*.m4v
+**/*.mkv
+**/*.webm
+**/*.avi
+**/*.mp3
+**/*.wav
+**/*.aac
+**/*.m4a
+**/*.flac
+**/*.ogg
+**/*.opus
+**/*.png
+**/*.jpg
+**/*.jpeg
+**/*.gif
+**/*.webp
+**/*.avif
+**/*.heic
+**/*.tif
+**/*.tiff
+**/*.psd
+**/*.exr
+
+# Supabase CLI local state
+supabase/.temp
+supabase/.branches
+
+# Not needed in images
+docs
+tests/e2e
