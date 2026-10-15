@@ -56,6 +56,7 @@ from cineforge.contracts.providers import (
     ProviderInfo,
     ProviderRequest,
     ProviderResponse,
+    ProviderStatus,
     ProviderUsage,
     UnsupportedCapabilityError,
 )
@@ -268,6 +269,13 @@ class FakeProviderRegistry:
 
     def catalog(self, tenant_id: str) -> list:
         return []
+
+    def status(self, provider_name: str, tenant_id: str) -> tuple[ProviderStatus, str]:
+        if provider_name not in self._providers:
+            raise LookupError(f"provider {provider_name!r} is not registered")
+        if provider_name in self.disabled:
+            return ProviderStatus.DISABLED, "disabled"
+        return ProviderStatus.READY, "ready"
 
 
 # --------------------------------------------------------------------------- budget

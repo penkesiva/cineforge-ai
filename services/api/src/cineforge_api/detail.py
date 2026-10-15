@@ -50,6 +50,7 @@ def build_summary(m: ProductionManifest, cost: CostSummary | None = None) -> Pro
         theme_version=m.theme_profile.version,
         mode=m.mode,
         state=m.state,
+        approval_stage=m.approval_stage,
         progress_pct=progress_pct(m.state),
         scene_count=len(m.scenes),
         shot_count=sum(len(s.shots) for s in m.scenes),

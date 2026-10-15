@@ -439,48 +439,33 @@ def _media_info(data: bytes, ext: str) -> dict:
         return {}
 
 
-def _find_completed_asset(
-    rt: Runtime, manifest: ProductionManifest, event_id: str
-) -> AssetRecord | None:
-    for asset in rt.assets.list_for_production(manifest.production_id, manifest.tenant_id):
-        if asset.metadata.get("ledger_event_id") == event_id:
-            return asset
-    return None
-
-
-def complete_external(
+def store_result(
     rt: Runtime,
     manifest: ProductionManifest,
-    event_id: str,
-    req: ExternalGenerationComplete,
     *,
+    url: str,
+    kind: AssetKind,
+    event: LedgerEvent,
+    job_id: str,
+    prompt: str | None,
+    parameters: dict,
+    credits_used: Decimal | None,
+    cost: Decimal,
+    metadata: dict | None = None,
+    attribution: str | None = None,
+    via: str,
     client: httpx.Client | None = None,
     resolver: Resolver | None = None,
-) -> tuple[LedgerEvent, AssetRecord]:
-    _check_state(manifest, EXTERNAL_STATES)
-    event = _owned_event(rt, manifest, event_id)
-    if event.status == LedgerStatus.COMMITTED:
-        done = _find_completed_asset(rt, manifest, event_id)
-        if done is not None:
-            return event, done
-    if event.status != LedgerStatus.RESERVED:
-        raise ExternalGenerationError(f"ledger event {event_id} is {event.status.value}")
-    kind = higgsfield.OUTPUT_KINDS[event.capability]
-    scene, shot = _scene_and_shot(manifest, event.scene_id, event.shot_id)
-    price = rt.price_catalog.get(event.provider, event.model, PriceUnit.CREDIT).unit_price
-    actual = money(req.credits_used * price)
-    try:
-        derived = _derived_from(rt, manifest, req.source_candidate_id)
-    except SourceRightsError:
-        rt.budget.release(
-            event_id, reason="source still not rights-approved", failed=True, actual_cost=actual
-        )
-        raise
+) -> AssetRecord:
+    """Download a provider result from its allowlisted CDN, store it and register the
+    generated asset with provenance (provider, model, job, prompt, credits)."""
+    if event.provider not in RESULT_HOSTS:
+        raise ExternalGenerationError(f"no result host allowlist for provider {event.provider!r}")
     http = client or build_http_client(rt.settings)
     try:
         fetched = download(
             http,
-            req.result_url,
+            url,
             allowed_types=_ACCEPTED_TYPES[kind],
             max_bytes=MAX_RESULT_BYTES[event.provider],
             allowed_hosts=RESULT_HOSTS[event.provider],
@@ -494,17 +479,17 @@ def complete_external(
     content_type = _content_type(fetched, kind)
     ext = _EXT.get(content_type, ".bin")
     info = _media_info(fetched.data, ext) if kind != AssetKind.IMAGE else {}
-    name = _UNSAFE.sub("_", f"{event.provider}_{req.provider_request_id}")[:120]
+    name = _UNSAFE.sub("_", f"{event.provider}_{job_id}")[:120]
     key = storage_key(manifest.tenant_id, manifest.production_id, kind, f"{name}{ext}")
     stored = rt.storage.put_bytes(key, fetched.data, content_type)
     license = LicenseInfo(
         license_type="generated",
         commercial_use_allowed=True,
         modifications_allowed=True,
-        attribution_text=(derived or {}).get("attribution"),
+        attribution_text=attribution,
         source_provider=event.provider,
     )
-    record = rt.assets.add(
+    return rt.assets.add(
         AssetRecord(
             tenant_id=manifest.tenant_id,
             production_id=manifest.production_id,
@@ -525,20 +510,76 @@ def complete_external(
             generation={
                 "provider": event.provider,
                 "model": event.model,
-                "job_id": req.provider_request_id,
-                "prompt": req.prompt,
-                "via": VIA,
-                "parameters": req.parameters,
-                "credits_used": str(req.credits_used),
+                "job_id": job_id,
+                "prompt": prompt,
+                "via": via,
+                "parameters": parameters,
+                "credits_used": str(credits_used) if credits_used is not None else None,
             },
-            usage_cost=actual,
+            usage_cost=cost,
             metadata={
-                "ledger_event_id": event_id,
-                "derived_from": derived,
+                "ledger_event_id": event.event_id,
+                **(metadata or {}),
                 "result_host": fetched.final_url.split("/", 3)[2],
                 "probe": info,
             },
         )
+    )
+
+
+def find_completed_asset(
+    rt: Runtime, manifest: ProductionManifest, event_id: str
+) -> AssetRecord | None:
+    for asset in rt.assets.list_for_production(manifest.production_id, manifest.tenant_id):
+        if asset.metadata.get("ledger_event_id") == event_id:
+            return asset
+    return None
+
+
+def complete_external(
+    rt: Runtime,
+    manifest: ProductionManifest,
+    event_id: str,
+    req: ExternalGenerationComplete,
+    *,
+    client: httpx.Client | None = None,
+    resolver: Resolver | None = None,
+) -> tuple[LedgerEvent, AssetRecord]:
+    _check_state(manifest, EXTERNAL_STATES)
+    event = _owned_event(rt, manifest, event_id)
+    if event.status == LedgerStatus.COMMITTED:
+        done = find_completed_asset(rt, manifest, event_id)
+        if done is not None:
+            return event, done
+    if event.status != LedgerStatus.RESERVED:
+        raise ExternalGenerationError(f"ledger event {event_id} is {event.status.value}")
+    kind = higgsfield.OUTPUT_KINDS[event.capability]
+    scene, shot = _scene_and_shot(manifest, event.scene_id, event.shot_id)
+    price = rt.price_catalog.get(event.provider, event.model, PriceUnit.CREDIT).unit_price
+    actual = money(req.credits_used * price)
+    try:
+        derived = _derived_from(rt, manifest, req.source_candidate_id)
+    except SourceRightsError:
+        rt.budget.release(
+            event_id, reason="source still not rights-approved", failed=True, actual_cost=actual
+        )
+        raise
+    record = store_result(
+        rt,
+        manifest,
+        url=req.result_url,
+        kind=kind,
+        event=event,
+        job_id=req.provider_request_id,
+        prompt=req.prompt,
+        parameters=req.parameters,
+        credits_used=req.credits_used,
+        cost=actual,
+        metadata={"derived_from": derived},
+        attribution=(derived or {}).get("attribution"),
+        via=VIA,
+        client=client,
+        resolver=resolver,
     )
     committed = rt.budget.commit(
         event_id,

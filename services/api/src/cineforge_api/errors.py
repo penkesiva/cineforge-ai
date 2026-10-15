@@ -11,7 +11,11 @@ from cineforge.contracts.cost import BudgetExceededError, UnknownPriceError
 from cineforge.contracts.repositories import NotFoundError, ThemeVersionConflictError
 from cineforge.contracts.workflow import InvalidStateTransitionError
 from cineforge.orchestration import external
-from cineforge.orchestration.workflow import ApprovalBlockedError, InvalidClaimReviewError
+from cineforge.orchestration.workflow import (
+    ApprovalBlockedError,
+    InvalidClaimReviewError,
+    RegenerateError,
+)
 from fastapi import FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
@@ -60,6 +64,10 @@ def install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(ApprovalBlockedError)
     async def _approval_blocked(_: Request, exc: ApprovalBlockedError) -> JSONResponse:
         return error_response(status.HTTP_409_CONFLICT, "approval_blocked", str(exc))
+
+    @app.exception_handler(RegenerateError)
+    async def _regenerate(_: Request, exc: RegenerateError) -> JSONResponse:
+        return error_response(status.HTTP_409_CONFLICT, "regenerate_blocked", str(exc))
 
     @app.exception_handler(ThemeVersionConflictError)
     async def _theme_conflict(_: Request, exc: ThemeVersionConflictError) -> JSONResponse:

@@ -11,7 +11,9 @@ from cineforge.contracts.api import (
     CreateProductionRequest,
     ProductionDetail,
     ProductionSummary,
+    RegenerateShotRequest,
     ReviewClaimsRequest,
+    StageQuote,
 )
 from cineforge.contracts.cost import CostOverview, CostSummary, LedgerEvent
 from cineforge.contracts.manifest import ProductionManifest
@@ -122,6 +124,36 @@ def review_claims(
 )
 def rewrite_script(production_id: str, tenant_id: TenantDep, wf: WorkflowDep) -> ActionResponse:
     return _action(wf.rewrite_script(production_id, tenant_id))
+
+
+@router.get(
+    "/productions/{production_id}/stage-quote",
+    response_model=StageQuote,
+    tags=["productions"],
+    summary="Credits the next gate of a fully generative production will spend",
+)
+def stage_quote(production_id: str, tenant_id: TenantDep, wf: WorkflowDep) -> StageQuote:
+    quote = wf.stage_quote(production_id, tenant_id)
+    if quote is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "not a fully generative production")
+    return quote
+
+
+@router.post(
+    "/productions/{production_id}/shots/{shot_id}/regenerate",
+    response_model=ActionResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    tags=["productions"],
+    summary="Redo one shot's still, voice line or clip at a gate",
+)
+def regenerate_shot(
+    production_id: str,
+    shot_id: str,
+    req: RegenerateShotRequest,
+    tenant_id: TenantDep,
+    wf: WorkflowDep,
+) -> ActionResponse:
+    return _action(wf.regenerate_shot(production_id, tenant_id, shot_id, req))
 
 
 @router.post(

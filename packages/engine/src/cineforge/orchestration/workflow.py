@@ -21,7 +21,7 @@ from pydantic import BaseModel
 
 from cineforge.agents.base import LEDGER_EVENTS
 from cineforge.agents.planning import target_scene_count
-from cineforge.configuration import load_mode_policies
+from cineforge.configuration import CharacterNotFoundError, get_character, load_mode_policies
 from cineforge.contracts.agents import (
     AgentContext,
     AgentRun,
@@ -50,18 +50,23 @@ from cineforge.contracts.agents import (
 from cineforge.contracts.api import (
     ApproveProductionRequest,
     CreateProductionRequest,
+    RegenerateShotRequest,
     ReviewClaimsRequest,
+    StageQuote,
 )
+from cineforge.contracts.character import CharacterProfile
 from cineforge.contracts.common import MONEY_QUANTUM, AgentId, money, new_id, utcnow
 from cineforge.contracts.cost import BudgetExceededError, CostEstimate, LedgerEvent
 from cineforge.contracts.jobs import (
     JOB_ADVANCE_PRODUCTION,
+    JOB_REGENERATE_SHOT,
     JOB_RENDER_MASTER,
     QUEUE_AGENTS,
     QUEUE_MEDIA,
 )
 from cineforge.contracts.manifest import (
     ApprovalPolicy,
+    ApprovalStage,
     AssetRef,
     AssetRole,
     AuditEntry,
@@ -80,7 +85,7 @@ from cineforge.contracts.manifest import (
     WorkStatus,
 )
 from cineforge.contracts.media import RightsStatus
-from cineforge.contracts.providers import ProviderError
+from cineforge.contracts.providers import PriceUnit, ProviderError
 from cineforge.contracts.repositories import NotFoundError
 from cineforge.contracts.review import ReviewStatus
 from cineforge.contracts.theme import ProductionModePolicy, ThemeProfile
@@ -91,6 +96,8 @@ from cineforge.contracts.workflow import (
     ProductionState,
     assert_transition,
 )
+from cineforge.cost.vlog import estimate_vlog
+from cineforge.orchestration.studio import VlogStudio, is_done, next_stage, stage_state
 from cineforge.persistence.serde import dump, load
 from cineforge.runtime import Runtime
 
@@ -102,6 +109,8 @@ _DONE = (WorkStatus.COMPLETE, WorkStatus.APPROVED)
 SCENE_BUDGET_HEADROOM = Decimal("1.5")
 REWRITE_ACTION = "script_rewrite_requested"
 CLAIM_REVIEW_STATES = (S.AWAITING_APPROVAL, S.PAUSED_BUDGET)
+VLOG_BUDGET_MARGIN = Decimal("1.00")
+CAPTION_WORDS = 6
 
 
 class WorkflowError(RuntimeError):
@@ -114,6 +123,10 @@ class ApprovalBlockedError(WorkflowError):
 
 class InvalidClaimReviewError(WorkflowError):
     pass
+
+
+class RegenerateError(WorkflowError):
+    """A shot redo is not allowed now (wrong state, stage or shot)."""
 
 
 def rejected_claim_ids(m: ProductionManifest) -> set[str]:
@@ -199,6 +212,21 @@ def summarize_payload(payload: BaseModel) -> dict[str, Any]:
     return out
 
 
+def _spoken_cues(text: str, start: float, duration: float) -> list[Caption]:
+    """Short burned-in cues for a spoken line, timed by word share of the shot."""
+    words = text.split()
+    if not words:
+        return []
+    chunks = [words[i : i + CAPTION_WORDS] for i in range(0, len(words), CAPTION_WORDS)]
+    per_word = duration / len(words)
+    cues, t = [], start
+    for chunk in chunks:
+        end = t + per_word * len(chunk)
+        cues.append(Caption(start_sec=round(t, 2), end_sec=round(end, 2), text=" ".join(chunk)))
+        t = end
+    return cues
+
+
 def _sum_actual(events: list[LedgerEvent]) -> Decimal:
     return money(sum((e.actual_cost for e in events), Decimal(0)))
 
@@ -219,6 +247,7 @@ class WorkflowEngine:
             S.ASSEMBLING: self._assemble,
             S.REVIEWING: self._review,
         }
+        self.studio = VlogStudio(self)
 
     # ================================================================== config
     def theme_for(self, m: ProductionManifest) -> ThemeProfile:
@@ -227,13 +256,31 @@ class WorkflowEngine:
     def policy_for(self, m: ProductionManifest) -> ProductionModePolicy:
         return load_mode_policies(self.settings.configurations_dir)[m.mode]
 
+    def character_for(self, m: ProductionManifest) -> CharacterProfile | None:
+        if not m.character_id:
+            return None
+        try:
+            return get_character(self.settings.configurations_dir, m.character_id)
+        except CharacterNotFoundError:
+            log.warning("%s: character %s not found", m.production_id, m.character_id)
+            return None
+
+    def _default_limit(self, theme: ThemeProfile, policy: ProductionModePolicy) -> Decimal:
+        rules = theme.production.generative
+        if rules is None:
+            return policy.default_budget_usd
+        entry = self.rt.price_catalog.get(rules.provider, rules.a_roll.model, PriceUnit.CREDIT)
+        return money(Decimal(rules.credit_cap) * entry.unit_price + VLOG_BUDGET_MARGIN)
+
     # ================================================================== commands
     def create_production(self, req: CreateProductionRequest, tenant_id: str) -> ProductionManifest:
         cfg = self.settings.configurations_dir
         theme = self.rt.themes.get(req.theme_id, req.theme_version)
         policy = load_mode_policies(cfg)[req.mode]
         limit = money(
-            req.budget_limit_usd if req.budget_limit_usd is not None else policy.default_budget_usd
+            req.budget_limit_usd
+            if req.budget_limit_usd is not None
+            else self._default_limit(theme, policy)
         )
         width, _, height = theme.production.resolution.partition("x")
         production_id = new_id("prod")
@@ -258,6 +305,7 @@ class WorkflowEngine:
             budget=BudgetSnapshot(limit=limit),
             approval=ApprovalPolicy(auto_approve=req.auto_approve),
             character_bible_ref=theme.performance.recurring_character,
+            character_id=theme.performance.character_id,
             audit=[
                 AuditEntry(
                     actor="system",
@@ -303,6 +351,7 @@ class WorkflowEngine:
             raise InvalidStateTransitionError(m.state, S.GENERATING)
         self._check_claims_for_approval(m)
         from_state = m.state
+        self._advance_stage(m)
         if req.raise_budget_to_usd is not None:
             self._set_production_limit(m, money(req.raise_budget_to_usd))
         m.approval = m.approval.model_copy(
@@ -310,6 +359,7 @@ class WorkflowEngine:
         )
         details = {
             "from_state": from_state.value,
+            "stage": m.approval_stage.value if m.approval_stage else None,
             "approved_by": req.approved_by,
             "note": req.note,
             "raise_budget_to_usd": (
@@ -388,6 +438,82 @@ class WorkflowEngine:
         self._event(m, "script_rewrite_requested", f"Script revision {revision} queued", details)
         job_id = self._enqueue_advance(m)
         return ActionResult(m, job_id, f"Script revision {revision} queued")
+
+    def regenerate_shot(
+        self, production_id: str, tenant_id: str, shot_id: str, req: RegenerateShotRequest
+    ) -> ActionResult:
+        """Queue a redo of one shot's still, voice line or clip at a vlog gate."""
+        m = self._load(production_id, tenant_id)
+        if not self.theme_for(m).production.fully_generative:
+            raise RegenerateError("shot redo is only for fully generative productions")
+        if m.state != S.AWAITING_APPROVAL or m.approval_stage in (None, ApprovalStage.SCRIPT):
+            raise RegenerateError("shot redo is possible at the preview, pilot or final gate")
+        shot = m.find_shot(shot_id)
+        if shot is None:
+            raise NotFoundError(f"shot {shot_id} not found")
+        if shot.status == WorkStatus.IN_PROGRESS:
+            raise RegenerateError(f"shot {shot_id} is already regenerating")
+        state = stage_state(shot, req.target)
+        if not state.get("attempt"):
+            raise RegenerateError(f"shot {shot_id} has no {req.target} to redo yet")
+        n = int(state["attempt"]) + 1
+        shot.status = WorkStatus.IN_PROGRESS
+        details = {"shot_id": shot_id, "target": req.target, "attempt": n, "note": req.note}
+        self._audit(m, req.requested_by, "regenerate_requested", details)
+        self.rt.productions.save(m)
+        job_id = f"{production_id}:regenerate:{shot_id}:{req.target}:{n}"
+        message = f"Redo of {req.target} for {shot_id} queued"
+        self._event(m, "regenerate_requested", message, details)
+        self.rt.queue.enqueue(
+            QUEUE_AGENTS,
+            JOB_REGENERATE_SHOT,
+            {
+                "production_id": production_id,
+                "tenant_id": tenant_id,
+                "shot_id": shot_id,
+                "request": req.model_dump(mode="json"),
+            },
+            job_id=job_id,
+        )
+        return ActionResult(self._load(production_id, tenant_id), job_id, message)
+
+    def run_regeneration(
+        self, production_id: str, tenant_id: str, shot_id: str, request: dict[str, Any]
+    ) -> ProductionManifest | None:
+        req = RegenerateShotRequest.model_validate(request)
+        m = self.rt.productions.get(production_id, tenant_id)
+        if m is None:
+            return None
+        shot = m.find_shot(shot_id)
+        if m.state != S.AWAITING_APPROVAL or shot is None or shot.status != WorkStatus.IN_PROGRESS:
+            log.info("regenerate %s/%s: nothing to do (%s)", production_id, shot_id, m.state)
+            return m
+        theme, policy = self.theme_for(m), self.policy_for(m)
+        try:
+            self.studio.regenerate(m, theme, policy, shot_id, req)
+            ok, message = True, f"New {req.target} for {shot_id} ready"
+        except Exception as exc:
+            log.exception("regenerate %s/%s failed", production_id, shot_id)
+            ok, message = False, f"Redo of {req.target} for {shot_id} failed: {exc}"[:500]
+        shot = m.find_shot(shot_id)
+        if shot is not None and shot.status == WorkStatus.IN_PROGRESS:
+            shot.status = WorkStatus.COMPLETE if is_done(shot, "clip") else WorkStatus.PLANNED
+        for scene in m.scenes:
+            scene.duration_sec = round(sum(sh.duration_sec for sh in scene.shots), 2)
+        m.captions = [self._captions(m)]
+        self._sync_costs(m)
+        details = {"shot_id": shot_id, "target": req.target, "ok": ok}
+        self._audit(m, "system", "regenerate_finished", {**details, "message": message})
+        self.rt.productions.save(m)
+        self._event(m, "regenerate_finished", message, details)
+        return self._load(production_id, tenant_id)
+
+    def stage_quote(self, production_id: str, tenant_id: str) -> StageQuote | None:
+        m = self._load(production_id, tenant_id)
+        theme = self.theme_for(m)
+        if not theme.production.fully_generative:
+            return None
+        return self.studio.quote(m, theme)
 
     def cancel(
         self, production_id: str, tenant_id: str, reason: str = "Cancelled by operator"
@@ -474,6 +600,11 @@ class WorkflowEngine:
         return self._enqueue_advance(m)
 
     def _auto_approve(self, m: ProductionManifest) -> ProductionManifest:
+        try:
+            self._advance_stage(m)
+        except ApprovalBlockedError as exc:
+            self._event(m, "approval_blocked", str(exc), {"auto": True})
+            return m
         m.approval = m.approval.model_copy(
             update={"approved_by": "auto", "approved_at": utcnow(), "note": "auto_approve policy"}
         )
@@ -482,6 +613,28 @@ class WorkflowEngine:
         self._event(m, "approved", "Auto-approved by policy", details)
         self._continue(m)
         return m
+
+    def _advance_stage(self, m: ProductionManifest) -> None:
+        """Vlog gates: refuse approval while blocked, then move to the next stage."""
+        theme = self.theme_for(m)
+        rules = theme.production.generative
+        if rules is None:
+            return
+        blockers = self.studio.blockers(m, theme)
+        if self.settings.provider_mode == "live":
+            quote = self.studio.quote(m, theme)
+            if (
+                quote.credit_cap is not None
+                and quote.credits_used + quote.credits > quote.credit_cap
+            ):
+                blockers.append(
+                    f"next stage needs {quote.credits} credits; {quote.credits_used} of "
+                    f"{quote.credit_cap} already used"
+                )
+        if blockers:
+            raise ApprovalBlockedError("; ".join(blockers))
+        if m.state == S.AWAITING_APPROVAL:
+            m.approval_stage = next_stage(m.approval_stage)
 
     def _pause_for_budget(
         self, production_id: str, tenant_id: str, state: ProductionState, exc: BudgetExceededError
@@ -629,6 +782,7 @@ class WorkflowEngine:
                 scene_count=target_scene_count(theme, m.output.duration_target_sec),
                 duration_target_sec=m.output.duration_target_sec,
                 excluded_claim_ids=sorted(rejected_claim_ids(m)),
+                character=self.character_for(m),
             ),
             attempt=script_revision(m),
         ).output
@@ -659,6 +813,7 @@ class WorkflowEngine:
                 output=m.output,
                 mode_policy=policy,
                 max_shots_per_scene=theme.production.max_shots_per_scene,
+                character=self.character_for(m),
             ),
             attempt=script_revision(m),
         ).output
@@ -670,7 +825,12 @@ class WorkflowEngine:
             ambience=palette[0] if palette else None,
         )
 
-        estimate = self.rt.cost_estimator.estimate(m, policy)
+        rules = theme.production.generative
+        if rules is not None:
+            m.approval_stage = ApprovalStage.SCRIPT
+            estimate = estimate_vlog(m, rules, policy, self.rt.price_catalog)
+        else:
+            estimate = self.rt.cost_estimator.estimate(m, policy)
         cost_plan: CostPlan = self._invoke(
             m,
             theme,
@@ -680,7 +840,9 @@ class WorkflowEngine:
             attempt=script_revision(m),
         ).output
         self._apply_estimate(m, estimate)
-        self._allocate_scene_budgets(m)
+        if rules is None:
+            # Vlogs are bounded by the credit cap instead; redos make scene shares moot.
+            self._allocate_scene_budgets(m)
         self._sync_budget(m)
 
         total, limit = estimate.total_estimated, m.budget.limit
@@ -711,6 +873,8 @@ class WorkflowEngine:
 
     def _generate(self, m: ProductionManifest) -> StepOutcome:
         theme, policy = self.theme_for(m), self.policy_for(m)
+        if theme.production.fully_generative:
+            return self.studio.generate(m, theme, policy)
         try:
             for scene in m.scenes:
                 for shot in scene.shots:
@@ -1088,6 +1252,12 @@ class WorkflowEngine:
     def _captions(m: ProductionManifest) -> CaptionTrack:
         cues: list[Caption] = []
         start = 0.0
+        if any(sh.audio.dialogue_text for sh in m.iter_shots()):
+            for shot in m.iter_shots():
+                if shot.audio.dialogue_text:
+                    cues += _spoken_cues(shot.audio.dialogue_text, start, shot.duration_sec)
+                start = round(start + shot.duration_sec, 2)
+            return CaptionTrack(language=m.creative_brief.language, burn_in=True, cues=cues)
         for scene in m.scenes:
             end = round(start + scene.duration_sec, 2)
             if scene.narration:
