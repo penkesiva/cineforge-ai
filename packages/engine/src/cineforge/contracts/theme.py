@@ -4,9 +4,15 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
-from cineforge.contracts.common import ContractModel, GenerationStrategy, Money, ProductionMode
+from cineforge.contracts.common import (
+    ContractModel,
+    GenerationStrategy,
+    Money,
+    ProductionMode,
+    rename_legacy_key,
+)
 
 
 class NarrativeRules(ContractModel):
@@ -19,13 +25,18 @@ class NarrativeRules(ContractModel):
 
 class PerformanceRules(ContractModel):
     recurring_character: str | None = None
-    character_id: str | None = Field(
-        default=None, description="CharacterProfile id of the on-camera host, if any"
+    persona_id: str | None = Field(
+        default=None, description="PersonaProfile id of the on-camera host, if any"
     )
     voice: str
     language: str = "en-US"
     accent: str | None = None
     camera_relationship: str = "narrator off-camera"
+
+    @model_validator(mode="before")
+    @classmethod
+    def _legacy_keys(cls, data: Any) -> Any:
+        return rename_legacy_key(data, "character_id", "persona_id")
 
 
 class GenerativeModel(ContractModel):

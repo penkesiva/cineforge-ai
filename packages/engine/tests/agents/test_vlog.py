@@ -9,11 +9,14 @@ from cineforge.agents.vlog import (
     build_vlog_scenes,
     build_vlog_script,
     max_dialogue_words,
+    still_prompt,
+    vlog_prompt,
 )
 from cineforge.config import Settings
-from cineforge.configuration import get_character, load_themes
+from cineforge.configuration import get_persona, load_themes
 from cineforge.contracts.agents import ClaimStatus, FactClaim
 from cineforge.contracts.manifest import ShotKind
+from cineforge.contracts.persona import Episode, PersonaCanon
 
 CFG = Path(Settings().configurations_dir)
 
@@ -44,7 +47,7 @@ def _script(draft=None, scene_count=5):
         topic="Paris 1889",
         logline="Lena visits the World's Fair",
         theme=_theme(),
-        character=get_character(CFG, "lena-voss"),
+        persona=get_persona(CFG, "lena-voss"),
         claims=_claims(),
         excluded=set(),
         scene_count=scene_count,
@@ -91,10 +94,10 @@ def test_drafted_lines_are_trimmed_and_only_verified_claims_cited_after_hook() -
 
 def test_scenes_have_a_and_b_roll_shots_with_element_and_disclosure() -> None:
     theme = _theme()
-    character = get_character(CFG, "lena-voss")
-    graph = build_vlog_scenes(script=_script(), theme=theme, character=character)
+    persona = get_persona(CFG, "lena-voss")
+    graph = build_vlog_scenes(script=_script(), theme=theme, persona=persona)
     rules = theme.production.generative
-    element = character.element_for("higgsfield")
+    element = persona.element_for("higgsfield")
     for scene in graph.scenes:
         assert abs(sum(s.duration_sec for s in scene.shots) - scene.duration_sec) < 0.05
         for shot in scene.shots:
@@ -108,3 +111,39 @@ def test_scenes_have_a_and_b_roll_shots_with_element_and_disclosure() -> None:
                 assert f"<<<{element}>>>" in shot.provider_plan.parameters["still_prompt"]
             else:
                 assert shot.audio.dialogue_text is None
+
+
+def test_script_prompt_carries_persona_voice_and_canon() -> None:
+    canon = PersonaCanon(
+        persona_id="lena-voss",
+        facts=["She lives in Los Angeles."],
+        running_jokes=["She always gets lost."],
+        episodes=[Episode(title="Pompeii, the day before")],
+    )
+    prompt = vlog_prompt(
+        topic="Paris 1889",
+        persona=get_persona(CFG, "lena-voss"),
+        theme=_theme(),
+        beats=["arrive", "explore"],
+        claims=_claims(),
+        max_words=30,
+        scene_count=2,
+        duration_sec=75,
+        canon=canon,
+    )
+    assert "Host: Lena Voss, 23" in prompt
+    assert "Okay, you guys." in prompt and "See you in the next one." in prompt
+    assert "Never cover: graphic violence" in prompt
+    assert "She lives in Los Angeles." in prompt and "She always gets lost." in prompt
+    assert "Earlier trips (may reference, never repeat): Pompeii, the day before" in prompt
+
+
+def test_still_prompt_locks_look_and_lists_avoid() -> None:
+    script = _script()
+    line = next(ln for ln in script.lines if ln.kind == "dialogue")
+    lena = get_persona(CFG, "lena-voss")
+    prompt = still_prompt(line, lena, lena.element_for("higgsfield"))
+    assert prompt.startswith("<<<01288044-0746-4b24-8fa8-bea17c4a9233>>> as Lena Voss, 23")
+    assert "Keep: same face and age in every shot" in prompt
+    assert "Avoid: heavy makeup" in prompt
+    assert "fitted black ribbed tank top" in prompt

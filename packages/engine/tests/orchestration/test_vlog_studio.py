@@ -137,7 +137,7 @@ def test_vlog_runs_script_preview_pilot_final_gates_in_mock_mode() -> None:
     assert _create(wf).budget.limit == money(Decimal(300) * Decimal("0.043") + 1)
     m = _create(wf, budget_limit_usd=Decimal(100))  # mock prices are not credit-sized
     pid = m.production_id
-    assert m.character_id == "lena-voss"
+    assert m.persona_id == "lena-voss"
 
     wf.start(pid, TENANT)
     m = rt.productions.get(pid, TENANT)
@@ -290,11 +290,11 @@ def test_live_mode_blocks_approval_without_a_voice(monkeypatch) -> None:
     _, _, wf = _engine(provider_mode="live")
     m = _create(wf)
     wf.start(m.production_id, TENANT)
-    voiceless = wf.character_for(m)
+    voiceless = wf.persona_for(m)
     voiceless = voiceless.model_copy(
         update={"voice": voiceless.voice.model_copy(update={"voice_id": None})}
     )
-    monkeypatch.setattr(studio.VlogStudio, "character", lambda self, m: voiceless)
+    monkeypatch.setattr(studio.VlogStudio, "persona", lambda self, m: voiceless)
     with pytest.raises(ApprovalBlockedError, match="choose a voice for Lena Voss"):
         _approve(wf, m.production_id)
 
@@ -313,3 +313,26 @@ def test_lena_speaks_with_juno_on_elevenlabs(monkeypatch) -> None:
         assert r.model == "text2speech_v2"
         assert r.parameters["variant"] == "elevenlabs"
         assert r.parameters["voice_id"] == "a3ce02fe-4d3e-55bc-b4d4-a4801b9acdb4"
+
+
+def test_production_pins_persona_version_and_remembers_past_trips() -> None:
+    rt, _, wf = _engine()
+    m = _create(wf)
+    assert (m.persona_id, m.persona_version) == ("lena-voss", 2)
+    assert wf.persona_for(m).version == 2
+
+    done = m.model_copy(
+        update={"production_id": "prod_pastrip0000001", "title": "Pompeii", "state": S.DELIVERED}
+    )
+    rt.productions.create(done)
+    other = done.model_copy(
+        update={"production_id": "prod_otherhost00001", "title": "Other", "persona_id": "x"}
+    )
+    rt.productions.create(other)
+
+    canon = wf.canon_for(m)
+    titles = [e.title for e in canon.episodes]
+    assert titles == ["Pompeii"]
+    assert canon.episodes[0].production_id == "prod_pastrip0000001"
+    assert canon.facts
+    assert wf.canon_for(done).episodes == []

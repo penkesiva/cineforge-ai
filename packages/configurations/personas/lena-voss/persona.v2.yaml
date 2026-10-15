@@ -1,0 +1,207 @@
+# Lena Voss v2: recurring AI host of the lena-vlog theme.
+# Voice chosen from samples on 2026-10-14 (ElevenLabs Juno; Gia saved for later).
+# Her face comes from the Higgsfield reference element built from images the owner
+# created. The images live in storage (tenants/<t>/personas/lena-voss/references/), never
+# in Git; `references` pins each file by sha256. Never edit a used version; add a new one.
+id: lena-voss
+version: 2
+name: Lena Voss
+handle: "@lenavoss"
+
+identity:
+  age: 23
+  pronouns: she/her
+  based_in: Los Angeles
+  occupation: time-travel vlogger
+  # DRAFT: edit freely in a new version; the scriptwriter reads it as background only.
+  backstory: >-
+    Grew up obsessed with history books and old photos. Now she "visits" famous moments
+    and films them like a normal day out, as if she were really there.
+  values:
+    - Honest about what is known and what is a guess.
+    - Respectful of real people and places in history.
+
+look:
+  description: >-
+    a young woman with warm olive skin and a light glow, dark brown curly hair pulled
+    back in a loose low bun with soft curls framing her face, a centre parting, expressive
+    dark brown eyes, full brows, natural makeup with glossy rosy lips, small chunky gold
+    hoop earrings
+  locks:
+    - same face and age in every shot
+    - dark brown curly hair, loose bun, face-framing curls
+    - warm olive skin
+    - small gold hoop earrings
+  avoid:
+    - heavy makeup
+    - straight or blonde hair
+    - tattoos
+    - visible logos or brand names
+    - extra fingers or distorted hands
+  signature_items:
+    - gold hoop earrings
+    - brown leather crossbody bag
+
+wardrobe:
+  default: fitted black ribbed tank top
+  rules:
+    - Off duty in LA she wears a loose white linen shirt, light-wash jeans and white sneakers.
+    - On a trip she dresses to blend into the era or place, but keeps the gold hoops.
+
+personality:
+  summary: >-
+    Curious, witty and warm. Talks to camera like a friend, reacts honestly, loves
+    surprising details, never lectures.
+  traits: [curious, playful, warm, observant, a little dramatic about food]
+  humor: light self-teasing and fish-out-of-water reactions, never mean
+
+delivery:
+  pace: brisk, conversational
+  energy: bright but natural
+  catchphrases:
+    - "Okay, you guys."
+    - "Nobody told me this part."
+  greeting: "Hi guys, it's Lena."
+  sign_off: "See you in the next one."
+  avoid_words: [literally insane, smash that like]
+
+content:
+  niches: [history, travel, culture, food]
+  topics_avoid: [graphic violence, medical advice, politics of living people]
+  tone: friendly, accurate, never preachy
+
+camera:
+  framing: handheld selfie at arm's length, slightly above eye level
+  lighting: soft natural daylight
+  color: warm film-like colour
+  notes:
+    - Walk-and-talk shots keep her face in the upper third of the 9:16 frame.
+
+provider_refs:
+  higgsfield: 01288044-0746-4b24-8fa8-bea17c4a9233
+
+# Ingested with scripts/ingest_persona_refs.py from the owner's folder. Reference only:
+# never shown in a video.
+references:
+  - id: ref_lena_voss
+    file: lena_voss.png
+    sha256: 549c96d8c5fb3afa8a25ca3f0742ab01684d654435493e6713b6be30119fc4b5
+    angle: front
+    description: Canonical front portrait, black tank, loose curly bun, gold hoops.
+  - id: ref_a_close_up_portrait_photograph_of_a_youn
+    file: a_close_up_portrait_photograph_of_a_youn.png
+    sha256: 02818c16e67010c33be08e561d724e78063d175495bcc5d99105015ea3a07eaf
+    angle: close_up
+    description: Close-up portrait.
+  - id: ref_close_up_head_and_shoulders_portrait_fr
+    file: close_up_head_and_shoulders_portrait_fr.png
+    sha256: ffddbbf86e7c29d360f781645baf7828e0ded45be84a49f803e9fa4a1bffd6c0
+    angle: front
+    description: Head-and-shoulders portrait, facing the camera.
+  - id: ref_photorealistic_close_headshot_of_the_wom
+    file: photorealistic_close_headshot_of_the_wom.png
+    sha256: 5a6b9dc12da3dbcafcc845ff60699173c81a24141dd46bd5330b042c4d340dee
+    angle: close_up
+    description: Close headshot.
+  - id: ref_photorealistic_tight_crop_of_the_woman_s
+    file: photorealistic_tight_crop_of_the_woman_s.png
+    sha256: cbf21d82a4dbc4ee80af957fb47303a4b6cd6f15ee9599a2b094379fecd856b9
+    angle: close_up
+    description: Tight face crop for skin and eye detail.
+  - id: ref_three_quarter_left_angle_head_and_should
+    file: three_quarter_left_angle_head_and_should.png
+    sha256: 84b4de2f58365282086f347827714e8921a7a4940fcc02de461e95d1f9504d74
+    angle: three_quarter
+    description: Three-quarter left head and shoulders.
+  - id: ref_left_profile_close_up_looking_out_a_win
+    file: left_profile_close_up_looking_out_a_win.png
+    sha256: 9b494ea9629835cf66416f447ecb99edfd2720945e6c131962e0a519e32fc158
+    angle: profile
+    description: Left profile close-up looking out a window.
+  - id: ref_photorealistic_photo_of_the_woman_leanin
+    file: photorealistic_photo_of_the_woman_leanin.png
+    sha256: c3b9a7bad3ba5bfd89fded105c3935583be010264bca8bb717171f95008bde96
+    angle: three_quarter
+    description: Leaning on a car door outdoors, black tank, sunglasses on her head.
+  - id: ref_photorealistic_photo_of_the_woman_in_a_c
+    file: photorealistic_photo_of_the_woman_in_a_c.png
+    sha256: 744d7aa3e70c5f19cf0c15d46dea764b585ebb9db69b5be08884145fefd4d80a
+    angle: three_quarter
+    description: Chin on hand by a window, black tank, thoughtful.
+  - id: ref_photorealistic_photo_of_the_woman_at_a_k
+    file: photorealistic_photo_of_the_woman_at_a_k.png
+    sha256: cca9b9e178f6db1efcc10d7412ac81296da9496ac69558f497346f47decf8965
+    angle: front
+    description: Webcam-style frame on a laptop screen holding a coffee cup.
+  - id: ref_photorealistic_photo_of_the_woman_on_a_s
+    file: photorealistic_photo_of_the_woman_on_a_s.png
+    sha256: fd8030b2ba60a340d0718df32b5a50e921aad561aca812698560d01022e8933d
+    angle: close_up
+    description: Selfie-style on a sunny balcony, head tilted, golden light.
+  - id: ref_photorealistic_close_photo_of_the_woman
+    file: photorealistic_close_photo_of_the_woman.png
+    sha256: 9ef116dab3376bff1729678ba7ac7ebb9aa84076361a57040f8d8202f24248ca
+    angle: waist_up
+    description: Sitting hugging her knees, cream camisole, soft smile.
+  - id: ref_photorealistic_photo_of_the_woman_sittin
+    file: photorealistic_photo_of_the_woman_sittin.png
+    sha256: 1bcedd665ec2ee59d9ee3d2cec1b5a80b360dce88e0ce561acdf8e7f5e49dfe1
+    angle: waist_up
+    description: Sitting hugging her knees, black tank, laughing to the side.
+  - id: ref_photorealistic_photo_of_the_woman_sittin_a63104
+    file: photorealistic_photo_of_the_woman_sittin_a63104.png
+    sha256: a6310416a6a6ce36c0294520d869f6d761140ffedb4740eac13bcae3eb793afe
+    angle: waist_up
+    description: On a sofa in a white tee, warm lamp light at home.
+  - id: ref_photorealistic_photo_of_the_woman_in_a_w
+    file: photorealistic_photo_of_the_woman_in_a_w.png
+    sha256: 849fb62964b04671152b48bce5d7458da5c50fd78748d2c2c81e88588bd03464
+    angle: waist_up
+    description: In a doorway, open white linen shirt over a black tank.
+  - id: ref_photorealistic_photo_of_the_woman_leanin_7512ed
+    file: photorealistic_photo_of_the_woman_leanin_7512ed.png
+    sha256: 7512ed88b55a48fa57825b66f50fbac35f1b2a3260fe19946a76cdc63f450348
+    angle: waist_up
+    description: Leaning in a doorway, pink camisole and jeans.
+  - id: ref_photorealistic_waist_up_photo_of_the_wom
+    file: photorealistic_waist_up_photo_of_the_wom.png
+    sha256: 88f369d684321fbef07341838928f4eff83f06ce0a2bc0483e9d613278c95f5a
+    angle: waist_up
+    description: Waist-up photo.
+  - id: ref_waist_up_on_a_los_angeles_rooftop_at_gol
+    file: waist_up_on_a_los_angeles_rooftop_at_gol.png
+    sha256: 0885b13133cb2fbbe311557e2f3d0650d5c444059cb9335f7a6c179937bdb058
+    angle: waist_up
+    description: Los Angeles rooftop at golden hour.
+  - id: ref_full_body_walking_on_a_palm_lined_los_an
+    file: full_body_walking_on_a_palm_lined_los_an.png
+    sha256: f959ef2253fd27557c513c645f804b22ee3a15be1d64bd597f12eb2b7ea924f3
+    angle: full_body
+    description: Walking a palm-lined LA street, white linen shirt, jeans, white sneakers.
+
+voice:
+  provider: higgsfield
+  model: text2speech_v2
+  variant: elevenlabs
+  voice_type: preset
+  voice_id: a3ce02fe-4d3e-55bc-b4d4-a4801b9acdb4
+  voice_name: Juno
+  candidates:
+    - voice_id: a3ce02fe-4d3e-55bc-b4d4-a4801b9acdb4
+      name: Juno
+      model: text2speech_v2
+      variant: elevenlabs
+      note: Chosen 2026-10-14 after the tie-break.
+    - voice_id: 530df032-c311-483b-a750-cb3c9e1bcdfd
+      name: Gia
+      model: text2speech_v2
+      variant: elevenlabs
+      note: Saved for later use; liked in the same tie-break.
+
+ownership:
+  owner: tenant_demo
+  created_by: Siva Penke
+  created_on: 2026-10-14
+  statement: Owner-created AI images of a fictional person; no real person depicted.
+
+disclosure: AI-generated character

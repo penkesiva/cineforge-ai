@@ -275,12 +275,40 @@ Prices: `packages/configurations/pricing/higgsfield-2026-10.yaml` (USD per plan 
 
 ## 11. Phase 3 additions (fully generative host vlogs)
 
-### Characters and themes
+### Personas and themes
 
-- `packages/configurations/characters/<id>.yaml` -> `CharacterProfile` (look, wardrobe,
-  personality, `provider_refs` such as the Higgsfield element id, `voice`). Loaded with
-  `cineforge.configuration.get_character`; the theme names it in
-  `performance.character_id`, copied to `ProductionManifest.character_id`.
+A persona is a recurring AI host (`cineforge.contracts.persona`). One folder per persona:
+
+```
+packages/configurations/personas/
+  _template/            copy this to start a new persona (ignored by the loader)
+  <id>/persona.v<N>.yaml  PersonaProfile, immutable once used; add a new version
+  <id>/canon.yaml         PersonaCanon: facts, running jokes, curated past trips
+```
+
+- `PersonaProfile`: `identity` (age 18+, origin, backstory), `look` (description, `locks`
+  that never change, `avoid`), `wardrobe`, `personality`, `voice` (provider voice id plus
+  sampled `candidates`), `delivery` (pace, catchphrases, greeting, sign-off, words to
+  avoid), `content` (niches, topics to avoid), `camera`, `provider_refs` (e.g. the
+  Higgsfield element id), `references`, `ownership`, `disclosure`.
+- Reference images are owned media, never footage and never in Git. They live in storage at
+  `persona_storage_key(tenant, id, file)` = `tenants/<t>/personas/<id>/references/<file>`;
+  the profile pins each by `sha256` and `angle`. Ingest with
+  `uv run python scripts/ingest_persona_refs.py <id> <folder>` (prints the
+  `references:` block).
+- Loaded with `cineforge.configuration.get_persona` / `load_canon`. The theme names the
+  host in `performance.persona_id`; `create_production` copies it to
+  `ProductionManifest.persona_id` and pins `persona_version`.
+- Episode memory: `WorkflowEngine.persona_canon` merges `canon.yaml` with the tenant's
+  READY / DELIVERED productions of that persona. A5 gets it as `ScriptInput.canon`.
+- Stored rows written before the rename (`character_id`) still load.
+
+| Method & path | Response |
+|---|---|
+| `GET /personas` | `PersonaSummary[]` (latest version each) |
+| `GET /personas/{id}?version=` | `PersonaDetail` (profile, canon, reference status, versions) |
+| `GET /personas/{id}/references/{ref_id}` | image bytes (404 until ingested for the tenant) |
+
 - `ProductionRules.generative` (`GenerativeRules`) makes a theme fully generative: models
   for the storyboard `still`, the talking `a_roll` and the POV `b_roll` (each with
   duration limits and `credits` / `credits_per_sec` estimates), `voice_model` /
@@ -294,7 +322,7 @@ Prices: `packages/configurations/pricing/higgsfield-2026-10.yaml` (USD per plan 
   appends the CTA (`cineforge.agents.vlog.build_vlog_script`).
 - A6 makes one shot per line: `Shot.kind` `a_roll` (with `audio.dialogue_text`,
   lip-sync) or `b_roll`, `provider_plan.parameters.still_prompt` (A-roll includes the
-  character element `<<<id>>>`), the clip prompt, and `Disclosure(synthetic_media=True)`.
+  persona element `<<<id>>>` and look locks), the clip prompt, and `Disclosure(synthetic_media=True)`.
 - The estimate is credit based (`cineforge.cost.vlog.estimate_vlog`); scene caps are not
   allocated (the credit cap bounds spend). Default budget: `credit_cap` x credit price + $1.
 
@@ -317,7 +345,7 @@ kept in `provider_plan.parameters.stages`.
 
 When the provider is not signed in, calls route to the mock providers. In
 `PROVIDER_MODE=live`, approval is refused (409 `approval_blocked`) until the provider is
-signed in, the character has a voice and the next stage fits the credit cap. A call that
+signed in, the persona has a voice and the next stage fits the credit cap. A call that
 would pass `credit_cap` pauses the production (`PAUSED_BUDGET`).
 
 ### Redo

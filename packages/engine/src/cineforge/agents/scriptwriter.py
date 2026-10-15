@@ -20,8 +20,8 @@ from cineforge.contracts.agents import (
     ScriptLine,
     StoryBeat,
 )
-from cineforge.contracts.character import CharacterProfile
 from cineforge.contracts.common import AgentId
+from cineforge.contracts.persona import PersonaProfile
 
 _PURPOSES = {
     "hook": "grab attention in under two seconds",
@@ -63,8 +63,8 @@ class ScriptwriterAgent(BaseAgent):
     output_model = Script
 
     def execute(self, ctx: AgentContext, payload: ScriptInput) -> Script:
-        if ctx.theme.production.fully_generative and payload.character is not None:
-            return self._vlog(ctx, payload, payload.character)
+        if ctx.theme.production.fully_generative and payload.persona is not None:
+            return self._vlog(ctx, payload, payload.persona)
         topic = payload.brief.topic
         theme = ctx.theme
         beats = beats_for_scenes(theme.narrative.story_beats, payload.scene_count)
@@ -145,7 +145,7 @@ class ScriptwriterAgent(BaseAgent):
             estimated_duration_sec=payload.duration_target_sec,
         )
 
-    def _vlog(self, ctx: AgentContext, payload: ScriptInput, character: CharacterProfile) -> Script:
+    def _vlog(self, ctx: AgentContext, payload: ScriptInput, persona: PersonaProfile) -> Script:
         theme = ctx.theme
         rules = theme.production.generative
         assert rules is not None
@@ -156,13 +156,14 @@ class ScriptwriterAgent(BaseAgent):
         ]
         prompt = vlog_prompt(
             topic=payload.brief.topic,
-            character=character,
+            persona=persona,
             theme=theme,
             beats=beats,
             claims=usable,
             max_words=max_dialogue_words(rules),
             scene_count=payload.scene_count,
             duration_sec=payload.duration_target_sec,
+            canon=payload.canon,
         )
         self.render_prompt(
             ctx,
@@ -185,7 +186,7 @@ class ScriptwriterAgent(BaseAgent):
             topic=payload.brief.topic,
             logline=payload.treatment.logline,
             theme=theme,
-            character=character,
+            persona=persona,
             claims=payload.research.claims,
             excluded=excluded,
             scene_count=payload.scene_count,

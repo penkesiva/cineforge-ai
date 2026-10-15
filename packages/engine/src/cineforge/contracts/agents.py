@@ -13,7 +13,6 @@ from typing import Any, Literal, Protocol, runtime_checkable
 
 from pydantic import BaseModel, Field
 
-from cineforge.contracts.character import CharacterProfile
 from cineforge.contracts.common import AgentId, ContractModel, Money, ProductionMode, money, utcnow
 from cineforge.contracts.cost import CostEstimate
 from cineforge.contracts.manifest import (
@@ -24,6 +23,7 @@ from cineforge.contracts.manifest import (
     Shot,
 )
 from cineforge.contracts.media import LicenseInfo, RightsStatus
+from cineforge.contracts.persona import PersonaCanon, PersonaProfile
 from cineforge.contracts.providers import PaidCallGuard, ProviderCapability, ProviderRegistry
 from cineforge.contracts.theme import ProductionModePolicy, ThemeProfile
 from cineforge.contracts.workflow import ProductionState
@@ -352,8 +352,11 @@ class ScriptInput(ContractModel):
     excluded_claim_ids: list[str] = Field(
         default_factory=list, description="Claims a reviewer rejected; never cite them"
     )
-    character: CharacterProfile | None = Field(
+    persona: PersonaProfile | None = Field(
         default=None, description="On-camera host of a fully generative theme"
+    )
+    canon: PersonaCanon | None = Field(
+        default=None, description="Persona continuity: facts, running jokes, earlier trips"
     )
 
 
@@ -364,7 +367,7 @@ class SceneDirectionInput(ContractModel):
     output: OutputProfile
     mode_policy: ProductionModePolicy
     max_shots_per_scene: int = Field(ge=1)
-    character: CharacterProfile | None = None
+    persona: PersonaProfile | None = None
 
 
 class ShotProductionInput(ContractModel):
@@ -383,7 +386,7 @@ class AudioInput(ContractModel):
     music bed, so a failed line retries alone instead of rerunning all audio.
 
     ``dialogue_shot_id`` switches A8 to one host line (the shot's ``dialogue_text``) in
-    the character's fixed voice."""
+    the persona's fixed voice."""
 
     scenes: list[Scene]
     script: Script
@@ -392,7 +395,7 @@ class AudioInput(ContractModel):
     include_music: bool = True
     dialogue_shot_id: str | None = None
     voice: dict[str, Any] | None = Field(
-        default=None, description="CharacterVoice fields for dialogue lines"
+        default=None, description="PersonaVoice fields for dialogue lines"
     )
 
 

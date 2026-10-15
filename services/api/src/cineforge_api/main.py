@@ -18,6 +18,7 @@ from cineforge_api.routers import (
     connectors,
     external,
     health,
+    personas,
     productions,
     providers,
 )
@@ -29,6 +30,7 @@ TAGS = [
     {"name": "agents", "description": "The 10 logical agents (A1-A10)."},
     {"name": "themes", "description": "Theme profiles and production modes."},
     {"name": "assets", "description": "Tenant-scoped media content."},
+    {"name": "personas", "description": "Recurring AI hosts: profile, voice, canon, images."},
     {"name": "providers", "description": "Sources page: provider settings, keys and checks."},
 ]
 
@@ -60,6 +62,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(assets.router)
     app.include_router(providers.router)
     app.include_router(connectors.router)
+    app.include_router(personas.router)
     return app
 
 

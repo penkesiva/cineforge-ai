@@ -6,7 +6,7 @@ import uuid
 from datetime import UTC, datetime
 from decimal import ROUND_HALF_UP, Decimal
 from enum import StrEnum
-from typing import Annotated
+from typing import Annotated, Any
 
 from pydantic import BaseModel, ConfigDict, Field, PlainSerializer
 
@@ -70,3 +70,12 @@ class GenerationStrategy(StrEnum):
     GENERATIVE = "generative"
     HYBRID = "hybrid"
     REUSE = "reuse"
+
+
+def rename_legacy_key(data: Any, old: str, new: str) -> Any:
+    """Before-validator helper: accept rows stored before a field was renamed."""
+    if isinstance(data, dict) and old in data:
+        data = dict(data)
+        value = data.pop(old)
+        data.setdefault(new, value)
+    return data

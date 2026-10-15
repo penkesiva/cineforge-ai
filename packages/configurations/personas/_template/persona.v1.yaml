@@ -1,0 +1,80 @@
+# Persona template. Copy this folder to personas/<id>/ (lowercase, dashes), set `id`
+# to the folder name, fill every field, then:
+#   1. Ingest reference images into storage (never Git):
+#        uv run python scripts/ingest_persona_refs.py <id> ~/path/to/images
+#      and paste the printed `references:` block below.
+#   2. Build the provider reference element from those images and set provider_refs.
+#   3. Sample voices, pick one, and record it (plus runners-up) under `voice`.
+#   4. Point a theme at it: performance.persona_id: <id>.
+# Folders starting with "_" are ignored by the loader.
+id: template
+version: 1
+name: Full Name
+handle: "@handle"
+
+identity:
+  age: 25                      # adults only (18+)
+  pronouns: she/her
+  origin: null
+  based_in: null
+  occupation: null
+  backstory: ""
+  values: []
+
+look:
+  description: >-
+    appearance bible used in every image prompt: face, skin, hair, eyes, makeup, accessories
+  locks: []                    # traits that must never change between shots
+  avoid: []                    # never show
+  signature_items: []
+
+wardrobe:
+  default: what they wear when nothing else is specified
+  rules: []
+
+personality:
+  summary: one or two sentences the scriptwriter reads every time
+  traits: []
+  humor: null
+
+voice:
+  provider: higgsfield
+  model: text2speech_v2
+  variant: elevenlabs
+  voice_type: preset
+  voice_id: null               # productions pause until a voice is chosen
+  voice_name: null
+  candidates: []
+
+delivery:
+  pace: natural
+  energy: warm
+  catchphrases: []
+  greeting: null
+  sign_off: null
+  avoid_words: []
+
+content:
+  niches: []
+  topics_avoid: []
+  tone: null
+
+camera:
+  framing: selfie close-up at arm's length
+  lighting: natural light
+  color: null
+  notes: []
+
+provider_refs: {}              # e.g. higgsfield: <reference element uuid>
+
+references: []
+
+ownership:
+  owner: tenant_demo
+  created_by: who made the reference images
+  created_with: null
+  created_on: null
+  commercial_use: false
+  statement: Owner-created AI images of a fictional person; no real person depicted.
+
+disclosure: AI-generated character

@@ -12,8 +12,8 @@ from pathlib import Path
 import pytest
 from cineforge.config import Settings
 from cineforge.configuration import (
-    CharacterNotFoundError,
-    get_character,
+    PersonaNotFoundError,
+    get_persona,
     get_theme,
     load_mode_policies,
     theme_summaries,
@@ -155,7 +155,7 @@ def test_vlog_theme_and_character_load() -> None:
         "wan2_7",
         "kling3_0",
     )
-    lena = get_character(cfg, theme.performance.character_id or "")
+    lena = get_persona(cfg, theme.performance.persona_id or "")
     assert lena.element_for("higgsfield") == "01288044-0746-4b24-8fa8-bea17c4a9233"
     assert lena.version == 2
     assert (lena.voice.model, lena.voice.variant, lena.voice.voice_name) == (
@@ -164,8 +164,8 @@ def test_vlog_theme_and_character_load() -> None:
         "Juno",
     )
     assert [v.name for v in lena.voice.candidates] == ["Juno", "Gia"]
-    with pytest.raises(CharacterNotFoundError):
-        get_character(cfg, "nobody")
+    with pytest.raises(PersonaNotFoundError):
+        get_persona(cfg, "nobody")
 
 
 def test_generating_can_stop_at_a_stage_gate() -> None:

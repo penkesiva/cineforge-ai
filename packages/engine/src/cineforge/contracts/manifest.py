@@ -21,6 +21,7 @@ from cineforge.contracts.common import (
     Money,
     ProductionMode,
     money,
+    rename_legacy_key,
     utcnow,
 )
 from cineforge.contracts.providers import ProviderCapability
@@ -280,7 +281,10 @@ class ProductionManifest(ContractModel):
     approval_stage: ApprovalStage | None = Field(
         default=None, description="Current gate of a fully generative production"
     )
-    character_id: str | None = None
+    persona_id: str | None = None
+    persona_version: int | None = Field(
+        default=None, description="Persona version pinned at creation (like the theme)"
+    )
     character_bible_ref: str | None = None
     style_bible_ref: str | None = None
     research_brief_ref: str | None = None
@@ -297,6 +301,11 @@ class ProductionManifest(ContractModel):
     audit: list[AuditEntry] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _legacy_keys(cls, data: Any) -> Any:
+        return rename_legacy_key(data, "character_id", "persona_id")
 
     @model_validator(mode="after")
     def _validate_graph(self) -> ProductionManifest:

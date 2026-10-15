@@ -1,0 +1,32 @@
+# Lena Voss v1 (superseded by v2): first profile, before a voice was chosen.
+# Kept so productions pinned to v1 still load. Never edit a used version; add a new one.
+id: lena-voss
+version: 1
+name: Lena Voss
+identity:
+  age: 28
+  pronouns: she/her
+  backstory: ""
+look:
+  description: >-
+    a woman in her late twenties with warm olive skin, dark brown curly hair worn up in
+    a loose bun with a few loose curls, expressive brown eyes, natural makeup, small gold
+    hoop earrings
+wardrobe:
+  default: fitted black tank top
+  rules:
+    - Adapts wardrobe to the era or place she visits.
+personality:
+  summary: >-
+    Curious, witty and warm. Talks to camera like a friend, reacts honestly, loves
+    surprising details, never lectures.
+provider_refs:
+  higgsfield: 01288044-0746-4b24-8fa8-bea17c4a9233
+voice:
+  provider: higgsfield
+  model: seed_audio
+ownership:
+  owner: tenant_demo
+  created_by: Siva Penke
+  statement: Owner-created AI images of a fictional person; no real person depicted.
+disclosure: AI-generated character

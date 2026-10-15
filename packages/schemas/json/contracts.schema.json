@@ -88,8 +88,11 @@
     "ConnectorStatus": {
       "$ref": "#/$defs/ConnectorStatus"
     },
-    "CharacterSummary": {
-      "$ref": "#/$defs/CharacterSummary"
+    "PersonaSummary": {
+      "$ref": "#/$defs/PersonaSummary"
+    },
+    "PersonaDetail": {
+      "$ref": "#/$defs/PersonaDetail"
     },
     "ProductionEvent": {
       "$ref": "#/$defs/ProductionEvent"
@@ -1138,93 +1141,6 @@
       "title": "CaptionTrack",
       "type": "object"
     },
-    "CharacterSummary": {
-      "additionalProperties": false,
-      "properties": {
-        "id": {
-          "title": "Id",
-          "type": "string"
-        },
-        "version": {
-          "title": "Version",
-          "type": "integer"
-        },
-        "name": {
-          "title": "Name",
-          "type": "string"
-        },
-        "look": {
-          "title": "Look",
-          "type": "string"
-        },
-        "wardrobe": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Wardrobe"
-        },
-        "personality": {
-          "default": "",
-          "title": "Personality",
-          "type": "string"
-        },
-        "elements": {
-          "additionalProperties": {
-            "type": "string"
-          },
-          "title": "Elements",
-          "type": "object"
-        },
-        "voice_id": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Voice Id"
-        },
-        "voice_name": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Voice Name"
-        },
-        "voice_candidates": {
-          "items": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "type": "object"
-          },
-          "title": "Voice Candidates",
-          "type": "array"
-        }
-      },
-      "required": [
-        "id",
-        "version",
-        "name",
-        "look"
-      ],
-      "title": "CharacterSummary",
-      "type": "object"
-    },
     "ClaimDecision": {
       "additionalProperties": false,
       "properties": {
@@ -2140,6 +2056,82 @@
         }
       },
       "title": "Disclosure",
+      "type": "object"
+    },
+    "Episode": {
+      "additionalProperties": false,
+      "description": "One past trip, curated in canon.yaml or derived from a finished production.",
+      "properties": {
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "place": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Place"
+        },
+        "era": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Era"
+        },
+        "summary": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Summary"
+        },
+        "production_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Production Id"
+        },
+        "on": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "On"
+        }
+      },
+      "required": [
+        "title"
+      ],
+      "title": "Episode",
       "type": "object"
     },
     "ErrorResponse": {
@@ -3383,6 +3375,63 @@
       "title": "OutputProfile",
       "type": "object"
     },
+    "Ownership": {
+      "additionalProperties": false,
+      "description": "Who owns the persona and its reference media; required before any use.",
+      "properties": {
+        "owner": {
+          "title": "Owner",
+          "type": "string"
+        },
+        "created_by": {
+          "title": "Created By",
+          "type": "string"
+        },
+        "created_with": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tool used to create images",
+          "title": "Created With"
+        },
+        "created_on": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Created On"
+        },
+        "commercial_use": {
+          "default": false,
+          "title": "Commercial Use",
+          "type": "boolean"
+        },
+        "statement": {
+          "description": "Rights statement, e.g. owner-created AI images",
+          "title": "Statement",
+          "type": "string"
+        }
+      },
+      "required": [
+        "owner",
+        "created_by",
+        "statement"
+      ],
+      "title": "Ownership",
+      "type": "object"
+    },
     "PerformanceRules": {
       "additionalProperties": false,
       "properties": {
@@ -3398,7 +3447,7 @@
           "default": null,
           "title": "Recurring Character"
         },
-        "character_id": {
+        "persona_id": {
           "anyOf": [
             {
               "type": "string"
@@ -3408,8 +3457,8 @@
             }
           ],
           "default": null,
-          "description": "CharacterProfile id of the on-camera host, if any",
-          "title": "Character Id"
+          "description": "PersonaProfile id of the on-camera host, if any",
+          "title": "Persona Id"
         },
         "voice": {
           "title": "Voice",
@@ -3490,6 +3539,662 @@
         }
       },
       "title": "PerformanceSpec",
+      "type": "object"
+    },
+    "PersonaCamera": {
+      "additionalProperties": false,
+      "properties": {
+        "framing": {
+          "default": "selfie close-up at arm's length",
+          "title": "Framing",
+          "type": "string"
+        },
+        "lighting": {
+          "default": "natural light",
+          "title": "Lighting",
+          "type": "string"
+        },
+        "color": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Color"
+        },
+        "notes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Notes",
+          "type": "array"
+        }
+      },
+      "title": "PersonaCamera",
+      "type": "object"
+    },
+    "PersonaCanon": {
+      "additionalProperties": false,
+      "properties": {
+        "persona_id": {
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "title": "Persona Id",
+          "type": "string"
+        },
+        "facts": {
+          "description": "Established, never contradict",
+          "items": {
+            "type": "string"
+          },
+          "title": "Facts",
+          "type": "array"
+        },
+        "running_jokes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Running Jokes",
+          "type": "array"
+        },
+        "episodes": {
+          "items": {
+            "$ref": "#/$defs/Episode"
+          },
+          "title": "Episodes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "persona_id"
+      ],
+      "title": "PersonaCanon",
+      "type": "object"
+    },
+    "PersonaContent": {
+      "additionalProperties": false,
+      "properties": {
+        "niches": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Niches",
+          "type": "array"
+        },
+        "topics_avoid": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Topics Avoid",
+          "type": "array"
+        },
+        "tone": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tone"
+        }
+      },
+      "title": "PersonaContent",
+      "type": "object"
+    },
+    "PersonaDelivery": {
+      "additionalProperties": false,
+      "description": "How the persona speaks; fed to the scriptwriter, not to the TTS engine.",
+      "properties": {
+        "pace": {
+          "default": "natural",
+          "title": "Pace",
+          "type": "string"
+        },
+        "energy": {
+          "default": "warm",
+          "title": "Energy",
+          "type": "string"
+        },
+        "catchphrases": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Catchphrases",
+          "type": "array"
+        },
+        "greeting": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Greeting"
+        },
+        "sign_off": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sign Off"
+        },
+        "avoid_words": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Avoid Words",
+          "type": "array"
+        }
+      },
+      "title": "PersonaDelivery",
+      "type": "object"
+    },
+    "PersonaDetail": {
+      "additionalProperties": false,
+      "properties": {
+        "summary": {
+          "$ref": "#/$defs/PersonaSummary"
+        },
+        "profile": {
+          "$ref": "#/$defs/PersonaProfile"
+        },
+        "canon": {
+          "$ref": "#/$defs/PersonaCanon"
+        },
+        "references": {
+          "items": {
+            "$ref": "#/$defs/PersonaReference"
+          },
+          "title": "References",
+          "type": "array"
+        },
+        "versions": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Versions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "summary",
+        "profile",
+        "canon"
+      ],
+      "title": "PersonaDetail",
+      "type": "object"
+    },
+    "PersonaIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "age": {
+          "description": "Personas are adults",
+          "maximum": 99,
+          "minimum": 18,
+          "title": "Age",
+          "type": "integer"
+        },
+        "pronouns": {
+          "default": "she/her",
+          "title": "Pronouns",
+          "type": "string"
+        },
+        "origin": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Origin"
+        },
+        "based_in": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Based In"
+        },
+        "occupation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Occupation"
+        },
+        "backstory": {
+          "default": "",
+          "title": "Backstory",
+          "type": "string"
+        },
+        "values": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Values",
+          "type": "array"
+        }
+      },
+      "required": [
+        "age"
+      ],
+      "title": "PersonaIdentity",
+      "type": "object"
+    },
+    "PersonaLook": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "description": "Appearance bible used in every image prompt",
+          "title": "Description",
+          "type": "string"
+        },
+        "locks": {
+          "description": "Traits that must never change between shots",
+          "items": {
+            "type": "string"
+          },
+          "title": "Locks",
+          "type": "array"
+        },
+        "avoid": {
+          "description": "Never show (negative prompt)",
+          "items": {
+            "type": "string"
+          },
+          "title": "Avoid",
+          "type": "array"
+        },
+        "signature_items": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Signature Items",
+          "type": "array"
+        }
+      },
+      "required": [
+        "description"
+      ],
+      "title": "PersonaLook",
+      "type": "object"
+    },
+    "PersonaPersonality": {
+      "additionalProperties": false,
+      "properties": {
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        },
+        "traits": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Traits",
+          "type": "array"
+        },
+        "humor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Humor"
+        }
+      },
+      "required": [
+        "summary"
+      ],
+      "title": "PersonaPersonality",
+      "type": "object"
+    },
+    "PersonaProfile": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "version": {
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "handle": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Handle"
+        },
+        "identity": {
+          "$ref": "#/$defs/PersonaIdentity"
+        },
+        "look": {
+          "$ref": "#/$defs/PersonaLook"
+        },
+        "wardrobe": {
+          "$ref": "#/$defs/PersonaWardrobe"
+        },
+        "personality": {
+          "$ref": "#/$defs/PersonaPersonality"
+        },
+        "voice": {
+          "$ref": "#/$defs/PersonaVoice"
+        },
+        "delivery": {
+          "$ref": "#/$defs/PersonaDelivery"
+        },
+        "content": {
+          "$ref": "#/$defs/PersonaContent"
+        },
+        "camera": {
+          "$ref": "#/$defs/PersonaCamera"
+        },
+        "provider_refs": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Provider -> reference element id, e.g. {'higgsfield': '<uuid>'}",
+          "title": "Provider Refs",
+          "type": "object"
+        },
+        "references": {
+          "items": {
+            "$ref": "#/$defs/ReferenceImage"
+          },
+          "title": "References",
+          "type": "array"
+        },
+        "ownership": {
+          "$ref": "#/$defs/Ownership"
+        },
+        "disclosure": {
+          "default": "AI-generated character",
+          "title": "Disclosure",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "name",
+        "identity",
+        "look",
+        "wardrobe",
+        "personality",
+        "ownership"
+      ],
+      "title": "PersonaProfile",
+      "type": "object"
+    },
+    "PersonaReference": {
+      "additionalProperties": false,
+      "description": "A reference image entry and whether its file is present in storage.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "file": {
+          "title": "File",
+          "type": "string"
+        },
+        "angle": {
+          "title": "Angle",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "available": {
+          "default": false,
+          "title": "Available",
+          "type": "boolean"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "API path to the image when available",
+          "title": "Url"
+        }
+      },
+      "required": [
+        "id",
+        "file",
+        "angle"
+      ],
+      "title": "PersonaReference",
+      "type": "object"
+    },
+    "PersonaSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "integer"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "handle": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Handle"
+        },
+        "age": {
+          "title": "Age",
+          "type": "integer"
+        },
+        "tagline": {
+          "title": "Tagline",
+          "type": "string"
+        },
+        "voice_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Voice Name"
+        },
+        "reference_count": {
+          "default": 0,
+          "title": "Reference Count",
+          "type": "integer"
+        },
+        "references_available": {
+          "default": 0,
+          "title": "References Available",
+          "type": "integer"
+        },
+        "cover_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cover Url"
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "name",
+        "age",
+        "tagline"
+      ],
+      "title": "PersonaSummary",
+      "type": "object"
+    },
+    "PersonaVoice": {
+      "additionalProperties": false,
+      "properties": {
+        "provider": {
+          "default": "higgsfield",
+          "title": "Provider",
+          "type": "string"
+        },
+        "model": {
+          "default": "seed_audio",
+          "title": "Model",
+          "type": "string"
+        },
+        "variant": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Speech engine for text2speech_v2, e.g. elevenlabs",
+          "title": "Variant"
+        },
+        "voice_type": {
+          "default": "preset",
+          "enum": [
+            "preset",
+            "element"
+          ],
+          "title": "Voice Type",
+          "type": "string"
+        },
+        "voice_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "None until a voice is chosen",
+          "title": "Voice Id"
+        },
+        "voice_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Voice Name"
+        },
+        "candidates": {
+          "description": "Voices sampled or saved for later",
+          "items": {
+            "$ref": "#/$defs/VoiceOption"
+          },
+          "title": "Candidates",
+          "type": "array"
+        }
+      },
+      "title": "PersonaVoice",
+      "type": "object"
+    },
+    "PersonaWardrobe": {
+      "additionalProperties": false,
+      "properties": {
+        "default": {
+          "type": "string",
+          "title": "Default"
+        },
+        "rules": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Rules",
+          "type": "array"
+        }
+      },
+      "required": [
+        "default"
+      ],
+      "title": "PersonaWardrobe",
       "type": "object"
     },
     "PlannedStep": {
@@ -3902,7 +4607,7 @@
           "default": null,
           "description": "Current gate of a fully generative production"
         },
-        "character_id": {
+        "persona_id": {
           "anyOf": [
             {
               "type": "string"
@@ -3912,7 +4617,20 @@
             }
           ],
           "default": null,
-          "title": "Character Id"
+          "title": "Persona Id"
+        },
+        "persona_version": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Persona version pinned at creation (like the theme)",
+          "title": "Persona Version"
         },
         "character_bible_ref": {
           "anyOf": [
@@ -4925,6 +5643,68 @@
         "groups"
       ],
       "title": "ProvidersOverview",
+      "type": "object"
+    },
+    "ReferenceAngle": {
+      "enum": [
+        "front",
+        "three_quarter",
+        "profile",
+        "close_up",
+        "waist_up",
+        "full_body",
+        "other"
+      ],
+      "title": "ReferenceAngle",
+      "type": "string"
+    },
+    "ReferenceImage": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^ref_[a-z0-9_]+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "file": {
+          "description": "File name under the persona's references/ folder",
+          "title": "File",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "angle": {
+          "$ref": "#/$defs/ReferenceAngle",
+          "default": "other"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "usage": {
+          "const": "reference_only",
+          "default": "reference_only",
+          "title": "Usage",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "file",
+        "sha256"
+      ],
+      "title": "ReferenceImage",
       "type": "object"
     },
     "RegenerateShotRequest": {
@@ -6100,6 +6880,61 @@
         "camera_motion"
       ],
       "title": "VisualSpec",
+      "type": "object"
+    },
+    "VoiceOption": {
+      "additionalProperties": false,
+      "properties": {
+        "voice_id": {
+          "title": "Voice Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model"
+        },
+        "variant": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Variant"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        }
+      },
+      "required": [
+        "voice_id",
+        "name"
+      ],
+      "title": "VoiceOption",
       "type": "object"
     },
     "WorkStatus": {

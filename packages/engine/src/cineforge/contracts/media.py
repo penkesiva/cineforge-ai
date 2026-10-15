@@ -153,3 +153,8 @@ def storage_key(tenant_id: str, production_id: str | None, kind: AssetKind, file
     """Canonical object key layout shared by every storage backend."""
     scope = f"productions/{production_id}" if production_id else "library"
     return f"tenants/{tenant_id}/{scope}/{kind.value}/{filename}"
+
+
+def persona_storage_key(tenant_id: str, persona_id: str, filename: str) -> str:
+    """Owned persona reference media (never footage): outside any production."""
+    return f"tenants/{tenant_id}/personas/{persona_id}/references/{filename}"

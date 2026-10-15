@@ -1,0 +1,10 @@
+# Lena Voss canon: continuity every script must respect.
+# Finished productions with persona_id lena-voss are added to `episodes` automatically;
+# list a trip here only to add a place/era or to keep one the database no longer has.
+persona_id: lena-voss
+facts:
+  - Lena is an AI-generated character and says so if asked.
+  - She lives in Los Angeles and films everything on her phone.
+  - She travels to famous moments in history and vlogs them like a normal day out.
+running_jokes: []
+episodes: []

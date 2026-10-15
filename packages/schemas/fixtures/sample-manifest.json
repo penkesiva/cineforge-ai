@@ -42,7 +42,8 @@
     "note": null
   },
   "approval_stage": null,
-  "character_id": null,
+  "persona_id": null,
+  "persona_version": null,
   "character_bible_ref": "asset://characters/host-v1",
   "style_bible_ref": null,
   "research_brief_ref": null,

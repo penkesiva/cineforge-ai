@@ -68,7 +68,7 @@ class SceneDirectorAgent(BaseAgent):
     output_model = SceneGraph
 
     def execute(self, ctx: AgentContext, payload: SceneDirectionInput) -> SceneGraph:
-        if ctx.theme.production.fully_generative and payload.character is not None:
+        if ctx.theme.production.fully_generative and payload.persona is not None:
             self.render_prompt(
                 ctx,
                 logline=payload.script.logline,
@@ -84,7 +84,7 @@ class SceneDirectorAgent(BaseAgent):
                 lines="\n".join(f"{ln.kind}: {ln.text}" for ln in payload.script.lines),
             )
             return build_vlog_scenes(
-                script=payload.script, theme=ctx.theme, character=payload.character
+                script=payload.script, theme=ctx.theme, persona=payload.persona
             )
         theme = ctx.theme
         policy = payload.mode_policy

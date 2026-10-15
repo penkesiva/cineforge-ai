@@ -27,6 +27,7 @@ from cineforge.contracts.common import ContractModel, Money, ProductionMode
 from cineforge.contracts.cost import CostSummary, LedgerEvent
 from cineforge.contracts.manifest import ProductionManifest
 from cineforge.contracts.media import AssetRecord, LicenseInfo, RightsStatus
+from cineforge.contracts.persona import PersonaCanon, PersonaProfile
 from cineforge.contracts.providers import ProviderCapability, ProviderCatalogEntry
 from cineforge.contracts.review import ReviewReport
 from cineforge.contracts.theme import ThemeProfile
@@ -327,14 +328,33 @@ class ConnectorStatus(ContractModel):
     detail: str = ""
 
 
-class CharacterSummary(ContractModel):
+class PersonaReference(ContractModel):
+    """A reference image entry and whether its file is present in storage."""
+
+    id: str
+    file: str
+    angle: str
+    description: str | None = None
+    available: bool = False
+    url: str | None = Field(default=None, description="API path to the image when available")
+
+
+class PersonaSummary(ContractModel):
     id: str
     version: int
     name: str
-    look: str
-    wardrobe: str | None = None
-    personality: str = ""
-    elements: dict[str, str] = Field(default_factory=dict)
-    voice_id: str | None = None
+    handle: str | None = None
+    age: int
+    tagline: str
     voice_name: str | None = None
-    voice_candidates: list[dict[str, str]] = Field(default_factory=list)
+    reference_count: int = 0
+    references_available: int = 0
+    cover_url: str | None = None
+
+
+class PersonaDetail(ContractModel):
+    summary: PersonaSummary
+    profile: PersonaProfile
+    canon: PersonaCanon
+    references: list[PersonaReference] = Field(default_factory=list)
+    versions: list[int] = Field(default_factory=list)

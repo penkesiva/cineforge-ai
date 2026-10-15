@@ -24,7 +24,7 @@ narrative:
   cta: Follow for the next trip
 performance:
   recurring_character: lena-voss
-  character_id: lena-voss
+  persona_id: lena-voss
   voice: lena-voss
   language: en-US
   accent: neutral-american

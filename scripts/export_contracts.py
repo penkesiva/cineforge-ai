@@ -55,7 +55,8 @@ RESPONSE_MODELS: list[type[BaseModel]] = [
     api.StageQuote,
     api.OAuthStartResponse,
     api.ConnectorStatus,
-    api.CharacterSummary,
+    api.PersonaSummary,
+    api.PersonaDetail,
     wf.ProductionEvent,
 ]
 

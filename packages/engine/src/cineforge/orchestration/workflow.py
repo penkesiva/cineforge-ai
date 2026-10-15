@@ -14,6 +14,7 @@ import logging
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import date
 from decimal import ROUND_DOWN, Decimal
 from typing import Any
 
@@ -21,7 +22,12 @@ from pydantic import BaseModel
 
 from cineforge.agents.base import LEDGER_EVENTS
 from cineforge.agents.planning import target_scene_count
-from cineforge.configuration import CharacterNotFoundError, get_character, load_mode_policies
+from cineforge.configuration import (
+    PersonaNotFoundError,
+    get_persona,
+    load_canon,
+    load_mode_policies,
+)
 from cineforge.contracts.agents import (
     AgentContext,
     AgentRun,
@@ -54,7 +60,6 @@ from cineforge.contracts.api import (
     ReviewClaimsRequest,
     StageQuote,
 )
-from cineforge.contracts.character import CharacterProfile
 from cineforge.contracts.common import MONEY_QUANTUM, AgentId, money, new_id, utcnow
 from cineforge.contracts.cost import BudgetExceededError, CostEstimate, LedgerEvent
 from cineforge.contracts.jobs import (
@@ -85,6 +90,7 @@ from cineforge.contracts.manifest import (
     WorkStatus,
 )
 from cineforge.contracts.media import RightsStatus
+from cineforge.contracts.persona import Episode, PersonaCanon, PersonaProfile
 from cineforge.contracts.providers import PriceUnit, ProviderError
 from cineforge.contracts.repositories import NotFoundError
 from cineforge.contracts.review import ReviewStatus
@@ -111,6 +117,7 @@ REWRITE_ACTION = "script_rewrite_requested"
 CLAIM_REVIEW_STATES = (S.AWAITING_APPROVAL, S.PAUSED_BUDGET)
 VLOG_BUDGET_MARGIN = Decimal("1.00")
 CAPTION_WORDS = 6
+EPISODE_LOOKBACK = 200
 
 
 class WorkflowError(RuntimeError):
@@ -256,14 +263,47 @@ class WorkflowEngine:
     def policy_for(self, m: ProductionManifest) -> ProductionModePolicy:
         return load_mode_policies(self.settings.configurations_dir)[m.mode]
 
-    def character_for(self, m: ProductionManifest) -> CharacterProfile | None:
-        if not m.character_id:
+    def persona_for(self, m: ProductionManifest) -> PersonaProfile | None:
+        if not m.persona_id:
             return None
         try:
-            return get_character(self.settings.configurations_dir, m.character_id)
-        except CharacterNotFoundError:
-            log.warning("%s: character %s not found", m.production_id, m.character_id)
+            return get_persona(self.settings.configurations_dir, m.persona_id, m.persona_version)
+        except PersonaNotFoundError:
+            log.warning("%s: persona %s not found", m.production_id, m.persona_id)
             return None
+
+    def canon_for(self, m: ProductionManifest) -> PersonaCanon | None:
+        if not m.persona_id:
+            return None
+        return self.persona_canon(m.tenant_id, m.persona_id, exclude=m.production_id)
+
+    def persona_canon(
+        self, tenant_id: str, persona_id: str, *, exclude: str | None = None
+    ) -> PersonaCanon:
+        """Curated canon plus this tenant's finished productions with the same persona."""
+        canon = load_canon(self.settings.configurations_dir, persona_id)
+        known = {e.production_id for e in canon.episodes if e.production_id}
+        past = [
+            Episode(
+                title=p.title,
+                summary=p.creative_brief.topic,
+                production_id=p.production_id,
+                on=p.created_at.date(),
+            )
+            for p in self.rt.productions.list(tenant_id, limit=EPISODE_LOOKBACK)
+            if p.persona_id == persona_id
+            and p.production_id != exclude
+            and p.production_id not in known
+            and p.state in (S.READY, S.DELIVERED)
+        ]
+        episodes = sorted([*canon.episodes, *past], key=lambda e: e.on or date.min)
+        return canon.model_copy(update={"episodes": episodes})
+
+    def _persona_version(self, theme: ThemeProfile) -> int | None:
+        if not theme.performance.persona_id:
+            return None
+        cfg = self.settings.configurations_dir
+        return get_persona(cfg, theme.performance.persona_id).version
 
     def _default_limit(self, theme: ThemeProfile, policy: ProductionModePolicy) -> Decimal:
         rules = theme.production.generative
@@ -305,7 +345,8 @@ class WorkflowEngine:
             budget=BudgetSnapshot(limit=limit),
             approval=ApprovalPolicy(auto_approve=req.auto_approve),
             character_bible_ref=theme.performance.recurring_character,
-            character_id=theme.performance.character_id,
+            persona_id=theme.performance.persona_id,
+            persona_version=self._persona_version(theme),
             audit=[
                 AuditEntry(
                     actor="system",
@@ -782,7 +823,8 @@ class WorkflowEngine:
                 scene_count=target_scene_count(theme, m.output.duration_target_sec),
                 duration_target_sec=m.output.duration_target_sec,
                 excluded_claim_ids=sorted(rejected_claim_ids(m)),
-                character=self.character_for(m),
+                persona=self.persona_for(m),
+                canon=self.canon_for(m),
             ),
             attempt=script_revision(m),
         ).output
@@ -813,7 +855,7 @@ class WorkflowEngine:
                 output=m.output,
                 mode_policy=policy,
                 max_shots_per_scene=theme.production.max_shots_per_scene,
-                character=self.character_for(m),
+                persona=self.persona_for(m),
             ),
             attempt=script_revision(m),
         ).output

@@ -21,10 +21,8 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 from cineforge.agents.vlog import LIP_SYNC_PAD_SEC, max_dialogue_words
-from cineforge.configuration import CharacterNotFoundError, get_character
 from cineforge.contracts.agents import AudioInput, RenderedShotRef, Script, ShotProductionInput
 from cineforge.contracts.api import RegenerateShotRequest, StageQuote
-from cineforge.contracts.character import CharacterProfile
 from cineforge.contracts.common import AgentId, GenerationStrategy, money
 from cineforge.contracts.cost import BudgetExceededError, LedgerEvent
 from cineforge.contracts.manifest import (
@@ -40,6 +38,7 @@ from cineforge.contracts.manifest import (
     WorkStatus,
 )
 from cineforge.contracts.media import AssetKind, AssetRecord, RightsStatus
+from cineforge.contracts.persona import PersonaProfile
 from cineforge.contracts.providers import (
     PriceUnit,
     ProviderCapability,
@@ -154,14 +153,8 @@ class VlogStudio:
             raise StudioError(f"theme {theme.id} is not fully generative")
         return rules
 
-    def character(self, m: ProductionManifest) -> CharacterProfile | None:
-        if not m.character_id:
-            return None
-        try:
-            return get_character(self.rt.settings.configurations_dir, m.character_id)
-        except CharacterNotFoundError:
-            log.warning("character %s not found", m.character_id)
-            return None
+    def persona(self, m: ProductionManifest) -> PersonaProfile | None:
+        return self.e.persona_for(m)
 
     def live(self, m: ProductionManifest, rules: GenerativeRules) -> bool:
         """True when the theme's provider is signed in and paid calls are allowed."""
@@ -172,10 +165,10 @@ class VlogStudio:
         return status == ProviderStatus.READY
 
     def voice(self, m: ProductionManifest, live: bool) -> dict[str, Any]:
-        character = self.character(m)
-        if not live or character is None or not character.voice.voice_id:
+        persona = self.persona(m)
+        if not live or persona is None or not persona.voice.voice_id:
             return {}
-        v = character.voice
+        v = persona.voice
         return {
             "provider": v.provider,
             "model": v.model,
@@ -195,9 +188,9 @@ class VlogStudio:
             return out
         if not self.live(m, rules):
             out.append(f"sign in to {rules.provider} on the Sources page")
-        character = self.character(m)
-        if character is not None and not character.voice.voice_id:
-            out.append(f"choose a voice for {character.name}")
+        persona = self.persona(m)
+        if persona is not None and not persona.voice.voice_id:
+            out.append(f"choose a voice for {persona.name}")
         return out
 
     # ------------------------------------------------------------------ quotes

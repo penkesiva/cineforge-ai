@@ -1,0 +1,6 @@
+# Continuity the scriptwriter must not contradict. Finished productions are added to
+# `episodes` automatically.
+persona_id: template
+facts: []
+running_jokes: []
+episodes: []

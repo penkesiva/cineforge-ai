@@ -2,7 +2,7 @@
 
 The LLM writes what the host says and what the camera sees; code owns timing (words per
 second, model duration limits), the A-roll/B-roll structure, claim rules, prompts with
-the character's reference element, and disclosure. Every shot is generated: a
+the persona's reference element, and disclosure. Every shot is generated: a
 storyboard still first, then a clip (A-roll lip-synced to the host's voice line).
 """
 
@@ -18,7 +18,6 @@ from cineforge.contracts.agents import (
     ScriptLine,
     StoryBeat,
 )
-from cineforge.contracts.character import CharacterProfile
 from cineforge.contracts.common import GenerationStrategy
 from cineforge.contracts.manifest import (
     AudioSpec,
@@ -30,6 +29,7 @@ from cineforge.contracts.manifest import (
     ShotKind,
     VisualSpec,
 )
+from cineforge.contracts.persona import PersonaCanon, PersonaProfile
 from cineforge.contracts.providers import ProviderCapability
 from cineforge.contracts.theme import GenerativeModel, GenerativeRules, ThemeProfile
 
@@ -57,21 +57,64 @@ def _fit(text: str, max_words: int) -> str:
 
 
 # --------------------------------------------------------------------------- A5
+def persona_brief(persona: PersonaProfile) -> str:
+    """Who is speaking and how (identity, personality, delivery, content limits)."""
+    who, d = persona.identity, persona.delivery
+    parts = [
+        f"Host: {persona.name}, {who.age}"
+        + (f", from {who.origin}" if who.origin else "")
+        + (f", {who.occupation}" if who.occupation else "")
+        + ".",
+        f"Personality: {persona.personality.summary}",
+        f"Delivery: {d.pace} pace, {d.energy} energy.",
+    ]
+    if persona.personality.humor:
+        parts.append(f"Humor: {persona.personality.humor}.")
+    if d.catchphrases:
+        parts.append(f"Catchphrases (use at most one): {'; '.join(d.catchphrases)}.")
+    if d.greeting:
+        parts.append(f"Usual opener: {d.greeting}")
+    if d.sign_off:
+        parts.append(f"Usual sign-off: {d.sign_off}")
+    if d.avoid_words:
+        parts.append(f"Never say: {', '.join(d.avoid_words)}.")
+    if persona.content.topics_avoid:
+        parts.append(f"Never cover: {', '.join(persona.content.topics_avoid)}.")
+    return "\n".join(parts)
+
+
+def canon_brief(canon: PersonaCanon | None, limit: int = 8) -> str:
+    """Continuity the script must not contradict (facts, jokes, recent trips)."""
+    if canon is None:
+        return ""
+    lines = []
+    if canon.facts:
+        lines.append(f"Established facts: {'; '.join(canon.facts)}.")
+    if canon.running_jokes:
+        lines.append(f"Running jokes (optional callback): {'; '.join(canon.running_jokes)}.")
+    trips = [e.title for e in canon.episodes[-limit:]]
+    if trips:
+        lines.append(f"Earlier trips (may reference, never repeat): {'; '.join(trips)}.")
+    return "".join(f"{ln}\n" for ln in lines)
+
+
 def vlog_prompt(
     *,
     topic: str,
-    character: CharacterProfile,
+    persona: PersonaProfile,
     theme: ThemeProfile,
     beats: list[str],
     claims: list[FactClaim],
     max_words: int,
     scene_count: int,
     duration_sec: float,
+    canon: PersonaCanon | None = None,
 ) -> str:
     claim_lines = "\n".join(f"- {c.id}: {c.status.value}: {c.text}" for c in claims) or "none"
     return (
         f"Write a {duration_sec:.0f}-second vertical POV vlog about: {topic}.\n"
-        f"Host: {character.name}. Personality: {character.personality}\n"
+        f"{persona_brief(persona)}\n"
+        f"{canon_brief(canon)}"
         f"Style: {theme.narrative.narration_style}. Tone: {theme.tone}.\n"
         f"Hook: {theme.narrative.hook_strategy}.\n"
         f"Scenes ({scene_count}), one story beat each: {', '.join(beats)}.\n"
@@ -83,7 +126,7 @@ def vlog_prompt(
         "contractions, honest reactions, one fact per beat. Only state facts from the claims "
         "below and cite their ids; never invent quotes by real people.\n"
         "Visual: concrete, period-accurate details of place, people, light and weather. "
-        f"Mention {character.name} in a broll visual only when she is in frame.\n"
+        f"Mention {persona.name} in a broll visual only when she is in frame.\n"
         f"Claims:\n{claim_lines}"
     )
 
@@ -93,7 +136,7 @@ def build_vlog_script(
     topic: str,
     logline: str,
     theme: ThemeProfile,
-    character: CharacterProfile,
+    persona: PersonaProfile,
     claims: list[FactClaim],
     excluded: set[str],
     scene_count: int,
@@ -132,7 +175,7 @@ def build_vlog_script(
             lines.append(
                 ScriptLine(
                     scene_order=order,
-                    speaker=character.name if beat.kind == "dialogue" else "camera",
+                    speaker=persona.name if beat.kind == "dialogue" else "camera",
                     text=text,
                     claim_ids=ids,
                     dramatized=any(by_id[c].status == ClaimStatus.DRAMATIZED for c in ids),
@@ -201,16 +244,22 @@ def _fallback_beats(
 
 
 # --------------------------------------------------------------------------- A6
-def still_prompt(line: ScriptLine, character: CharacterProfile, element: str | None) -> str:
-    who = f"<<<{element}>>> as {character.name}" if element else character.name
+def still_prompt(line: ScriptLine, persona: PersonaProfile, element: str | None) -> str:
+    who = f"<<<{element}>>> as {persona.name}" if element else persona.name
+    look, cam = persona.look, persona.camera
     if line.kind == "dialogue":
+        keep = f" Keep: {', '.join(look.locks)}." if look.locks else ""
+        avoid = f" Avoid: {', '.join(look.avoid)}." if look.avoid else ""
+        rules = f" {' '.join(persona.wardrobe.rules)}" if persona.wardrobe.rules else ""
         return (
-            f"{who}: {character.look}. Wardrobe: {character.wardrobe or 'casual'}. "
-            f"{line.visual}. Vertical 9:16 smartphone selfie vlog frame, she holds the phone "
-            "at arm's length and looks into the lens, mouth relaxed, photoreal, natural light, "
-            "period-accurate surroundings, no text, no watermark"
+            f"{who}, {persona.identity.age} years old: {look.description}.{keep} "
+            f"Wardrobe: {persona.wardrobe.default}.{rules} {line.visual}. "
+            f"Vertical 9:16 smartphone vlog frame, {cam.framing}, she looks into the lens, "
+            f"mouth relaxed, photoreal, {cam.lighting}"
+            + (f", {cam.color}" if cam.color else "")
+            + f", period-accurate surroundings, no text, no watermark.{avoid}"
         )
-    in_frame = character.name.lower() in (line.visual or "").lower()
+    in_frame = persona.name.lower() in (line.visual or "").lower()
     lead = f"{who} in frame. " if in_frame else ""
     return (
         f"{lead}{line.visual}. First-person POV smartphone vlog frame, photoreal, "
@@ -218,10 +267,10 @@ def still_prompt(line: ScriptLine, character: CharacterProfile, element: str | N
     )
 
 
-def clip_prompt(line: ScriptLine, character: CharacterProfile) -> str:
+def clip_prompt(line: ScriptLine, persona: PersonaProfile) -> str:
     if line.kind == "dialogue":
         return (
-            f"{character.name} talks to the camera in a handheld selfie vlog, natural lip "
+            f"{persona.name} talks to the camera in a handheld selfie vlog, natural lip "
             "movement in sync with her voice, small head movements and hand gestures, "
             f"{line.visual}. Ambient sound of the place under her voice. Keep her face and "
             "outfit identical to the start frame."
@@ -236,11 +285,11 @@ def build_vlog_scenes(
     *,
     script: Script,
     theme: ThemeProfile,
-    character: CharacterProfile,
+    persona: PersonaProfile,
 ) -> SceneGraph:
     rules = theme.production.generative
     assert rules is not None
-    element = character.element_for(rules.provider)
+    element = persona.element_for(rules.provider)
     by_scene: dict[int, list[ScriptLine]] = {}
     for line in script.lines:
         by_scene.setdefault(line.scene_order, []).append(line)
@@ -272,7 +321,7 @@ def build_vlog_scenes(
                         atmosphere=", ".join(theme.direction.atmosphere[:2]) or None,
                     ),
                     performance=PerformanceSpec(
-                        character_ref=character.id if a_roll else None,
+                        character_ref=persona.id if a_roll else None,
                         lip_sync_required=a_roll,
                     ),
                     audio=AudioSpec(
@@ -284,9 +333,9 @@ def build_vlog_scenes(
                         capability=ProviderCapability.IMAGE_TO_VIDEO,
                         provider=rules.provider,
                         model=model.model,
-                        prompt=clip_prompt(line, character),
+                        prompt=clip_prompt(line, persona),
                         parameters={
-                            "still_prompt": still_prompt(line, character, element),
+                            "still_prompt": still_prompt(line, persona, element),
                             "claim_ids": list(line.claim_ids),
                         },
                     ),
