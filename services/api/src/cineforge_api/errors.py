@@ -14,6 +14,7 @@ from cineforge.orchestration import external
 from cineforge.orchestration.workflow import (
     ApprovalBlockedError,
     InvalidClaimReviewError,
+    InvalidProductionInputError,
     RegenerateError,
 )
 from fastapi import FastAPI, Request, status
@@ -64,6 +65,12 @@ def install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(ApprovalBlockedError)
     async def _approval_blocked(_: Request, exc: ApprovalBlockedError) -> JSONResponse:
         return error_response(status.HTTP_409_CONFLICT, "approval_blocked", str(exc))
+
+    @app.exception_handler(InvalidProductionInputError)
+    async def _bad_input(_: Request, exc: InvalidProductionInputError) -> JSONResponse:
+        return error_response(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, "invalid_production_input", str(exc)
+        )
 
     @app.exception_handler(RegenerateError)
     async def _regenerate(_: Request, exc: RegenerateError) -> JSONResponse:

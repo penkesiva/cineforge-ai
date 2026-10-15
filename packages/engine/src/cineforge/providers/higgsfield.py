@@ -157,6 +157,29 @@ def result_link(result: ToolResult) -> tuple[str, str | None] | None:
     return None
 
 
+UPLOAD_HOST = "upload.higgsfield.ai"
+
+
+def _upload_host(url: str) -> bool:
+    return url.split("/", 3)[2] == UPLOAD_HOST
+
+
+def _first_upload_url(node: Any, depth: int = 0) -> str | None:
+    if depth > 6:
+        return None
+    if isinstance(node, dict):
+        value = node.get("upload_url")
+        if isinstance(value, str) and value.startswith("https://") and _upload_host(value):
+            return value
+        node = list(node.values())
+    if isinstance(node, list):
+        for item in node:
+            found = _first_upload_url(item, depth + 1)
+            if found:
+                return found
+    return None
+
+
 def job_state(result: ToolResult) -> str:
     text = result.text.lower()
     head = text.splitlines()[0] if text else ""
@@ -218,6 +241,30 @@ class HiggsfieldProvider:
         if result.is_error:
             raise ProviderError(f"higgsfield {tool}: {result.text[:300]}", retryable=False)
         return result
+
+    def upload_media(self, tenant_id: str, *, filename: str, data: bytes, content_type: str) -> str:
+        """Upload an owned reference image (free) and return its Higgsfield media id."""
+        result = self.call(
+            tenant_id, "media_upload", {"filename": filename, "content_type": content_type}
+        )
+        media_id = _job_from_structured(result.structured, set()) or next(
+            iter(_UUID_RE.findall(result.text)), None
+        )
+        url = next((u for u in _URL_RE.findall(result.text) if _upload_host(u)), None)
+        if isinstance(result.structured, dict):
+            url = _first_upload_url(result.structured) or url
+        if media_id is None or url is None:
+            raise ProviderError("higgsfield media_upload: no media id or upload URL")
+        put = self.http.put(
+            url,
+            content=data,
+            headers={"Content-Type": content_type, "If-None-Match": "*"},
+            timeout=120,
+        )
+        if put.status_code >= 300:
+            raise ProviderError(f"higgsfield upload failed: HTTP {put.status_code}")
+        self.call(tenant_id, "media_confirm", {"type": "image", "media_id": media_id})
+        return media_id
 
     def balance(self, tenant_id: str) -> Decimal | None:
         return parse_credits(self.call(tenant_id, "balance", {}).text)

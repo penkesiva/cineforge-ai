@@ -1,8 +1,9 @@
 """Credit-based preflight estimate for fully generative (vlog) productions.
 
-Every shot costs a storyboard still plus a clip; A-roll shots add one voice line. Rates
-come from the theme's ``GenerativeRules`` (credits per call / per second), priced with
-the provider's credit row in the catalog. Planning LLM calls use the standard allowance.
+Every shot costs a storyboard still plus a clip; spoken shots (A-roll or voice-over) add
+one voice line. Rates come from the theme's ``GenerativeRules`` (credits per call / per
+second), priced with the provider's credit row in the catalog. Planning LLM calls use the
+standard allowance.
 """
 
 from __future__ import annotations
@@ -30,7 +31,7 @@ def credits_for(rules: GenerativeRules, shot: Shot, stage: str) -> Decimal:
     if stage == "still":
         value = rules.still.estimate_credits(0)
     elif stage == "voice":
-        value = rules.voice_credits if shot.kind == ShotKind.A_ROLL else 0
+        value = rules.voice_credits if shot.audio.dialogue_text else 0
     else:
         model = rules.a_roll if shot.kind == ShotKind.A_ROLL else rules.b_roll
         value = model.estimate_credits(shot.duration_sec)

@@ -4,19 +4,24 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from cineforge.agents.drafts import VlogBeatDraft, VlogScriptDraft
 from cineforge.agents.vlog import (
+    AuthoredScriptError,
     build_vlog_scenes,
     build_vlog_script,
+    line_duration,
     max_dialogue_words,
+    script_from_authored,
     still_prompt,
     vlog_prompt,
 )
 from cineforge.config import Settings
 from cineforge.configuration import get_persona, load_themes
 from cineforge.contracts.agents import ClaimStatus, FactClaim
-from cineforge.contracts.manifest import ShotKind
+from cineforge.contracts.manifest import AuthoredScript, ProductionLook, ScriptLine, ShotKind
 from cineforge.contracts.persona import Episode, PersonaCanon
+from cineforge.cost.vlog import credits_for
 
 CFG = Path(Settings().configurations_dir)
 
@@ -145,5 +150,41 @@ def test_still_prompt_locks_look_and_lists_avoid() -> None:
     prompt = still_prompt(line, lena, lena.element_for("higgsfield"))
     assert prompt.startswith("<<<01288044-0746-4b24-8fa8-bea17c4a9233>>> as Lena Voss, 23")
     assert "Keep: same face and age in every shot" in prompt
-    assert "Avoid: heavy makeup" in prompt
-    assert "fitted black ribbed tank top" in prompt
+    assert "Avoid: text, watermark, heavy makeup" in prompt
+    assert "Outfit: fitted black ribbed tank top" in prompt
+
+
+def test_authored_lines_time_voice_overs_and_reject_long_lines() -> None:
+    theme, rules = _theme(), _theme().production.generative
+    persona = get_persona(CFG, "lena-voss")
+    over = ScriptLine(scene_order=1, kind="broll", voiceover=True, text="No strings. No tricks.")
+    silent = ScriptLine(scene_order=1, kind="broll", text="-")
+    assert line_duration(over, rules) == rules.b_roll.min_sec
+    assert line_duration(over.model_copy(update={"duration_sec": 6}), rules) == 6
+    assert line_duration(silent, rules) == 5
+    assert line_duration(silent.model_copy(update={"duration_sec": 20}), rules) == 8
+    too_long = ScriptLine(scene_order=1, kind="broll", voiceover=True, text="word " * 30)
+    authored = AuthoredScript(lines=[over, too_long])
+    with pytest.raises(AuthoredScriptError, match="line 2: 30 words; at most 18"):
+        script_from_authored(authored, logline="x", theme=theme, persona=persona)
+
+
+def test_look_overrides_wardrobe_and_adds_the_setting() -> None:
+    persona = get_persona(CFG, "lena-voss")
+    look = ProductionLook(wardrobe="an ivory kurta over jeans", location="a granite temple")
+    line = ScriptLine(scene_order=1, kind="dialogue", text="Hi", visual="she waves")
+    prompt = still_prompt(line, persona, None, look)
+    assert "Outfit: an ivory kurta over jeans. Setting: a granite temple." in prompt
+    assert "black ribbed tank top" not in prompt
+    shots = [
+        ScriptLine(scene_order=1, kind="dialogue", text="Hi there, welcome."),
+        ScriptLine(scene_order=1, kind="broll", voiceover=True, text="Look up."),
+        ScriptLine(scene_order=2, kind="broll", text="-"),
+    ]
+    script = script_from_authored(
+        AuthoredScript(lines=shots), logline="x", theme=_theme(), persona=persona
+    )
+    graph = build_vlog_scenes(script=script, theme=_theme(), persona=persona, look=look)
+    rules = _theme().production.generative
+    voice = [credits_for(rules, s, "voice") for s in graph.scenes[0].shots + graph.scenes[1].shots]
+    assert voice[1] == voice[0] > 0 and graph.scenes[0].shots[1].audio.voiceover

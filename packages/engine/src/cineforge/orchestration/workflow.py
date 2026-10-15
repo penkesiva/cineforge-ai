@@ -22,6 +22,7 @@ from pydantic import BaseModel
 
 from cineforge.agents.base import LEDGER_EVENTS
 from cineforge.agents.planning import target_scene_count
+from cineforge.agents.vlog import AuthoredScriptError, script_from_authored
 from cineforge.configuration import (
     PersonaNotFoundError,
     get_persona,
@@ -130,6 +131,10 @@ class ApprovalBlockedError(WorkflowError):
 
 class InvalidClaimReviewError(WorkflowError):
     pass
+
+
+class InvalidProductionInputError(WorkflowError):
+    """A create request's look or authored script is unusable (fails closed)."""
 
 
 class RegenerateError(WorkflowError):
@@ -299,6 +304,40 @@ class WorkflowEngine:
         episodes = sorted([*canon.episodes, *past], key=lambda e: e.on or date.min)
         return canon.model_copy(update={"episodes": episodes})
 
+    def _check_generative_input(
+        self, req: CreateProductionRequest, theme: ThemeProfile, tenant_id: str
+    ) -> None:
+        """Look and authored script: generative themes only, approved refs, lines that fit."""
+        if req.look is None and req.script is None:
+            return
+        if theme.production.generative is None:
+            raise InvalidProductionInputError(
+                f"theme {theme.id} is not fully generative; look and script are not used"
+            )
+        refs = {r.id: r for r in (req.look.references if req.look else [])}
+        for ref in refs.values():
+            asset = self.rt.assets.get(ref.asset_id, tenant_id)
+            if asset is None:
+                raise InvalidProductionInputError(f"reference {ref.id}: asset not found")
+            if asset.rights.status != RightsStatus.APPROVED:
+                raise InvalidProductionInputError(
+                    f"reference {ref.id}: rights {asset.rights.status.value}, not approved"
+                )
+        if req.script is None:
+            return
+        for i, line in enumerate(req.script.lines, 1):
+            missing = [r for r in line.refs if r not in refs]
+            if missing:
+                raise InvalidProductionInputError(f"line {i}: unknown references {missing}")
+        persona_id = theme.performance.persona_id
+        if persona_id is None:
+            raise InvalidProductionInputError(f"theme {theme.id} has no host persona")
+        persona = get_persona(self.settings.configurations_dir, persona_id)
+        try:
+            script_from_authored(req.script, logline=req.topic, theme=theme, persona=persona)
+        except AuthoredScriptError as exc:
+            raise InvalidProductionInputError(str(exc)) from exc
+
     def _persona_version(self, theme: ThemeProfile) -> int | None:
         if not theme.performance.persona_id:
             return None
@@ -322,6 +361,7 @@ class WorkflowEngine:
             if req.budget_limit_usd is not None
             else self._default_limit(theme, policy)
         )
+        self._check_generative_input(req, theme, tenant_id)
         width, _, height = theme.production.resolution.partition("x")
         production_id = new_id("prod")
         manifest = ProductionManifest(
@@ -347,6 +387,8 @@ class WorkflowEngine:
             character_bible_ref=theme.performance.recurring_character,
             persona_id=theme.performance.persona_id,
             persona_version=self._persona_version(theme),
+            look=req.look,
+            authored_script=req.script,
             audit=[
                 AuditEntry(
                     actor="system",
@@ -825,6 +867,7 @@ class WorkflowEngine:
                 excluded_claim_ids=sorted(rejected_claim_ids(m)),
                 persona=self.persona_for(m),
                 canon=self.canon_for(m),
+                authored=m.authored_script,
             ),
             attempt=script_revision(m),
         ).output
@@ -856,6 +899,7 @@ class WorkflowEngine:
                 mode_policy=policy,
                 max_shots_per_scene=theme.production.max_shots_per_scene,
                 persona=self.persona_for(m),
+                look=m.look,
             ),
             attempt=script_revision(m),
         ).output

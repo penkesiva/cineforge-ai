@@ -13,7 +13,16 @@ from cineforge.contracts.api import (
     RegenerateShotRequest,
 )
 from cineforge.contracts.common import ProductionMode, money
-from cineforge.contracts.manifest import ApprovalStage, AssetRole, ShotKind, WorkStatus
+from cineforge.contracts.manifest import (
+    ApprovalStage,
+    AssetRole,
+    AuthoredScript,
+    ProductionLook,
+    ProductionReference,
+    ScriptLine,
+    ShotKind,
+    WorkStatus,
+)
 from cineforge.contracts.media import (
     AssetKind,
     AssetOrigin,
@@ -36,6 +45,7 @@ from cineforge.orchestration import external, studio
 from cineforge.orchestration.studio import stage_state
 from cineforge.orchestration.workflow import (
     ApprovalBlockedError,
+    InvalidProductionInputError,
     RegenerateError,
     WorkflowEngine,
 )
@@ -336,3 +346,135 @@ def test_production_pins_persona_version_and_remembers_past_trips() -> None:
     assert canon.episodes[0].production_id == "prod_pastrip0000001"
     assert canon.facts
     assert wf.canon_for(done).episodes == []
+
+
+# --------------------------------------------------------------------------- authored brief
+PILLAR = "ref_hanging_pillar"
+
+
+def _reference(rt, *, approved: bool = True) -> str:
+    key = f"tenants/{TENANT}/library/reference/pillar.png"
+    rt.storage.put_bytes(key, b"png-bytes", "image/png")
+    record = AssetRecord(
+        tenant_id=TENANT,
+        kind=AssetKind.REFERENCE,
+        origin=AssetOrigin.UPLOADED,
+        storage_backend="fake",
+        storage_key=key,
+        uri=f"local://{key}",
+        content_type="image/png",
+        size_bytes=9,
+        sha256="0" * 64,
+        license=LicenseInfo(
+            license_type="customer-upload", commercial_use_allowed=True if approved else None
+        ),
+        rights=RightsDecision(status=RightsStatus.APPROVED if approved else RightsStatus.BLOCKED),
+    )
+    return rt.assets.add(record).id
+
+
+def _brief(asset_id: str, **line_overrides: Any) -> dict[str, Any]:
+    look = ProductionLook(
+        wardrobe="an ivory Kalamkari kurta over light-wash jeans",
+        location="a 16th-century granite temple hall",
+        references=[ProductionReference(id=PILLAR, asset_id=asset_id, description="pillar")],
+    )
+    lines = [
+        ScriptLine(
+            scene_order=1,
+            kind="dialogue",
+            text="Wait. How is this pillar not touching the floor?!",
+            visual="she crouches by the pillar",
+            on_screen_text="A 500-YEAR-OLD MYSTERY",
+            refs=[PILLAR],
+        ),
+        ScriptLine(
+            scene_order=1,
+            kind="broll",
+            voiceover=True,
+            text="No strings. No tricks.",
+            visual="a scarf slides under the pillar base",
+            motion="the scarf slides through the gap",
+            refs=[PILLAR],
+            duration_sec=6,
+        ),
+        ScriptLine(scene_order=2, kind="broll", text="silent", visual="wide temple courtyard"),
+        ScriptLine(
+            **{"scene_order": 3, "kind": "dialogue", "text": "Would you trust it?"} | line_overrides
+        ),
+    ]
+    return {"look": look, "script": AuthoredScript(lines=lines)}
+
+
+def test_authored_script_skips_the_writer_and_voices_the_cutaway() -> None:
+    rt, _, wf = _engine()
+    m = _create(wf, **_brief(_reference(rt)))
+    pid = m.production_id
+    assert m.look is not None and m.authored_script is not None
+    wf.start(pid, TENANT)
+    m = rt.productions.get(pid, TENANT)
+    assert m.approval_stage == ApprovalStage.SCRIPT
+    shots = list(m.iter_shots())
+    assert [s.kind for s in shots] == ["a_roll", "b_roll", "b_roll", "a_roll"]
+    talk, over, silent, outro = shots
+    assert talk.audio.dialogue_text == "Wait. How is this pillar not touching the floor?!"
+    assert talk.on_screen_text == "A 500-YEAR-OLD MYSTERY"
+    assert talk.provider_plan.parameters["refs"] == [PILLAR]
+    assert "Outfit: an ivory Kalamkari kurta" in talk.provider_plan.parameters["still_prompt"]
+    assert over.audio.voiceover and over.audio.dialogue_text == "No strings. No tricks."
+    assert over.duration_sec == 6
+    assert silent.audio.dialogue_text is None
+    assert outro.audio.dialogue_text == "Would you trust it? Follow for the next trip."
+    quote = wf.stage_quote(pid, TENANT)
+    assert quote.items == len(shots) + 3  # stills + voice for both talks and the voice-over
+
+    _approve(wf, pid)
+    m = rt.productions.get(pid, TENANT)
+    assert stage_state(m.find_shot(over.id), "voice").get("done")
+    assert stage_state(m.find_shot(silent.id), "voice") == {}
+
+
+def test_shot_references_upload_once_and_feed_the_still(monkeypatch) -> None:
+    rt, fx, wf = _engine()
+    higgs = FakeHiggsfield()
+    uploads: list[tuple[str, bytes]] = []
+
+    def upload_media(tenant_id, *, filename, data, content_type):
+        uploads.append((filename, data))
+        return "media_pillar"
+
+    higgs.upload_media = upload_media  # type: ignore[attr-defined]
+    fx.providers.register(higgs)
+    monkeypatch.setattr(external, "store_result", _fake_store(rt))
+    m = _create(wf, **_brief(_reference(rt)))
+    wf.start(m.production_id, TENANT)
+    _approve(wf, m.production_id)
+    assert uploads == [("pillar.png", b"png-bytes")]
+    stills = {r.shot_id: r for r in higgs.invocations if r.capability == C.IMAGE_GENERATION}
+    m = rt.productions.get(m.production_id, TENANT)
+    talk, over, silent, _ = m.iter_shots()
+    for shot in (talk, over):
+        assert stills[shot.id].parameters["medias"] == [
+            {"value": "media_pillar", "role": "image_references"}
+        ]
+        assert stage_state(shot, "still")["context"] == [PILLAR]
+    assert "medias" not in stills[silent.id].parameters
+    voiced = {r.shot_id for r in higgs.invocations if r.capability == C.VOICE_TTS}
+    assert over.id in voiced and silent.id not in voiced
+
+
+def test_create_rejects_unapproved_or_unknown_references_and_long_lines() -> None:
+    rt, _, wf = _engine()
+    with pytest.raises(InvalidProductionInputError, match="not approved"):
+        _create(wf, **_brief(_reference(rt, approved=False)))
+    with pytest.raises(InvalidProductionInputError, match="asset not found"):
+        _create(wf, **_brief("asset_missing0000000"))
+    with pytest.raises(InvalidProductionInputError, match="unknown references"):
+        _create(wf, **_brief(_reference(rt), refs=["ref_nope"]))
+    with pytest.raises(InvalidProductionInputError, match="line 4"):
+        _create(wf, **_brief(_reference(rt), text=" ".join(["word"] * 40)))
+    req = CreateProductionRequest(
+        topic=TOPIC, mode=ProductionMode.PREMIUM, **_brief(_reference(rt))
+    )
+    with pytest.raises(InvalidProductionInputError, match="not fully generative"):
+        wf.create_production(req, TENANT)

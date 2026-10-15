@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
-from cineforge.agents.vlog import LIP_SYNC_PAD_SEC, max_dialogue_words
+from cineforge.agents.vlog import LIP_SYNC_PAD_SEC, VOICEOVER_PAD_SEC
 from cineforge.contracts.agents import AudioInput, RenderedShotRef, Script, ShotProductionInput
 from cineforge.contracts.api import RegenerateShotRequest, StageQuote
 from cineforge.contracts.common import AgentId, GenerationStrategy, money
@@ -92,7 +92,7 @@ def stage_state(shot: Shot, stage: str) -> dict[str, Any]:
 
 
 def is_done(shot: Shot, stage: str) -> bool:
-    if stage == "voice" and shot.kind != ShotKind.A_ROLL:
+    if stage == "voice" and not shot.audio.dialogue_text:
         return True
     state = stage_state(shot, stage)
     return bool(state.get("done")) and not state.get("stale")
@@ -310,7 +310,7 @@ class VlogStudio:
             raise StudioError(f"shot {shot_id} not found")
         scene = self._scene_of(m, shot)
         if req.target == "voice":
-            if shot.kind != ShotKind.A_ROLL:
+            if not shot.audio.dialogue_text:
                 raise StudioError(f"shot {shot_id} has no voice line")
             if req.dialogue_text:
                 self._set_line(shot, rules, req.dialogue_text)
@@ -336,8 +336,11 @@ class VlogStudio:
         rules = self.rules(theme)
         live = self.live(m, rules)
         params: dict[str, Any] = dict(rules.still.parameters)
-        refs = self._context_refs(m, rules) if live else []
-        if refs:
+        own = self._shot_refs(m, shot, rules) if live else []
+        refs = [] if own or not live else self._context_refs(m, rules)
+        if own:
+            params["medias"] = [{"value": media, "role": "image_references"} for media in own]
+        elif refs:
             params["import_urls"] = [{"url": r["url"], "role": "image_references"} for r in refs]
         plan = self._plan(
             C.IMAGE_GENERATION,
@@ -350,7 +353,8 @@ class VlogStudio:
         result = self._visual(m, theme, policy, scene, shot, plan, "still", note)
         if result.asset_id:
             shot.assets.append(AssetRef(asset_id=result.asset_id, role=AssetRole.KEYFRAME))
-        self._mark(shot, "still", result, context=[r["candidate_id"] for r in refs])
+        context = list(shot.provider_plan.parameters.get("refs") or []) if own else []
+        self._mark(shot, "still", result, context=context or [r["candidate_id"] for r in refs])
 
     def _clip(
         self,
@@ -595,13 +599,47 @@ class VlogStudio:
 
     @staticmethod
     def _set_line(shot: Shot, rules: GenerativeRules, text: str) -> None:
-        line = " ".join(text.split()[: max_dialogue_words(rules)])
+        voiceover = shot.audio.voiceover
+        model = rules.b_roll if voiceover else rules.a_roll
+        pad = VOICEOVER_PAD_SEC if voiceover else LIP_SYNC_PAD_SEC
+        high = model.max_sec or 15.0
+        line = " ".join(text.split()[: max(1, int((high - pad) * rules.words_per_sec))])
         shot.audio.dialogue_text = line
-        words = len(line.split())
-        low, high = rules.a_roll.min_sec or 2.0, rules.a_roll.max_sec or 15.0
-        shot.duration_sec = round(
-            max(low, min(high, words / rules.words_per_sec + LIP_SYNC_PAD_SEC)), 1
-        )
+        spoken = len(line.split()) / rules.words_per_sec + pad
+        low = model.min_sec or 2.0
+        shot.duration_sec = round(max(low, min(high, max(spoken, shot.duration_sec))), 1)
+
+    def _shot_refs(self, m: ProductionManifest, shot: Shot, rules: GenerativeRules) -> list[str]:
+        """Provider media ids of the shot's own references; each is uploaded once."""
+        wanted = shot.provider_plan.parameters.get("refs") or []
+        if not wanted or m.look is None:
+            return []
+        by_id = {r.id: r for r in m.look.references}
+        upload = getattr(self.rt.providers.get(rules.provider), "upload_media", None)
+        out: list[str] = []
+        for ref_id in wanted:
+            ref = by_id.get(ref_id)
+            if ref is None:
+                continue
+            media = ref.provider_media.get(rules.provider)
+            if media is None:
+                asset = self.rt.assets.get(ref.asset_id, m.tenant_id)
+                if upload is None or asset is None:
+                    continue
+                if asset.rights.status != RightsStatus.APPROVED:
+                    log.warning("reference %s skipped: rights %s", ref.id, asset.rights.status)
+                    continue
+                with self.rt.storage.open(asset.storage_key) as handle:
+                    data = handle.read()
+                media = upload(
+                    m.tenant_id,
+                    filename=asset.storage_key.rsplit("/", 1)[-1],
+                    data=data,
+                    content_type=asset.content_type,
+                )
+                ref.provider_media[rules.provider] = media
+            out.append(media)
+        return out
 
     def _context_refs(self, m: ProductionManifest, rules: GenerativeRules) -> list[dict[str, Any]]:
         """Top approved public images as generator context (never shown on screen)."""

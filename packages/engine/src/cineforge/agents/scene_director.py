@@ -84,7 +84,10 @@ class SceneDirectorAgent(BaseAgent):
                 lines="\n".join(f"{ln.kind}: {ln.text}" for ln in payload.script.lines),
             )
             return build_vlog_scenes(
-                script=payload.script, theme=ctx.theme, persona=payload.persona
+                script=payload.script,
+                theme=ctx.theme,
+                persona=payload.persona,
+                look=payload.look,
             )
         theme = ctx.theme
         policy = payload.mode_policy

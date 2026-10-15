@@ -326,6 +326,32 @@ packages/configurations/personas/
 - The estimate is credit based (`cineforge.cost.vlog.estimate_vlog`); scene caps are not
   allocated (the credit cap bounds spend). Default budget: `credit_cap` x credit price + $1.
 
+### Authored briefs (look + script)
+
+`CreateProductionRequest` takes two optional fields for generative themes; both are copied
+to the manifest (`ProductionManifest.look`, `.authored_script`):
+
+- `look` (`ProductionLook`): trip `wardrobe` (overrides the persona default), `location`
+  bible and `notes` (added to every still prompt), and `references`
+  (`ProductionReference`: `ref_<name>` id -> an APPROVED library asset, `reference_only`).
+- `script` (`AuthoredScript`, 2-24 `ScriptLine`s): A5 uses it as written, no LLM call
+  (`cineforge.agents.vlog.script_from_authored`). Per line: `motion`, `sound`,
+  `on_screen_text` (-> `Shot.on_screen_text`), `refs`, `duration_sec`. A `broll` line with
+  `voiceover: true` is spoken over the cutaway (`AudioSpec.voiceover`, a voice line but no
+  lip-sync); `in_frame: true` puts the host in a cutaway.
+- `create_production` fails with 422 `invalid_production_input` if the theme is not
+  generative, a reference asset is missing or not APPROVED, a line names an unknown ref, or a
+  spoken line has more words than its shot can hold (no silent trimming).
+- Shot references are uploaded to the provider once (`HiggsfieldProvider.upload_media`,
+  free) and cached in `ProductionReference.provider_media`; a shot with refs uses them as
+  `image_references` instead of the public context images.
+- Review before spending: `uv run python scripts/shot_sheet.py <brief.yaml>` prints every
+  shot's exact still, motion and voice prompts with credits; `--json` prints the API body.
+
+| Method & path | Body | Response |
+|---|---|---|
+| `POST /assets/references?name=&author=&commercial_use=&license_type=&generator=` | raw png / jpeg / webp (max 25 MB) | 201 `AssetRecord` (`kind=reference`, rights evaluated) |
+
 ### Gates (`ProductionManifest.approval_stage`)
 
 `script` -> `preview` -> `pilot` -> `final`. Each approval moves to the next stage and
@@ -333,7 +359,7 @@ runs only its work (`cineforge.orchestration.studio.VlogStudio`):
 
 | Stage | Work | Then |
 |---|---|---|
-| `preview` | one still per shot (A7 `stage="still"`), one voice line per A-roll (A8 `dialogue_shot_id`) | `AWAITING_APPROVAL` |
+| `preview` | one still per shot (A7 `stage="still"`), one voice line per spoken shot: A-roll or voice-over (A8 `dialogue_shot_id`) | `AWAITING_APPROVAL` |
 | `pilot` | the first A-roll and B-roll clips | `AWAITING_APPROVAL` |
 | `final` | every remaining clip | `ASSEMBLING` |
 

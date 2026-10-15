@@ -936,8 +936,14 @@
             }
           ],
           "default": null,
-          "description": "What the on-camera host says in this shot (A-roll)",
+          "description": "What the host says: lip-synced on A-roll, voice-over on B-roll",
           "title": "Dialogue Text"
+        },
+        "voiceover": {
+          "default": false,
+          "description": "dialogue_text plays over this B-roll",
+          "title": "Voiceover",
+          "type": "boolean"
         },
         "narration_text": {
           "anyOf": [
@@ -1014,6 +1020,26 @@
         "action"
       ],
       "title": "AuditEntry",
+      "type": "object"
+    },
+    "AuthoredScript": {
+      "additionalProperties": false,
+      "description": "A human-approved script used as-is instead of the A5 draft.",
+      "properties": {
+        "lines": {
+          "items": {
+            "$ref": "#/$defs/ScriptLine"
+          },
+          "maxItems": 24,
+          "minItems": 2,
+          "title": "Lines",
+          "type": "array"
+        }
+      },
+      "required": [
+        "lines"
+      ],
+      "title": "AuthoredScript",
       "type": "object"
     },
     "BudgetSnapshot": {
@@ -1771,6 +1797,30 @@
           ],
           "default": null,
           "title": "Idempotency Key"
+        },
+        "look": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ProductionLook"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Fully generative themes: outfit, location, references"
+        },
+        "script": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AuthoredScript"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Fully generative themes: approved script used as-is"
         }
       },
       "required": [
@@ -4537,6 +4587,56 @@
       "title": "ProductionEvent",
       "type": "object"
     },
+    "ProductionLook": {
+      "additionalProperties": false,
+      "description": "Per-production art direction shared by every shot (consistency across clips).",
+      "properties": {
+        "wardrobe": {
+          "anyOf": [
+            {
+              "maxLength": 600,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Replaces the persona's default wardrobe",
+          "title": "Wardrobe"
+        },
+        "location": {
+          "anyOf": [
+            {
+              "maxLength": 1200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Location bible: place, materials, light",
+          "title": "Location"
+        },
+        "notes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Notes",
+          "type": "array"
+        },
+        "references": {
+          "items": {
+            "$ref": "#/$defs/ProductionReference"
+          },
+          "title": "References",
+          "type": "array"
+        }
+      },
+      "title": "ProductionLook",
+      "type": "object"
+    },
     "ProductionManifest": {
       "additionalProperties": false,
       "properties": {
@@ -4618,6 +4718,28 @@
           ],
           "default": null,
           "title": "Persona Id"
+        },
+        "look": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ProductionLook"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "authored_script": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AuthoredScript"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "persona_version": {
           "anyOf": [
@@ -4885,6 +5007,47 @@
         "budget_envelope"
       ],
       "title": "ProductionPlan",
+      "type": "object"
+    },
+    "ProductionReference": {
+      "additionalProperties": false,
+      "description": "An owned or rights-approved image that guides generation; never shown on screen.",
+      "properties": {
+        "id": {
+          "pattern": "^ref_[a-z0-9_]+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "asset_id": {
+          "title": "Asset Id",
+          "type": "string"
+        },
+        "description": {
+          "maxLength": 200,
+          "title": "Description",
+          "type": "string"
+        },
+        "usage": {
+          "const": "reference_only",
+          "default": "reference_only",
+          "title": "Usage",
+          "type": "string"
+        },
+        "provider_media": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Provider -> uploaded media id (upload once)",
+          "title": "Provider Media",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "asset_id",
+        "description"
+      ],
+      "title": "ProductionReference",
       "type": "object"
     },
     "ProductionRules": {
@@ -6251,7 +6414,7 @@
         },
         "kind": {
           "default": "narration",
-          "description": "dialogue = host on camera says text; broll = visual beat, text unspoken",
+          "description": "dialogue = host on camera says text; broll = cutaway (text is spoken over it when voiceover is true, else a caption)",
           "enum": [
             "narration",
             "dialogue",
@@ -6272,6 +6435,81 @@
           "default": null,
           "description": "What the camera sees (vlog themes)",
           "title": "Visual"
+        },
+        "voiceover": {
+          "default": false,
+          "description": "broll only: the host says text over it",
+          "title": "Voiceover",
+          "type": "boolean"
+        },
+        "in_frame": {
+          "default": false,
+          "description": "broll only: the host is visible",
+          "title": "In Frame",
+          "type": "boolean"
+        },
+        "motion": {
+          "anyOf": [
+            {
+              "maxLength": 800,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What moves, beat by beat (video model)",
+          "title": "Motion"
+        },
+        "sound": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Ambient sound",
+          "title": "Sound"
+        },
+        "on_screen_text": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "On Screen Text"
+        },
+        "refs": {
+          "description": "ProductionReference ids guiding this shot's still",
+          "items": {
+            "type": "string"
+          },
+          "title": "Refs",
+          "type": "array"
+        },
+        "duration_sec": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "maximum": 20,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Duration Sec"
         }
       },
       "required": [
@@ -6369,6 +6607,20 @@
         },
         "disclosure": {
           "$ref": "#/$defs/Disclosure"
+        },
+        "on_screen_text": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Overlay text",
+          "title": "On Screen Text"
         },
         "depends_on": {
           "description": "Artifact IDs",

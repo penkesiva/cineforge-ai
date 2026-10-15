@@ -10,7 +10,12 @@ from __future__ import annotations
 from cineforge.agents.base import BaseAgent
 from cineforge.agents.drafts import ScriptDraft, VlogScriptDraft
 from cineforge.agents.planning import beats_for_scenes, word_budget
-from cineforge.agents.vlog import build_vlog_script, max_dialogue_words, vlog_prompt
+from cineforge.agents.vlog import (
+    build_vlog_script,
+    max_dialogue_words,
+    script_from_authored,
+    vlog_prompt,
+)
 from cineforge.contracts.agents import (
     AgentContext,
     ClaimStatus,
@@ -149,6 +154,13 @@ class ScriptwriterAgent(BaseAgent):
         theme = ctx.theme
         rules = theme.production.generative
         assert rules is not None
+        if payload.authored is not None:
+            return script_from_authored(
+                payload.authored,
+                logline=payload.treatment.logline,
+                theme=theme,
+                persona=persona,
+            )
         beats = beats_for_scenes(theme.narrative.story_beats, payload.scene_count)
         excluded = set(payload.excluded_claim_ids)
         usable = [

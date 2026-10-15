@@ -16,10 +16,13 @@ from pydantic import BaseModel, Field
 from cineforge.contracts.common import AgentId, ContractModel, Money, ProductionMode, money, utcnow
 from cineforge.contracts.cost import CostEstimate
 from cineforge.contracts.manifest import (
+    AuthoredScript,
     CreativeBrief,
     OutputProfile,
+    ProductionLook,
     ProductionManifest,
     Scene,
+    ScriptLine,
     Shot,
 )
 from cineforge.contracts.media import LicenseInfo, RightsStatus
@@ -220,19 +223,6 @@ class StoryBeat(ContractModel):
     purpose: str
 
 
-class ScriptLine(ContractModel):
-    scene_order: int = Field(ge=1)
-    speaker: str = "narrator"
-    text: str
-    claim_ids: list[str] = Field(default_factory=list)
-    dramatized: bool = False
-    kind: Literal["narration", "dialogue", "broll"] = Field(
-        default="narration",
-        description="dialogue = host on camera says text; broll = visual beat, text unspoken",
-    )
-    visual: str | None = Field(default=None, description="What the camera sees (vlog themes)")
-
-
 class Script(ContractModel):
     hook: str
     logline: str
@@ -358,6 +348,9 @@ class ScriptInput(ContractModel):
     canon: PersonaCanon | None = Field(
         default=None, description="Persona continuity: facts, running jokes, earlier trips"
     )
+    authored: AuthoredScript | None = Field(
+        default=None, description="Approved script; used as-is instead of an LLM draft"
+    )
 
 
 class SceneDirectionInput(ContractModel):
@@ -368,6 +361,7 @@ class SceneDirectionInput(ContractModel):
     mode_policy: ProductionModePolicy
     max_shots_per_scene: int = Field(ge=1)
     persona: PersonaProfile | None = None
+    look: ProductionLook | None = None
 
 
 class ShotProductionInput(ContractModel):

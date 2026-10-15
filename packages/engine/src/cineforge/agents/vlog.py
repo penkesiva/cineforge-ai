@@ -21,8 +21,10 @@ from cineforge.contracts.agents import (
 from cineforge.contracts.common import GenerationStrategy
 from cineforge.contracts.manifest import (
     AudioSpec,
+    AuthoredScript,
     Disclosure,
     PerformanceSpec,
+    ProductionLook,
     ProviderPlan,
     Scene,
     Shot,
@@ -34,6 +36,7 @@ from cineforge.contracts.providers import ProviderCapability
 from cineforge.contracts.theme import GenerativeModel, GenerativeRules, ThemeProfile
 
 LIP_SYNC_PAD_SEC = 0.8
+VOICEOVER_PAD_SEC = 0.4
 BROLL_SEC = 5.0
 AI_LABEL = "AI-generated"
 _USABLE = (ClaimStatus.VERIFIED, ClaimStatus.DRAMATIZED)
@@ -54,6 +57,64 @@ def _fit(text: str, max_words: int) -> str:
     if len(words) <= max_words:
         return text.strip()
     return " ".join(words[:max_words]).rstrip(",;:") + "."
+
+
+def speech_sec(text: str, rules: GenerativeRules) -> float:
+    return len(text.split()) / rules.words_per_sec
+
+
+def line_duration(line: ScriptLine, rules: GenerativeRules) -> float:
+    """Shot length: speech time (plus pad) or the authored length, within model limits."""
+    if line.kind == "dialogue":
+        spoken = speech_sec(line.text, rules) + LIP_SYNC_PAD_SEC
+        return _clamp(max(spoken, line.duration_sec or 0), rules.a_roll)
+    if line.voiceover:
+        spoken = speech_sec(line.text, rules) + VOICEOVER_PAD_SEC
+        return _clamp(max(spoken, line.duration_sec or 0), rules.b_roll)
+    return _clamp(line.duration_sec or BROLL_SEC, rules.b_roll)
+
+
+class AuthoredScriptError(ValueError):
+    """An approved script line cannot fit its shot (too many words for the model limit)."""
+
+
+def script_from_authored(
+    authored: AuthoredScript,
+    *,
+    logline: str,
+    theme: ThemeProfile,
+    persona: PersonaProfile,
+) -> Script:
+    """Use a human-approved script as-is; code only checks fit and adds the CTA."""
+    rules = theme.production.generative
+    assert rules is not None
+    lines = [ln.model_copy(deep=True) for ln in authored.lines]
+    for i, ln in enumerate(lines, 1):
+        spoken = ln.kind == "dialogue" or ln.voiceover
+        ln.speaker = persona.name if spoken else "camera"
+        model = rules.a_roll if ln.kind == "dialogue" else rules.b_roll
+        pad = LIP_SYNC_PAD_SEC if ln.kind == "dialogue" else VOICEOVER_PAD_SEC
+        if spoken and speech_sec(ln.text, rules) + pad > (model.max_sec or 15.0):
+            limit = int(((model.max_sec or 15.0) - pad) * rules.words_per_sec)
+            raise AuthoredScriptError(
+                f"line {i}: {len(ln.text.split())} words; at most {limit} fit one shot"
+            )
+    cta = theme.narrative.cta
+    last = next((ln for ln in reversed(lines) if ln.kind == "dialogue" or ln.voiceover), None)
+    if cta and last is not None and cta.lower().rstrip(".") not in last.text.lower():
+        last.text = f"{last.text.rstrip()} {cta}."
+    orders = sorted({ln.scene_order for ln in lines})
+    names = beats_for_scenes(theme.narrative.story_beats, len(orders))
+    spoken_lines = [ln for ln in lines if ln.kind == "dialogue" or ln.voiceover]
+    return Script(
+        hook=spoken_lines[0].text if spoken_lines else lines[0].text,
+        logline=logline,
+        beats=[StoryBeat(order=o, beat=n, purpose=n) for o, n in zip(orders, names, strict=True)],
+        lines=lines,
+        cta=cta,
+        word_count=sum(len(ln.text.split()) for ln in spoken_lines),
+        estimated_duration_sec=round(sum(line_duration(ln, rules) for ln in lines), 1),
+    )
 
 
 # --------------------------------------------------------------------------- A5
@@ -189,12 +250,7 @@ def build_vlog_script(
         last.text = f"{_fit(last.text, max_words - len(cta.split()))} {cta}."
     spoken = [ln for ln in lines if ln.kind == "dialogue"]
     words = sum(len(ln.text.split()) for ln in spoken)
-    duration = sum(
-        _clamp(len(ln.text.split()) / rules.words_per_sec + LIP_SYNC_PAD_SEC, rules.a_roll)
-        if ln.kind == "dialogue"
-        else _clamp(BROLL_SEC, rules.b_roll)
-        for ln in lines
-    )
+    duration = sum(line_duration(ln, rules) for ln in lines)
     return Script(
         hook=spoken[0].text if spoken else hook,
         logline=logline,
@@ -244,40 +300,79 @@ def _fallback_beats(
 
 
 # --------------------------------------------------------------------------- A6
-def still_prompt(line: ScriptLine, persona: PersonaProfile, element: str | None) -> str:
-    who = f"<<<{element}>>> as {persona.name}" if element else persona.name
-    look, cam = persona.look, persona.camera
-    if line.kind == "dialogue":
-        keep = f" Keep: {', '.join(look.locks)}." if look.locks else ""
-        avoid = f" Avoid: {', '.join(look.avoid)}." if look.avoid else ""
-        rules = f" {' '.join(persona.wardrobe.rules)}" if persona.wardrobe.rules else ""
-        return (
-            f"{who}, {persona.identity.age} years old: {look.description}.{keep} "
-            f"Wardrobe: {persona.wardrobe.default}.{rules} {line.visual}. "
-            f"Vertical 9:16 smartphone vlog frame, {cam.framing}, she looks into the lens, "
-            f"mouth relaxed, photoreal, {cam.lighting}"
-            + (f", {cam.color}" if cam.color else "")
-            + f", period-accurate surroundings, no text, no watermark.{avoid}"
-        )
-    in_frame = persona.name.lower() in (line.visual or "").lower()
-    lead = f"{who} in frame. " if in_frame else ""
+def _sentence(text: str) -> str:
+    text = text.strip()
+    return text if text.endswith((".", "!", "?")) else f"{text}."
+
+
+def _wardrobe(persona: PersonaProfile, look: ProductionLook | None) -> str:
+    if look is not None and look.wardrobe:
+        return _sentence(look.wardrobe)
+    rules = f" {' '.join(persona.wardrobe.rules)}" if persona.wardrobe.rules else ""
+    return f"{persona.wardrobe.default}.{rules}"
+
+
+def _setting(look: ProductionLook | None) -> str:
+    if look is None or not look.location:
+        return "Period-accurate surroundings."
+    return " ".join(_sentence(t) for t in [f"Setting: {look.location}", *look.notes])
+
+
+def in_frame(line: ScriptLine, persona: PersonaProfile) -> bool:
     return (
-        f"{lead}{line.visual}. First-person POV smartphone vlog frame, photoreal, "
-        "period-accurate, natural light, shallow depth of field, no text, no watermark"
+        line.kind == "dialogue"
+        or line.in_frame
+        or (persona.name.lower() in (line.visual or "").lower())
+    )
+
+
+def still_prompt(
+    line: ScriptLine,
+    persona: PersonaProfile,
+    element: str | None,
+    look: ProductionLook | None = None,
+) -> str:
+    """First frame of the shot: who (locked look, trip outfit), where, what, how shot."""
+    who = f"<<<{element}>>> as {persona.name}" if element else persona.name
+    plook, cam = persona.look, persona.camera
+    color = f", {cam.color}" if cam.color else ""
+    if in_frame(line, persona):
+        keep = f" Keep: {', '.join(plook.locks)}." if plook.locks else ""
+        avoid = ", ".join(["text", "watermark", *plook.avoid])
+        framing = (
+            f"{cam.framing}, she looks into the lens"
+            if line.kind == "dialogue"
+            else "handheld smartphone shot, she is in frame"
+        )
+        return (
+            f"{who}, {persona.identity.age} years old: {plook.description}.{keep} "
+            f"Outfit: {_wardrobe(persona, look)} {_setting(look)} "
+            f"Moment: {line.visual}. "
+            f"Camera: vertical 9:16 smartphone vlog frame, {framing}, photoreal, "
+            f"{cam.lighting}{color}, natural skin texture, correct hands. Avoid: {avoid}."
+        )
+    return (
+        f"{_setting(look)} Moment: {line.visual}. "
+        f"Camera: vertical 9:16 first-person smartphone vlog frame, photoreal, "
+        f"{cam.lighting}{color}, shallow depth of field. Avoid: text, watermark, logos."
     )
 
 
 def clip_prompt(line: ScriptLine, persona: PersonaProfile) -> str:
+    """Motion for the video model; the still already fixes look, place and framing."""
+    sound = line.sound or "ambient sound of the place"
     if line.kind == "dialogue":
+        action = line.motion or (f"{line.visual}. Small natural head movements and hand gestures")
         return (
-            f"{persona.name} talks to the camera in a handheld selfie vlog, natural lip "
-            "movement in sync with her voice, small head movements and hand gestures, "
-            f"{line.visual}. Ambient sound of the place under her voice. Keep her face and "
-            "outfit identical to the start frame."
+            f"{persona.name} talks to the camera in a handheld selfie vlog. {action}. "
+            f"Natural lip movement in sync with her voice. Sound: {sound} under her voice. "
+            "Keep her face, outfit and props identical to the start frame."
         )
+    action = line.motion or f"{line.visual}. Gentle natural movement"
+    keep = " Keep her face and outfit identical to the start frame." if line.in_frame else ""
     return (
-        f"{line.visual}. Handheld first-person camera, gentle natural movement, realistic "
-        "ambient sound of the place, no dialogue, no music, no text."
+        f"{action}. Handheld smartphone camera, light natural shake. Sound: {sound}. "
+        f"No speech, no music, no text.{keep}"
     )
 
 
@@ -286,6 +381,7 @@ def build_vlog_scenes(
     script: Script,
     theme: ThemeProfile,
     persona: PersonaProfile,
+    look: ProductionLook | None = None,
 ) -> SceneGraph:
     rules = theme.production.generative
     assert rules is not None
@@ -301,12 +397,8 @@ def build_vlog_scenes(
         for j, line in enumerate(by_scene[order], 1):
             a_roll = line.kind == "dialogue"
             model = rules.a_roll if a_roll else rules.b_roll
-            words = len(line.text.split())
-            duration = (
-                _clamp(words / rules.words_per_sec + LIP_SYNC_PAD_SEC, model)
-                if a_roll
-                else _clamp(BROLL_SEC, model)
-            )
+            spoken = a_roll or line.voiceover
+            duration = line_duration(line, rules)
             shots.append(
                 Shot(
                     id=f"{scene_id}_shot_{j:02d}",
@@ -321,13 +413,15 @@ def build_vlog_scenes(
                         atmosphere=", ".join(theme.direction.atmosphere[:2]) or None,
                     ),
                     performance=PerformanceSpec(
-                        character_ref=persona.id if a_roll else None,
+                        character_ref=persona.id if in_frame(line, persona) else None,
                         lip_sync_required=a_roll,
                     ),
                     audio=AudioSpec(
-                        dialogue_text=line.text if a_roll else None,
-                        ambience=(theme.direction.sound_palette or [None])[0],
+                        dialogue_text=line.text if spoken else None,
+                        voiceover=spoken and not a_roll,
+                        ambience=line.sound or (theme.direction.sound_palette or [None])[0],
                     ),
+                    on_screen_text=line.on_screen_text,
                     provider_plan=ProviderPlan(
                         strategy=GenerationStrategy.GENERATIVE,
                         capability=ProviderCapability.IMAGE_TO_VIDEO,
@@ -335,8 +429,9 @@ def build_vlog_scenes(
                         model=model.model,
                         prompt=clip_prompt(line, persona),
                         parameters={
-                            "still_prompt": still_prompt(line, persona, element),
+                            "still_prompt": still_prompt(line, persona, element, look),
                             "claim_ids": list(line.claim_ids),
+                            "refs": list(line.refs),
                         },
                     ),
                     disclosure=Disclosure(synthetic_media=True, label_text=AI_LABEL),

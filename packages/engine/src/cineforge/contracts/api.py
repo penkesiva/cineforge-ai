@@ -25,7 +25,7 @@ from cineforge.contracts.agents import (
 )
 from cineforge.contracts.common import ContractModel, Money, ProductionMode
 from cineforge.contracts.cost import CostSummary, LedgerEvent
-from cineforge.contracts.manifest import ProductionManifest
+from cineforge.contracts.manifest import AuthoredScript, ProductionLook, ProductionManifest
 from cineforge.contracts.media import AssetRecord, LicenseInfo, RightsStatus
 from cineforge.contracts.persona import PersonaCanon, PersonaProfile
 from cineforge.contracts.providers import ProviderCapability, ProviderCatalogEntry
@@ -69,6 +69,12 @@ class CreateProductionRequest(ContractModel):
     language: str = "en-US"
     auto_approve: bool = False
     idempotency_key: str | None = None
+    look: ProductionLook | None = Field(
+        default=None, description="Fully generative themes: outfit, location, references"
+    )
+    script: AuthoredScript | None = Field(
+        default=None, description="Fully generative themes: approved script used as-is"
+    )
 
 
 class ApproveProductionRequest(ContractModel):

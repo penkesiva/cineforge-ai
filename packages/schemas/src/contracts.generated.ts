@@ -304,6 +304,8 @@ export interface ProductionManifest {
    */
   approval_stage?: ApprovalStage | null;
   persona_id?: string | null;
+  look?: ProductionLook | null;
+  authored_script?: AuthoredScript | null;
   /**
    * Persona version pinned at creation (like the theme)
    */
@@ -384,6 +386,96 @@ export interface ApprovalPolicy {
   note?: string | null;
 }
 /**
+ * Per-production art direction shared by every shot (consistency across clips).
+ *
+ * This interface was referenced by `CineForgeContracts`'s JSON-Schema
+ * via the `definition` "ProductionLook".
+ */
+export interface ProductionLook {
+  /**
+   * Replaces the persona's default wardrobe
+   */
+  wardrobe?: string | null;
+  /**
+   * Location bible: place, materials, light
+   */
+  location?: string | null;
+  notes?: string[];
+  references?: ProductionReference[];
+}
+/**
+ * An owned or rights-approved image that guides generation; never shown on screen.
+ *
+ * This interface was referenced by `CineForgeContracts`'s JSON-Schema
+ * via the `definition` "ProductionReference".
+ */
+export interface ProductionReference {
+  id: string;
+  asset_id: string;
+  description: string;
+  usage?: "reference_only";
+  /**
+   * Provider -> uploaded media id (upload once)
+   */
+  provider_media?: {
+    [k: string]: string;
+  };
+}
+/**
+ * A human-approved script used as-is instead of the A5 draft.
+ *
+ * This interface was referenced by `CineForgeContracts`'s JSON-Schema
+ * via the `definition` "AuthoredScript".
+ */
+export interface AuthoredScript {
+  /**
+   * @minItems 2
+   * @maxItems 24
+   */
+  lines: [ScriptLine, ScriptLine, ...ScriptLine[]];
+}
+/**
+ * This interface was referenced by `CineForgeContracts`'s JSON-Schema
+ * via the `definition` "ScriptLine".
+ */
+export interface ScriptLine {
+  scene_order: number;
+  speaker?: string;
+  text: string;
+  claim_ids?: string[];
+  dramatized?: boolean;
+  /**
+   * dialogue = host on camera says text; broll = cutaway (text is spoken over it when voiceover is true, else a caption)
+   */
+  kind?: "narration" | "dialogue" | "broll";
+  /**
+   * What the camera sees (vlog themes)
+   */
+  visual?: string | null;
+  /**
+   * broll only: the host says text over it
+   */
+  voiceover?: boolean;
+  /**
+   * broll only: the host is visible
+   */
+  in_frame?: boolean;
+  /**
+   * What moves, beat by beat (video model)
+   */
+  motion?: string | null;
+  /**
+   * Ambient sound
+   */
+  sound?: string | null;
+  on_screen_text?: string | null;
+  /**
+   * ProductionReference ids guiding this shot's still
+   */
+  refs?: string[];
+  duration_sec?: number | null;
+}
+/**
  * This interface was referenced by `CineForgeContracts`'s JSON-Schema
  * via the `definition` "Scene".
  */
@@ -427,6 +519,10 @@ export interface Shot {
   attempts?: ProviderAttempt[];
   review_scores?: ReviewScore[];
   disclosure?: Disclosure;
+  /**
+   * Overlay text
+   */
+  on_screen_text?: string | null;
   /**
    * Artifact IDs
    */
@@ -477,9 +573,13 @@ export interface PerformanceSpec {
 export interface AudioSpec {
   dialogue_ref?: string | null;
   /**
-   * What the on-camera host says in this shot (A-roll)
+   * What the host says: lip-synced on A-roll, voice-over on B-roll
    */
   dialogue_text?: string | null;
+  /**
+   * dialogue_text plays over this B-roll
+   */
+  voiceover?: boolean;
   narration_text?: string | null;
   ambience?: string | null;
   music_cue?: string | null;
@@ -886,25 +986,6 @@ export interface StoryBeat {
   order: number;
   beat: string;
   purpose: string;
-}
-/**
- * This interface was referenced by `CineForgeContracts`'s JSON-Schema
- * via the `definition` "ScriptLine".
- */
-export interface ScriptLine {
-  scene_order: number;
-  speaker?: string;
-  text: string;
-  claim_ids?: string[];
-  dramatized?: boolean;
-  /**
-   * dialogue = host on camera says text; broll = visual beat, text unspoken
-   */
-  kind?: "narration" | "dialogue" | "broll";
-  /**
-   * What the camera sees (vlog themes)
-   */
-  visual?: string | null;
 }
 /**
  * This interface was referenced by `CineForgeContracts`'s JSON-Schema
@@ -1826,6 +1907,14 @@ export interface CreateProductionRequest {
   language?: string;
   auto_approve?: boolean;
   idempotency_key?: string | null;
+  /**
+   * Fully generative themes: outfit, location, references
+   */
+  look?: ProductionLook | null;
+  /**
+   * Fully generative themes: approved script used as-is
+   */
+  script?: AuthoredScript | null;
 }
 /**
  * This interface was referenced by `CineForgeContracts`'s JSON-Schema

@@ -43,6 +43,8 @@
   },
   "approval_stage": null,
   "persona_id": null,
+  "look": null,
+  "authored_script": null,
   "persona_version": null,
   "character_bible_ref": "asset://characters/host-v1",
   "style_bible_ref": null,
@@ -85,6 +87,7 @@
           "audio": {
             "dialogue_ref": null,
             "dialogue_text": null,
+            "voiceover": false,
             "narration_text": null,
             "ambience": null,
             "music_cue": null,
@@ -113,6 +116,7 @@
             "reconstruction": false,
             "label_text": null
           },
+          "on_screen_text": null,
           "depends_on": [],
           "estimated_cost": 0.0,
           "actual_cost": 0.0,
@@ -146,6 +150,7 @@
           "audio": {
             "dialogue_ref": null,
             "dialogue_text": null,
+            "voiceover": false,
             "narration_text": "Narration for hook.",
             "ambience": null,
             "music_cue": null,
@@ -174,6 +179,7 @@
             "reconstruction": true,
             "label_text": "Reconstruction"
           },
+          "on_screen_text": null,
           "depends_on": [
             "scene_01_shot_01"
           ],
@@ -228,6 +234,7 @@
           "audio": {
             "dialogue_ref": null,
             "dialogue_text": null,
+            "voiceover": false,
             "narration_text": null,
             "ambience": null,
             "music_cue": null,
@@ -256,6 +263,7 @@
             "reconstruction": false,
             "label_text": null
           },
+          "on_screen_text": null,
           "depends_on": [],
           "estimated_cost": 0.0,
           "actual_cost": 0.0,
@@ -289,6 +297,7 @@
           "audio": {
             "dialogue_ref": null,
             "dialogue_text": null,
+            "voiceover": false,
             "narration_text": "Narration for arrival.",
             "ambience": null,
             "music_cue": null,
@@ -317,6 +326,7 @@
             "reconstruction": false,
             "label_text": null
           },
+          "on_screen_text": null,
           "depends_on": [
             "scene_02_shot_01"
           ],
@@ -371,6 +381,7 @@
           "audio": {
             "dialogue_ref": null,
             "dialogue_text": null,
+            "voiceover": false,
             "narration_text": null,
             "ambience": null,
             "music_cue": null,
@@ -399,6 +410,7 @@
             "reconstruction": false,
             "label_text": null
           },
+          "on_screen_text": null,
           "depends_on": [],
           "estimated_cost": 0.0,
           "actual_cost": 0.0,
@@ -432,6 +444,7 @@
           "audio": {
             "dialogue_ref": null,
             "dialogue_text": null,
+            "voiceover": false,
             "narration_text": "Narration for context.",
             "ambience": null,
             "music_cue": null,
@@ -460,6 +473,7 @@
             "reconstruction": false,
             "label_text": null
           },
+          "on_screen_text": null,
           "depends_on": [
             "scene_03_shot_01"
           ],
@@ -514,6 +528,7 @@
           "audio": {
             "dialogue_ref": null,
             "dialogue_text": null,
+            "voiceover": false,
             "narration_text": null,
             "ambience": null,
             "music_cue": null,
@@ -542,6 +557,7 @@
             "reconstruction": false,
             "label_text": null
           },
+          "on_screen_text": null,
           "depends_on": [],
           "estimated_cost": 0.0,
           "actual_cost": 0.0,
@@ -575,6 +591,7 @@
           "audio": {
             "dialogue_ref": null,
             "dialogue_text": null,
+            "voiceover": false,
             "narration_text": "Narration for reveal.",
             "ambience": null,
             "music_cue": null,
@@ -603,6 +620,7 @@
             "reconstruction": true,
             "label_text": "Reconstruction"
           },
+          "on_screen_text": null,
           "depends_on": [
             "scene_04_shot_01"
           ],
@@ -657,6 +675,7 @@
           "audio": {
             "dialogue_ref": null,
             "dialogue_text": null,
+            "voiceover": false,
             "narration_text": null,
             "ambience": null,
             "music_cue": null,
@@ -685,6 +704,7 @@
             "reconstruction": false,
             "label_text": null
           },
+          "on_screen_text": null,
           "depends_on": [],
           "estimated_cost": 0.0,
           "actual_cost": 0.0,
@@ -718,6 +738,7 @@
           "audio": {
             "dialogue_ref": null,
             "dialogue_text": null,
+            "voiceover": false,
             "narration_text": "Narration for legacy.",
             "ambience": null,
             "music_cue": null,
@@ -746,6 +767,7 @@
             "reconstruction": false,
             "label_text": null
           },
+          "on_screen_text": null,
           "depends_on": [
             "scene_05_shot_01"
           ],

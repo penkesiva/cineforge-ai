@@ -30,6 +30,8 @@ MCP = "https://mcp.higgsfield.ai/mcp"
 JOB = "11111111-2222-4333-8444-555555555555"
 STILL = "99999999-2222-4333-8444-555555555555"
 CDN = f"https://d8j0ntlcm91z4.cloudfront.net/user_x/hf_{JOB}.mp4"
+MEDIA = "bbbbbbbb-2222-4333-8444-555555555555"
+UPLOAD = f"https://upload.higgsfield.ai/user_x/{MEDIA}.png?X-Amz-Signature=abc"
 
 
 class FakeMcp:
@@ -42,8 +44,12 @@ class FakeMcp:
         self.status_sequence = list(status_sequence or ["completed"])
         self.reject_token: str | None = None
         self.submit_reply: str | None = None
+        self.puts: list[httpx.Request] = []
 
     def handler(self, request: httpx.Request) -> httpx.Response:
+        if request.method == "PUT":
+            self.puts.append(request)
+            return httpx.Response(200)
         auth = request.headers.get("authorization", "")
         self.tokens.append(auth)
         if self.reject_token and auth == f"Bearer {self.reject_token}":
@@ -61,6 +67,14 @@ class FakeMcp:
     def _tool(self, name: str, args: dict) -> dict:
         if name == "balance":
             return _text("Credits: 2305.26 | Plan: ultra")
+        if name == "media_upload":
+            return _text(
+                f"- {MEDIA}: Upload the file using: curl -X PUT -H "
+                f'"Content-Type: {args["content_type"]}" --data-binary @{args["filename"]} '
+                f"'{UPLOAD}'"
+            )
+        if name == "media_confirm":
+            return _text(f"Confirmed {args['media_id']}")
         if name == "media_import_url":
             return _text("Imported media_id: aaaaaaaa-2222-4333-8444-555555555555")
         if name.startswith("generate_"):
@@ -221,6 +235,28 @@ def test_context_urls_are_imported_as_reference_media() -> None:
     )
     assert submit["params"]["medias"][0]["role"] == "image_references"
     assert submit["params"]["medias"][0]["value"].startswith("aaaaaaaa")
+
+
+def test_upload_media_puts_bytes_then_confirms() -> None:
+    fake = FakeMcp()
+    media = _provider(fake).upload_media(
+        "t1", filename="pillar.png", data=b"png-bytes", content_type="image/png"
+    )
+    assert media == MEDIA
+    assert [c[0] for c in fake.calls] == ["media_upload", "media_confirm"]
+    assert fake.calls[1][1] == {"type": "image", "media_id": MEDIA}
+    (put,) = fake.puts
+    assert str(put.url) == UPLOAD and put.content == b"png-bytes"
+    assert put.headers["content-type"] == "image/png" and put.headers["if-none-match"] == "*"
+
+
+def test_upload_media_refuses_foreign_upload_hosts() -> None:
+    fake = FakeMcp()
+    provider = _provider(fake)
+    fake._tool = lambda name, args: _text(f"- {MEDIA}: PUT 'https://evil.example.com/x'")  # type: ignore[method-assign]
+    with pytest.raises(ProviderError, match="no media id or upload URL"):
+        provider.upload_media("t1", filename="x.png", data=b"x", content_type="image/png")
+    assert fake.puts == []
 
 
 def test_preset_recommendation_retries_once_with_declined_preset() -> None:

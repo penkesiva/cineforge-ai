@@ -104,8 +104,10 @@ class PerformanceSpec(ContractModel):
 class AudioSpec(ContractModel):
     dialogue_ref: str | None = None
     dialogue_text: str | None = Field(
-        default=None, description="What the on-camera host says in this shot (A-roll)"
+        default=None,
+        description="What the host says: lip-synced on A-roll, voice-over on B-roll",
     )
+    voiceover: bool = Field(default=False, description="dialogue_text plays over this B-roll")
     narration_text: str | None = None
     ambience: str | None = None
     music_cue: str | None = None
@@ -195,6 +197,7 @@ class Shot(ContractModel):
     attempts: list[ProviderAttempt] = Field(default_factory=list)
     review_scores: list[ReviewScore] = Field(default_factory=list)
     disclosure: Disclosure = Field(default_factory=Disclosure)
+    on_screen_text: str | None = Field(default=None, max_length=80, description="Overlay text")
     depends_on: list[str] = Field(default_factory=list, description="Artifact IDs")
     estimated_cost: Money = money(0)
     actual_cost: Money = money(0)
@@ -265,6 +268,62 @@ class ClaimReview(ContractModel):
     note: str | None = None
 
 
+class ScriptLine(ContractModel):
+    scene_order: int = Field(ge=1)
+    speaker: str = "narrator"
+    text: str
+    claim_ids: list[str] = Field(default_factory=list)
+    dramatized: bool = False
+    kind: Literal["narration", "dialogue", "broll"] = Field(
+        default="narration",
+        description="dialogue = host on camera says text; broll = cutaway (text is spoken "
+        "over it when voiceover is true, else a caption)",
+    )
+    visual: str | None = Field(default=None, description="What the camera sees (vlog themes)")
+    voiceover: bool = Field(default=False, description="broll only: the host says text over it")
+    in_frame: bool = Field(default=False, description="broll only: the host is visible")
+    motion: str | None = Field(
+        default=None, max_length=800, description="What moves, beat by beat (video model)"
+    )
+    sound: str | None = Field(default=None, max_length=200, description="Ambient sound")
+    on_screen_text: str | None = Field(default=None, max_length=80)
+    refs: list[str] = Field(
+        default_factory=list, description="ProductionReference ids guiding this shot's still"
+    )
+    duration_sec: float | None = Field(default=None, gt=0, le=20)
+
+
+class ProductionReference(ContractModel):
+    """An owned or rights-approved image that guides generation; never shown on screen."""
+
+    id: str = Field(pattern=r"^ref_[a-z0-9_]+$")
+    asset_id: str
+    description: str = Field(max_length=200)
+    usage: Literal["reference_only"] = "reference_only"
+    provider_media: dict[str, str] = Field(
+        default_factory=dict, description="Provider -> uploaded media id (upload once)"
+    )
+
+
+class ProductionLook(ContractModel):
+    """Per-production art direction shared by every shot (consistency across clips)."""
+
+    wardrobe: str | None = Field(
+        default=None, max_length=600, description="Replaces the persona's default wardrobe"
+    )
+    location: str | None = Field(
+        default=None, max_length=1200, description="Location bible: place, materials, light"
+    )
+    notes: list[str] = Field(default_factory=list)
+    references: list[ProductionReference] = Field(default_factory=list)
+
+
+class AuthoredScript(ContractModel):
+    """A human-approved script used as-is instead of the A5 draft."""
+
+    lines: list[ScriptLine] = Field(min_length=2, max_length=24)
+
+
 class ProductionManifest(ContractModel):
     schema_version: Literal["1.0"] = SCHEMA_VERSION  # type: ignore[assignment]
     production_id: str
@@ -282,6 +341,8 @@ class ProductionManifest(ContractModel):
         default=None, description="Current gate of a fully generative production"
     )
     persona_id: str | None = None
+    look: ProductionLook | None = None
+    authored_script: AuthoredScript | None = None
     persona_version: int | None = Field(
         default=None, description="Persona version pinned at creation (like the theme)"
     )
