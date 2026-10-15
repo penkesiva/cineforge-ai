@@ -51,20 +51,25 @@ production:
     still:
       model: nano_banana_2
       parameters: {resolution: 2k, aspect_ratio: "9:16"}
+      credits: 2
     a_roll:
       model: wan2_7
       parameters: {resolution: 1080p, aspect_ratio: "9:16"}
       min_sec: 3
       max_sec: 12
+      credits_per_sec: 2.5
     b_roll:
       model: kling3_0
       parameters: {mode: std, sound: "on", aspect_ratio: "9:16"}
       min_sec: 4
       max_sec: 8
+      credits_per_sec: 2
     words_per_sec: 2.4
     pilot_shots: 2
     credit_cap: 300
     max_context_refs: 2
+    voice_model: seed_audio
+    voice_credits: 0.6
 constraints:
   prohibited_claims: [unsourced dates, invented quotes attributed to real people]
   rights_policy: fail_closed

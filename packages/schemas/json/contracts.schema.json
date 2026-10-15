@@ -2705,6 +2705,20 @@
           ],
           "default": null,
           "title": "Max Sec"
+        },
+        "credits": {
+          "default": 0,
+          "description": "Estimated credits per call",
+          "minimum": 0,
+          "title": "Credits",
+          "type": "number"
+        },
+        "credits_per_sec": {
+          "default": 0,
+          "description": "Estimated credits per second",
+          "minimum": 0,
+          "title": "Credits Per Sec",
+          "type": "number"
         }
       },
       "required": [
@@ -2761,6 +2775,18 @@
           "minimum": 0,
           "title": "Max Context Refs",
           "type": "integer"
+        },
+        "voice_model": {
+          "default": "seed_audio",
+          "title": "Voice Model",
+          "type": "string"
+        },
+        "voice_credits": {
+          "default": 0.6,
+          "description": "Estimated credits per line",
+          "minimum": 0,
+          "title": "Voice Credits",
+          "type": "number"
         }
       },
       "required": [

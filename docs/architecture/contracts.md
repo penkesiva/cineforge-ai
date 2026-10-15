@@ -272,3 +272,69 @@ Allowed states: `AWAITING_APPROVAL`, `PAUSED_BUDGET`, `NEEDS_REVIEW`, `READY` (e
 | `POST /productions/{id}/render` | `RenderRequest` | 202 `ActionResponse` (READY only) |
 
 Prices: `packages/configurations/pricing/higgsfield-2026-10.yaml` (USD per plan credit).
+
+## 11. Phase 3 additions (fully generative host vlogs)
+
+### Characters and themes
+
+- `packages/configurations/characters/<id>.yaml` -> `CharacterProfile` (look, wardrobe,
+  personality, `provider_refs` such as the Higgsfield element id, `voice`). Loaded with
+  `cineforge.configuration.get_character`; the theme names it in
+  `performance.character_id`, copied to `ProductionManifest.character_id`.
+- `ProductionRules.generative` (`GenerativeRules`) makes a theme fully generative: models
+  for the storyboard `still`, the talking `a_roll` and the POV `b_roll` (each with
+  duration limits and `credits` / `credits_per_sec` estimates), `voice_model` /
+  `voice_credits`, `pilot_shots`, `credit_cap` and `max_context_refs`. Public images are
+  context references for the image model only; they never appear on screen.
+
+### Planning
+
+- A5 writes `ScriptLine.kind` `dialogue` (host to camera) or `broll`, with a `visual`. Code
+  trims lines to the A-roll limit (`words_per_sec`), keeps the last scene dialogue only and
+  appends the CTA (`cineforge.agents.vlog.build_vlog_script`).
+- A6 makes one shot per line: `Shot.kind` `a_roll` (with `audio.dialogue_text`,
+  lip-sync) or `b_roll`, `provider_plan.parameters.still_prompt` (A-roll includes the
+  character element `<<<id>>>`), the clip prompt, and `Disclosure(synthetic_media=True)`.
+- The estimate is credit based (`cineforge.cost.vlog.estimate_vlog`); scene caps are not
+  allocated (the credit cap bounds spend). Default budget: `credit_cap` x credit price + $1.
+
+### Gates (`ProductionManifest.approval_stage`)
+
+`script` -> `preview` -> `pilot` -> `final`. Each approval moves to the next stage and
+runs only its work (`cineforge.orchestration.studio.VlogStudio`):
+
+| Stage | Work | Then |
+|---|---|---|
+| `preview` | one still per shot (A7 `stage="still"`), one voice line per A-roll (A8 `dialogue_shot_id`) | `AWAITING_APPROVAL` |
+| `pilot` | the first A-roll and B-roll clips | `AWAITING_APPROVAL` |
+| `final` | every remaining clip | `ASSEMBLING` |
+
+Clips animate their still (`medias` role `start_image` = the still's provider job id); A-roll
+clips lip-sync to the voice line (`audio_references`). Results are downloaded from the
+provider CDN allowlist and registered with provenance (`external.store_result`): stills
+`KEYFRAME`, voice `AUDIO` (`audio.dialogue_ref`), clips `GENERATED`. Per-shot progress is
+kept in `provider_plan.parameters.stages`.
+
+When the provider is not signed in, calls route to the mock providers. In
+`PROVIDER_MODE=live`, approval is refused (409 `approval_blocked`) until the provider is
+signed in, the character has a voice and the next stage fits the credit cap. A call that
+would pass `credit_cap` pauses the production (`PAUSED_BUDGET`).
+
+### Redo
+
+`POST /productions/{id}/shots/{shot_id}/regenerate` (`RegenerateShotRequest`: `target`
+`still` | `voice` | `clip`, optional `note`, `dialogue_text` for voice) queues
+`JOB_REGENERATE_SHOT` on the agents queue. Allowed at the preview, pilot and final gates for
+a stage the shot already has (else 409 `regenerate_blocked`). The production stays at the
+gate; a new still or voice line marks the shot's clip stale so the next stage redoes it.
+
+| Method & path | Body | Response |
+|---|---|---|
+| `GET /productions/{id}/stage-quote` | | `StageQuote` (404 for classic themes) |
+| `POST /productions/{id}/shots/{shot_id}/regenerate` | `RegenerateShotRequest` | 202 `ActionResponse` |
+| `POST /providers/{name}/oauth/start` | | `OAuthStartResponse` |
+| `GET /providers/{name}/oauth/callback` | | 303 to the dashboard Sources page |
+| `GET /providers/{name}/connection` | | `ConnectorStatus` |
+| `DELETE /providers/{name}/oauth` | | `ConnectorStatus` |
+
+Prices: `packages/configurations/pricing/higgsfield-2026-10b.yaml`.

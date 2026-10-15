@@ -1276,6 +1276,11 @@ export interface GenerativeRules {
    */
   credit_cap?: number;
   max_context_refs?: number;
+  voice_model?: string;
+  /**
+   * Estimated credits per line
+   */
+  voice_credits?: number;
 }
 /**
  * This interface was referenced by `CineForgeContracts`'s JSON-Schema
@@ -1288,6 +1293,14 @@ export interface GenerativeModel {
   };
   min_sec?: number | null;
   max_sec?: number | null;
+  /**
+   * Estimated credits per call
+   */
+  credits?: number;
+  /**
+   * Estimated credits per second
+   */
+  credits_per_sec?: number;
 }
 /**
  * This interface was referenced by `CineForgeContracts`'s JSON-Schema

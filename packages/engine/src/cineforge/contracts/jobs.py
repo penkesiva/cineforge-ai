@@ -27,6 +27,12 @@ JOB_ADVANCE_PRODUCTION = "cineforge.orchestration.jobs.advance_production"
 #   advance hand-off); the idempotency key must then be unique per request.
 JOB_RENDER_MASTER = "cineforge.media.jobs.render_master"
 
+# regenerate_shot(production_id: str, tenant_id: str, shot_id: str, request: dict) -> None
+#   Agents worker: redo one shot's still, voice line or clip (RegenerateShotRequest) while
+#   a fully generative production waits at a gate. Paid calls go through the guard; the
+#   production stays at the gate and the result is bound to the shot.
+JOB_REGENERATE_SHOT = "cineforge.orchestration.jobs.regenerate_shot"
+
 
 @runtime_checkable
 class TaskQueue(Protocol):

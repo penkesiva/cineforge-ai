@@ -13,6 +13,7 @@ from typing import Any, Literal, Protocol, runtime_checkable
 
 from pydantic import BaseModel, Field
 
+from cineforge.contracts.character import CharacterProfile
 from cineforge.contracts.common import AgentId, ContractModel, Money, ProductionMode, money, utcnow
 from cineforge.contracts.cost import CostEstimate
 from cineforge.contracts.manifest import (
@@ -351,6 +352,9 @@ class ScriptInput(ContractModel):
     excluded_claim_ids: list[str] = Field(
         default_factory=list, description="Claims a reviewer rejected; never cite them"
     )
+    character: CharacterProfile | None = Field(
+        default=None, description="On-camera host of a fully generative theme"
+    )
 
 
 class SceneDirectionInput(ContractModel):
@@ -360,6 +364,7 @@ class SceneDirectionInput(ContractModel):
     output: OutputProfile
     mode_policy: ProductionModePolicy
     max_shots_per_scene: int = Field(ge=1)
+    character: CharacterProfile | None = None
 
 
 class ShotProductionInput(ContractModel):

@@ -33,6 +33,11 @@ class GenerativeModel(ContractModel):
     parameters: dict[str, Any] = Field(default_factory=dict)
     min_sec: float | None = Field(default=None, gt=0)
     max_sec: float | None = Field(default=None, gt=0)
+    credits: float = Field(default=0, ge=0, description="Estimated credits per call")
+    credits_per_sec: float = Field(default=0, ge=0, description="Estimated credits per second")
+
+    def estimate_credits(self, duration_sec: float) -> float:
+        return self.credits + self.credits_per_sec * duration_sec
 
 
 class GenerativeRules(ContractModel):
@@ -47,6 +52,8 @@ class GenerativeRules(ContractModel):
     pilot_shots: int = Field(default=2, ge=0, le=4)
     credit_cap: int = Field(default=300, gt=0, description="Provider credits per production")
     max_context_refs: int = Field(default=2, ge=0, le=6)
+    voice_model: str = "seed_audio"
+    voice_credits: float = Field(default=0.6, ge=0, description="Estimated credits per line")
 
 
 class DirectionRules(ContractModel):
