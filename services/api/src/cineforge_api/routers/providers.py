@@ -116,7 +116,7 @@ def set_provider_key(
     name: str, body: SetProviderKeyRequest, rt: RuntimeDep, tenant_id: TenantDep
 ) -> ProviderCatalogEntry:
     entry = _routable(rt, name, tenant_id)
-    if not entry.requires_key:
+    if not entry.requires_key or entry.auth_method == "oauth":
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, f"provider {name!r} does not use an API key"
         )

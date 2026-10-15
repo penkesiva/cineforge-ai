@@ -103,6 +103,20 @@ def test_paid_provider_statuses() -> None:
     assert paid.entry("anthropic", OTHER).status == ProviderStatus.DISABLED
 
 
+def test_higgsfield_is_ready_only_after_sign_in() -> None:
+    paid = Env(provider_mode="live", allow_paid_providers=True)
+    assert paid.entry("higgsfield").status == ProviderStatus.DISABLED
+    paid.set("higgsfield", enabled=True)
+    entry = paid.entry("higgsfield")
+    assert entry.status == ProviderStatus.MISSING_KEY
+    assert entry.status_detail == "Sign in to Higgsfield" and entry.auth_method == "oauth"
+    paid.secrets.put(T, "higgsfield", '{"access_token": "secret-token-value"}')
+    entry = paid.entry("higgsfield")
+    assert entry.status == ProviderStatus.READY and entry.key_hint == "connected"
+    assert paid.registry.route(C.IMAGE_TO_VIDEO, tenant_id=T).info.name == "higgsfield"
+    assert paid.http.requests == []
+
+
 def test_disabled_free_provider_and_not_ready_errors() -> None:
     env = Env(provider_mode="live")
     env.set("wikipedia", enabled=False)
