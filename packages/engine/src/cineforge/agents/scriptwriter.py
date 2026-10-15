@@ -8,8 +8,9 @@ dramatized for the hook only), per-line word budget, and the theme's call to act
 from __future__ import annotations
 
 from cineforge.agents.base import BaseAgent
-from cineforge.agents.drafts import ScriptDraft
+from cineforge.agents.drafts import ScriptDraft, VlogScriptDraft
 from cineforge.agents.planning import beats_for_scenes, word_budget
+from cineforge.agents.vlog import build_vlog_script, max_dialogue_words, vlog_prompt
 from cineforge.contracts.agents import (
     AgentContext,
     ClaimStatus,
@@ -19,6 +20,7 @@ from cineforge.contracts.agents import (
     ScriptLine,
     StoryBeat,
 )
+from cineforge.contracts.character import CharacterProfile
 from cineforge.contracts.common import AgentId
 
 _PURPOSES = {
@@ -61,6 +63,8 @@ class ScriptwriterAgent(BaseAgent):
     output_model = Script
 
     def execute(self, ctx: AgentContext, payload: ScriptInput) -> Script:
+        if ctx.theme.production.fully_generative and payload.character is not None:
+            return self._vlog(ctx, payload, payload.character)
         topic = payload.brief.topic
         theme = ctx.theme
         beats = beats_for_scenes(theme.narrative.story_beats, payload.scene_count)
@@ -139,4 +143,51 @@ class ScriptwriterAgent(BaseAgent):
             cta=theme.narrative.cta,
             word_count=word_count,
             estimated_duration_sec=payload.duration_target_sec,
+        )
+
+    def _vlog(self, ctx: AgentContext, payload: ScriptInput, character: CharacterProfile) -> Script:
+        theme = ctx.theme
+        rules = theme.production.generative
+        assert rules is not None
+        beats = beats_for_scenes(theme.narrative.story_beats, payload.scene_count)
+        excluded = set(payload.excluded_claim_ids)
+        usable = [
+            c for c in payload.research.claims if c.status in _USABLE and c.id not in excluded
+        ]
+        prompt = vlog_prompt(
+            topic=payload.brief.topic,
+            character=character,
+            theme=theme,
+            beats=beats,
+            claims=usable,
+            max_words=max_dialogue_words(rules),
+            scene_count=payload.scene_count,
+            duration_sec=payload.duration_target_sec,
+        )
+        self.render_prompt(
+            ctx,
+            topic=payload.brief.topic,
+            logline=payload.treatment.logline,
+            narrative_style=payload.treatment.narrative_style,
+            hook_strategy=theme.narrative.hook_strategy,
+            beats=", ".join(beats),
+            scene_count=payload.scene_count,
+            duration_sec=payload.duration_target_sec,
+            word_budget=word_budget(payload.duration_target_sec),
+            words_per_line=max_dialogue_words(rules),
+            claims=str(len(usable)),
+            cta=theme.narrative.cta or "none",
+        )
+        draft = self.structured(ctx, VlogScriptDraft, prompt, scope="vlog-script", max_tokens=2500)
+        if draft is None:
+            self._llm(ctx, prompt, "vlog-script", max_tokens=1200)
+        return build_vlog_script(
+            topic=payload.brief.topic,
+            logline=payload.treatment.logline,
+            theme=theme,
+            character=character,
+            claims=payload.research.claims,
+            excluded=excluded,
+            scene_count=payload.scene_count,
+            draft=draft,
         )

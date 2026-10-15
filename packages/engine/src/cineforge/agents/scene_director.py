@@ -19,6 +19,7 @@ from cineforge.agents.base import BaseAgent
 from cineforge.agents.drafts import SceneDraft, ShotDraft, StoryboardDraft
 from cineforge.agents.planning import split_centis, stable_int
 from cineforge.agents.prompts import PromptTemplate
+from cineforge.agents.vlog import build_vlog_scenes
 from cineforge.contracts.agents import AgentContext, SceneDirectionInput, SceneGraph
 from cineforge.contracts.common import AgentId, GenerationStrategy
 from cineforge.contracts.manifest import (
@@ -67,6 +68,24 @@ class SceneDirectorAgent(BaseAgent):
     output_model = SceneGraph
 
     def execute(self, ctx: AgentContext, payload: SceneDirectionInput) -> SceneGraph:
+        if ctx.theme.production.fully_generative and payload.character is not None:
+            self.render_prompt(
+                ctx,
+                logline=payload.script.logline,
+                scene_count=len({ln.scene_order for ln in payload.script.lines}),
+                duration_sec=payload.script.estimated_duration_sec,
+                max_shots=payload.max_shots_per_scene,
+                camera_grammar=", ".join(ctx.theme.direction.camera_grammar),
+                lighting=", ".join(ctx.theme.direction.lighting) or "natural",
+                atmosphere=", ".join(ctx.theme.direction.atmosphere) or "neutral",
+                mode=payload.mode_policy.mode.value,
+                generative_ratio=1.0,
+                allowed_strategies="generative",
+                lines="\n".join(f"{ln.kind}: {ln.text}" for ln in payload.script.lines),
+            )
+            return build_vlog_scenes(
+                script=payload.script, theme=ctx.theme, character=payload.character
+            )
         theme = ctx.theme
         policy = payload.mode_policy
         output = payload.output

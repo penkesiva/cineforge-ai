@@ -57,6 +57,27 @@ class ScriptDraft(_Draft):
     lines: list[LineDraft] = Field(min_length=1, max_length=12)
 
 
+class VlogBeatDraft(_Draft):
+    scene_order: int = Field(ge=1)
+    kind: Literal["dialogue", "broll"] = Field(
+        description="dialogue = host talks to camera; broll = what she films, nothing spoken"
+    )
+    text: str = Field(
+        min_length=3,
+        max_length=300,
+        description="dialogue: the exact words she says; broll: a 3-8 word caption",
+    )
+    visual: str = Field(
+        min_length=5, max_length=300, description="What the camera sees, concrete and visual"
+    )
+    claim_ids: list[str] = Field(default_factory=list, max_length=2)
+
+
+class VlogScriptDraft(_Draft):
+    hook: str = Field(min_length=5, max_length=200, description="Her first spoken line")
+    beats: list[VlogBeatDraft] = Field(min_length=2, max_length=16)
+
+
 # --------------------------------------------------------------------------- A6
 class ShotDraft(_Draft):
     description: str = Field(min_length=5, max_length=240)

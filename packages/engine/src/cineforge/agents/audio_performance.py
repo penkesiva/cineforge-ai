@@ -26,6 +26,8 @@ class AudioPerformanceAgent(BaseAgent):
     output_model = AudioPackage
 
     def execute(self, ctx: AgentContext, payload: AudioInput) -> AudioPackage:
+        if payload.dialogue_shot_id:
+            return self._dialogue(ctx, payload, payload.dialogue_shot_id)
         theme = ctx.theme
         self.render_prompt(
             ctx,
@@ -118,3 +120,59 @@ class AudioPerformanceAgent(BaseAgent):
             )
         )
         return AudioPackage(tracks=tracks, alignments=alignments)
+
+    def _dialogue(self, ctx: AgentContext, payload: AudioInput, shot_id: str) -> AudioPackage:
+        """One host line (A-roll ``dialogue_text``) in the character's fixed voice."""
+        scene, shot = next(
+            ((sc, sh) for sc in payload.scenes for sh in sc.shots if sh.id == shot_id),
+            (None, None),
+        )
+        if scene is None or shot is None or not shot.audio.dialogue_text:
+            raise ValueError(f"shot {shot_id} has no dialogue line")
+        voice = payload.voice or {}
+        text = shot.audio.dialogue_text
+        self.render_prompt(
+            ctx,
+            voice=voice.get("voice_name") or voice.get("voice_id") or ctx.theme.performance.voice,
+            language=payload.language,
+            accent=ctx.theme.performance.accent or "neutral",
+            sound_palette=", ".join(ctx.theme.direction.sound_palette),
+            scene_count=1,
+        )
+        params = {
+            "language": payload.language,
+            "characters": len(text),
+            "duration_sec": shot.duration_sec,
+        }
+        if voice.get("voice_id"):
+            params |= {
+                "voice_type": voice.get("voice_type", "preset"),
+                "voice_id": voice["voice_id"],
+            }
+        response, event = self.call_provider(
+            ctx,
+            C.VOICE_TTS,
+            sub_scope=f"line-{shot.id}",
+            provider_name=voice.get("provider"),
+            model=voice.get("model"),
+            prompt=text,
+            scene_id=scene.id,
+            shot_id=shot.id,
+            parameters=params,
+        )
+        track = AudioTrack(
+            id=f"audio_dialogue_{shot.id}",
+            kind="dialogue",
+            scene_id=scene.id,
+            shot_id=shot.id,
+            asset_id=response.output_asset_id,
+            duration_sec=shot.duration_sec,
+            provider=response.provider,
+            model=response.model,
+            cost=event.actual_cost,
+            ledger_event_id=event.event_id,
+            output_url=response.output_data.get("result_url"),
+            text=text,
+        )
+        alignment = AlignmentRef(shot_id=shot.id, audio_track_id=track.id, method="lip_sync")
+        return AudioPackage(tracks=[track], alignments=[alignment])
