@@ -41,8 +41,16 @@ class Settings(BaseSettings):
     allow_paid_providers: bool = False
     # Comma-separated catalog versions, merged (packages/configurations/pricing/<v>.yaml).
     price_catalog_version: str = (
-        "mock-2026-10,open-sources-2026-10,anthropic-2026-10,higgsfield-2026-10"
+        "mock-2026-10,open-sources-2026-10,anthropic-2026-10,higgsfield-2026-10,higgsfield-2026-10b"
     )
+    # Higgsfield through its MCP server, billed to the tenant's plan credits. Sign-in is
+    # OAuth from the Sources page; tokens live in the secret store, never in .env or Git.
+    higgsfield_mcp_url: str = "https://mcp.higgsfield.ai/mcp"
+    higgsfield_job_timeout_sec: float = Field(default=900, gt=0, le=3600)
+    higgsfield_poll_sec: float = Field(default=8, gt=0, le=60)
+    # Public base URLs for OAuth redirects (the stack binds to 127.0.0.1 only).
+    api_public_url: str = "http://127.0.0.1:8000"
+    dashboard_url: str = "http://localhost:3000"
     # Where API keys entered on the Sources page live. vault = Supabase Vault (encrypted in
     # Postgres, shared by api + workers); memory = per-process (tests only).
     secrets_backend: Literal["vault", "memory"] = "vault"

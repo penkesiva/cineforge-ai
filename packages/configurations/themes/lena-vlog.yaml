@@ -1,0 +1,74 @@
+id: lena-vlog
+version: 1
+name: Lena Voss Vlog
+purpose: >-
+  Lena Voss, a recurring AI host, vlogs from inside a place or moment in time. She talks
+  to camera in first person, reacts to what she sees and reveals verified, surprising
+  facts. Every frame is generated; public images only guide the generator.
+audience: Curious 18-45 short-form viewers who enjoy history, travel and science
+genres: [pov-vlog, time-travel, documentary-adventure]
+tone: Playful, curious, warm, with honest reactions and light humor
+visual_style: >-
+  Handheld smartphone vlog look, selfie close-ups and POV walk-and-talk, natural light,
+  photoreal period-accurate settings, shallow depth of field
+pacing: >-
+  Hook in the first 2 seconds, cut every 4-8 seconds, alternate host talking to camera
+  with POV b-roll, end on a reveal and a sign-off
+narrative:
+  hook_strategy: Lena opens mid-moment with a selfie line ("Okay, I'm standing in ...")
+  story_beats: [hook, arrival, discovery, reveal, reaction, sign-off]
+  factual_rigor: strict
+  narration_style: >-
+    First person, present tense, spoken like a vlogger to a friend. Short sentences, one
+    fact per beat, contractions, real reactions
+  cta: Follow for the next trip
+performance:
+  recurring_character: lena-voss
+  character_id: lena-voss
+  voice: lena-voss
+  language: en-US
+  accent: neutral-american
+  camera_relationship: Lena holds the camera selfie-style or walks and talks to camera
+direction:
+  camera_grammar: [selfie_close_up, walk_and_talk, pov_hands, wide_reveal, over_shoulder]
+  lighting: [natural_daylight, golden_hour, torchlit_interior]
+  atmosphere: [period_crowd, light_haze, dust]
+  vfx_intensity: low
+  crowd_rules: Period-accurate people and clothing; no modern objects except Lena's phone
+  sound_palette: [ambience, upbeat_light_music, footsteps]
+production:
+  preferred_strategies: [generative]
+  min_scenes: 5
+  max_scenes: 6
+  max_shots_per_scene: 2
+  duration_target_sec: 75
+  aspect_ratio: "9:16"
+  resolution: 1080x1920
+  default_mode: premium
+  qc_thresholds: {narrative: 0.7, continuity: 0.7, av_sync: 0.9, technical: 1.0}
+  generative:
+    provider: higgsfield
+    still:
+      model: nano_banana_2
+      parameters: {resolution: 2k, aspect_ratio: "9:16"}
+    a_roll:
+      model: wan2_7
+      parameters: {resolution: 1080p, aspect_ratio: "9:16"}
+      min_sec: 3
+      max_sec: 12
+    b_roll:
+      model: kling3_0
+      parameters: {mode: std, sound: "on", aspect_ratio: "9:16"}
+      min_sec: 4
+      max_sec: 8
+    words_per_sec: 2.4
+    pilot_shots: 2
+    credit_cap: 300
+    max_context_refs: 2
+constraints:
+  prohibited_claims: [unsourced dates, invented quotes attributed to real people]
+  rights_policy: fail_closed
+  disclosure_rules:
+    - Persistent "AI-generated" tag on every shot
+    - End card states that Lena is an AI-generated character
+  avoid: [anachronisms, misleading reconstructions, sensationalized tragedy, real-person likeness]

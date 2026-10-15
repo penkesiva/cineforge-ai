@@ -52,6 +52,10 @@ RESPONSE_MODELS: list[type[BaseModel]] = [
     api.ProviderTestResult,
     api.GenerationPack,
     api.ExternalGenerationResponse,
+    api.StageQuote,
+    api.OAuthStartResponse,
+    api.ConnectorStatus,
+    api.CharacterSummary,
     wf.ProductionEvent,
 ]
 
@@ -67,6 +71,7 @@ REQUEST_MODELS: list[type[BaseModel]] = [
     api.ExternalGenerationComplete,
     api.ExternalGenerationRelease,
     api.RenderRequest,
+    api.RegenerateShotRequest,
 ]
 
 

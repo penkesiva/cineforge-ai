@@ -77,7 +77,12 @@ def test_agents_themes_modes_pricing(api) -> None:
     agents = api.client.get("/api/v1/agents").json()
     assert [a["code"] for a in agents] == [f"A{i}" for i in range(1, 11)]
     themes = api.client.get("/api/v1/themes").json()
-    assert {t["id"] for t in themes} == {"time-traveler", "mystery-explorer", "fascinating-places"}
+    assert {t["id"] for t in themes} == {
+        "time-traveler",
+        "mystery-explorer",
+        "fascinating-places",
+        "lena-vlog",
+    }
     theme = api.client.get("/api/v1/themes/time-traveler").json()
     assert theme["narrative"]["story_beats"][0] == "hook"
     missing = api.client.get("/api/v1/themes/nope")

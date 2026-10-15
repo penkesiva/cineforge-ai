@@ -11,7 +11,13 @@ from pathlib import Path
 
 import pytest
 from cineforge.config import Settings
-from cineforge.configuration import get_theme, load_mode_policies, theme_summaries
+from cineforge.configuration import (
+    CharacterNotFoundError,
+    get_character,
+    get_theme,
+    load_mode_policies,
+    theme_summaries,
+)
 from cineforge.contracts.agents import AGENT_DEFINITIONS
 from cineforge.contracts.common import AgentId, ProductionMode, money
 from cineforge.contracts.manifest import ProductionManifest
@@ -129,11 +135,35 @@ def test_configurations_load() -> None:
         "time-traveler",
         "mystery-explorer",
         "fascinating-places",
+        "lena-vlog",
     }
     assert get_theme(cfg, "time-traveler").version == 1
     modes = load_mode_policies(cfg)
     assert set(modes) == set(ProductionMode)
     assert modes[ProductionMode.BALANCED].default_budget_usd == Decimal("10")
+
+
+def test_vlog_theme_and_character_load() -> None:
+    cfg = Settings().configurations_dir
+    theme = get_theme(cfg, "lena-vlog")
+    assert theme.production.fully_generative
+    assert not get_theme(cfg, "time-traveler").production.fully_generative
+    gen = theme.production.generative
+    assert gen is not None and gen.provider == "higgsfield"
+    assert (gen.still.model, gen.a_roll.model, gen.b_roll.model) == (
+        "nano_banana_2",
+        "wan2_7",
+        "kling3_0",
+    )
+    lena = get_character(cfg, theme.performance.character_id or "")
+    assert lena.element_for("higgsfield") == "01288044-0746-4b24-8fa8-bea17c4a9233"
+    assert len(lena.voice.candidates) == 11
+    with pytest.raises(CharacterNotFoundError):
+        get_character(cfg, "nobody")
+
+
+def test_generating_can_stop_at_a_stage_gate() -> None:
+    assert can_transition(ProductionState.GENERATING, ProductionState.AWAITING_APPROVAL)
 
 
 def test_money_quantizes() -> None:

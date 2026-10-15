@@ -34,7 +34,7 @@ x-python-service: &python-service
     # + paid allowed + provider enabled on the Sources page + key + budget.
     PROVIDER_MODE: ${PROVIDER_MODE:-mock}
     ALLOW_PAID_PROVIDERS: ${ALLOW_PAID_PROVIDERS:-false}
-    PRICE_CATALOG_VERSION: ${PRICE_CATALOG_VERSION:-mock-2026-10,open-sources-2026-10,anthropic-2026-10,higgsfield-2026-10}
+    PRICE_CATALOG_VERSION: ${PRICE_CATALOG_VERSION:-mock-2026-10,open-sources-2026-10,anthropic-2026-10,higgsfield-2026-10,higgsfield-2026-10b}
     # Keys entered on the Sources page live in Supabase Vault (shared by api + workers).
     SECRETS_BACKEND: vault
     # Optional: an env key wins over a Vault key. Empty = use the Sources page.

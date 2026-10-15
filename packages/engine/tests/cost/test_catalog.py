@@ -17,8 +17,8 @@ def catalog() -> YamlPriceCatalog:
 
 def test_loads_all_entries(catalog: YamlPriceCatalog) -> None:
     assert isinstance(catalog, PriceCatalog)
-    assert (
-        catalog.version == "mock-2026-10+open-sources-2026-10+anthropic-2026-10+higgsfield-2026-10"
+    assert catalog.version == (
+        "mock-2026-10+open-sources-2026-10+anthropic-2026-10+higgsfield-2026-10+higgsfield-2026-10b"
     )
     assert catalog.simulated is False
     entries = catalog.entries()
@@ -28,12 +28,13 @@ def test_loads_all_entries(catalog: YamlPriceCatalog) -> None:
         "open-sources-2026-10",
         "anthropic-2026-10",
         "higgsfield-2026-10",
+        "higgsfield-2026-10b",
     }
     assert all(isinstance(e.unit_price, Decimal) for e in entries)
 
 
 def test_higgsfield_prices_are_per_credit(catalog: YamlPriceCatalog) -> None:
-    for model in ("kling2_6", "seed_audio"):
+    for model in ("kling2_6", "seed_audio", "nano_banana_2", "wan2_7", "kling3_0"):
         entry = catalog.get("higgsfield", model, PriceUnit.CREDIT)
         assert entry.unit_price == Decimal("0.043")
         assert entry.credits_per_unit == Decimal(1)

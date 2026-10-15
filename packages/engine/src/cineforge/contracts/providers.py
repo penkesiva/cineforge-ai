@@ -71,6 +71,9 @@ class ProviderInfo(ContractModel):
     requires_key: bool = False
     key_env_var: str | None = None
     docs_url: str | None = None
+    auth_method: Literal["api_key", "oauth"] = Field(
+        default="api_key", description="oauth: the stored 'key' is a token set from sign-in"
+    )
 
 
 class ProviderRequest(ContractModel):
@@ -202,6 +205,7 @@ class ProviderCatalogEntry(ContractModel):
     requires_key: bool = False
     key_env_var: str | None = None
     docs_url: str | None = None
+    auth_method: Literal["api_key", "oauth"] = "api_key"
     planned_phase: str | None = Field(
         default=None, description="Set for providers listed but not implemented yet"
     )

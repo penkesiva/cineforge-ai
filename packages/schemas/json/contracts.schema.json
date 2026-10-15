@@ -79,6 +79,18 @@
     "ExternalGenerationResponse": {
       "$ref": "#/$defs/ExternalGenerationResponse"
     },
+    "StageQuote": {
+      "$ref": "#/$defs/StageQuote"
+    },
+    "OAuthStartResponse": {
+      "$ref": "#/$defs/OAuthStartResponse"
+    },
+    "ConnectorStatus": {
+      "$ref": "#/$defs/ConnectorStatus"
+    },
+    "CharacterSummary": {
+      "$ref": "#/$defs/CharacterSummary"
+    },
     "ProductionEvent": {
       "$ref": "#/$defs/ProductionEvent"
     },
@@ -111,6 +123,9 @@
     },
     "RenderRequest": {
       "$ref": "#/$defs/RenderRequest"
+    },
+    "RegenerateShotRequest": {
+      "$ref": "#/$defs/RegenerateShotRequest"
     }
   },
   "$defs": {
@@ -452,6 +467,17 @@
       },
       "title": "ApprovalPolicy",
       "type": "object"
+    },
+    "ApprovalStage": {
+      "description": "Gates of a fully generative production, cheapest first.",
+      "enum": [
+        "script",
+        "preview",
+        "pilot",
+        "final"
+      ],
+      "title": "ApprovalStage",
+      "type": "string"
     },
     "ApproveProductionRequest": {
       "additionalProperties": false,
@@ -897,6 +923,19 @@
           "default": null,
           "title": "Dialogue Ref"
         },
+        "dialogue_text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What the on-camera host says in this shot (A-roll)",
+          "title": "Dialogue Text"
+        },
         "narration_text": {
           "anyOf": [
             {
@@ -1099,6 +1138,93 @@
       "title": "CaptionTrack",
       "type": "object"
     },
+    "CharacterSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "version": {
+          "title": "Version",
+          "type": "integer"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "look": {
+          "title": "Look",
+          "type": "string"
+        },
+        "wardrobe": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Wardrobe"
+        },
+        "personality": {
+          "default": "",
+          "title": "Personality",
+          "type": "string"
+        },
+        "elements": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Elements",
+          "type": "object"
+        },
+        "voice_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Voice Id"
+        },
+        "voice_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Voice Name"
+        },
+        "voice_candidates": {
+          "items": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "title": "Voice Candidates",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "name",
+        "look"
+      ],
+      "title": "CharacterSummary",
+      "type": "object"
+    },
     "ClaimDecision": {
       "additionalProperties": false,
       "properties": {
@@ -1192,6 +1318,42 @@
       ],
       "title": "ClaimStatus",
       "type": "string"
+    },
+    "ConnectorStatus": {
+      "additionalProperties": false,
+      "properties": {
+        "provider": {
+          "title": "Provider",
+          "type": "string"
+        },
+        "connected": {
+          "title": "Connected",
+          "type": "boolean"
+        },
+        "balance_credits": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Balance Credits"
+        },
+        "detail": {
+          "default": "",
+          "title": "Detail",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "connected"
+      ],
+      "title": "ConnectorStatus",
+      "type": "object"
     },
     "ConstraintRules": {
       "additionalProperties": false,
@@ -2506,6 +2668,109 @@
       "title": "GenerationStrategy",
       "type": "string"
     },
+    "GenerativeModel": {
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "parameters": {
+          "additionalProperties": true,
+          "title": "Parameters",
+          "type": "object"
+        },
+        "min_sec": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min Sec"
+        },
+        "max_sec": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Sec"
+        }
+      },
+      "required": [
+        "model"
+      ],
+      "title": "GenerativeModel",
+      "type": "object"
+    },
+    "GenerativeRules": {
+      "additionalProperties": false,
+      "description": "Fully generative productions: every frame is generated; licensed or public media\nonly steer the generator as context references and never appear on screen.",
+      "properties": {
+        "provider": {
+          "default": "higgsfield",
+          "title": "Provider",
+          "type": "string"
+        },
+        "still": {
+          "$ref": "#/$defs/GenerativeModel",
+          "description": "Storyboard frame (start image) per shot"
+        },
+        "a_roll": {
+          "$ref": "#/$defs/GenerativeModel",
+          "description": "Host talking to camera, lip-synced"
+        },
+        "b_roll": {
+          "$ref": "#/$defs/GenerativeModel",
+          "description": "POV / cutaway footage with ambience"
+        },
+        "words_per_sec": {
+          "default": 2.4,
+          "exclusiveMinimum": 0,
+          "maximum": 5,
+          "title": "Words Per Sec",
+          "type": "number"
+        },
+        "pilot_shots": {
+          "default": 2,
+          "maximum": 4,
+          "minimum": 0,
+          "title": "Pilot Shots",
+          "type": "integer"
+        },
+        "credit_cap": {
+          "default": 300,
+          "description": "Provider credits per production",
+          "exclusiveMinimum": 0,
+          "title": "Credit Cap",
+          "type": "integer"
+        },
+        "max_context_refs": {
+          "default": 2,
+          "maximum": 6,
+          "minimum": 0,
+          "title": "Max Context Refs",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "still",
+        "a_roll",
+        "b_roll"
+      ],
+      "title": "GenerativeRules",
+      "type": "object"
+    },
     "HealthResponse": {
       "additionalProperties": false,
       "properties": {
@@ -3003,6 +3268,25 @@
       "title": "NarrativeRules",
       "type": "object"
     },
+    "OAuthStartResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "provider": {
+          "title": "Provider",
+          "type": "string"
+        },
+        "authorize_url": {
+          "title": "Authorize Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "authorize_url"
+      ],
+      "title": "OAuthStartResponse",
+      "type": "object"
+    },
     "OutputProfile": {
       "additionalProperties": false,
       "properties": {
@@ -3087,6 +3371,19 @@
           ],
           "default": null,
           "title": "Recurring Character"
+        },
+        "character_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "CharacterProfile id of the on-camera host, if any",
+          "title": "Character Id"
         },
         "voice": {
           "title": "Voice",
@@ -3567,6 +3864,30 @@
         "approval": {
           "$ref": "#/$defs/ApprovalPolicy"
         },
+        "approval_stage": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ApprovalStage"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Current gate of a fully generative production"
+        },
+        "character_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Character Id"
+        },
         "character_bible_ref": {
           "anyOf": [
             {
@@ -3882,6 +4203,18 @@
           },
           "title": "Qc Thresholds",
           "type": "object"
+        },
+        "generative": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GenerativeRules"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Set for fully generative themes (host-led vlogs)"
         }
       },
       "required": [
@@ -3955,6 +4288,18 @@
           "minimum": 0,
           "title": "Progress Pct",
           "type": "integer"
+        },
+        "approval_stage": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Approval Stage"
         },
         "scene_count": {
           "title": "Scene Count",
@@ -4191,6 +4536,15 @@
           "default": null,
           "title": "Docs Url"
         },
+        "auth_method": {
+          "default": "api_key",
+          "enum": [
+            "api_key",
+            "oauth"
+          ],
+          "title": "Auth Method",
+          "type": "string"
+        },
         "planned_phase": {
           "anyOf": [
             {
@@ -4318,6 +4672,16 @@
           ],
           "default": null,
           "title": "Docs Url"
+        },
+        "auth_method": {
+          "default": "api_key",
+          "description": "oauth: the stored 'key' is a token set from sign-in",
+          "enum": [
+            "api_key",
+            "oauth"
+          ],
+          "title": "Auth Method",
+          "type": "string"
         }
       },
       "required": [
@@ -4535,6 +4899,58 @@
         "groups"
       ],
       "title": "ProvidersOverview",
+      "type": "object"
+    },
+    "RegenerateShotRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "target": {
+          "enum": [
+            "still",
+            "voice",
+            "clip"
+          ],
+          "title": "Target",
+          "type": "string"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "maxLength": 1000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What to change, added to the prompt",
+          "title": "Note"
+        },
+        "dialogue_text": {
+          "anyOf": [
+            {
+              "maxLength": 600,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "New line for voice redo (A-roll only)",
+          "title": "Dialogue Text"
+        },
+        "requested_by": {
+          "default": "operator",
+          "title": "Requested By",
+          "type": "string"
+        }
+      },
+      "required": [
+        "target"
+      ],
+      "title": "RegenerateShotRequest",
       "type": "object"
     },
     "RenderRequest": {
@@ -5026,6 +5442,30 @@
           "default": false,
           "title": "Dramatized",
           "type": "boolean"
+        },
+        "kind": {
+          "default": "narration",
+          "description": "dialogue = host on camera says text; broll = visual beat, text unspoken",
+          "enum": [
+            "narration",
+            "dialogue",
+            "broll"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "visual": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What the camera sees (vlog themes)",
+          "title": "Visual"
         }
       },
       "required": [
@@ -5078,6 +5518,10 @@
           "exclusiveMinimum": 0,
           "title": "Duration Sec",
           "type": "number"
+        },
+        "kind": {
+          "$ref": "#/$defs/ShotKind",
+          "default": "standard"
         },
         "description": {
           "default": "",
@@ -5169,6 +5613,15 @@
       ],
       "title": "Shot",
       "type": "object"
+    },
+    "ShotKind": {
+      "enum": [
+        "standard",
+        "a_roll",
+        "b_roll"
+      ],
+      "title": "ShotKind",
+      "type": "string"
     },
     "Soundtrack": {
       "additionalProperties": false,
@@ -5278,6 +5731,55 @@
         "title"
       ],
       "title": "SourceCitation",
+      "type": "object"
+    },
+    "StageQuote": {
+      "additionalProperties": false,
+      "description": "Credits the next gate will spend, before the operator approves it.",
+      "properties": {
+        "stage": {
+          "title": "Stage",
+          "type": "string"
+        },
+        "items": {
+          "minimum": 0,
+          "title": "Items",
+          "type": "integer"
+        },
+        "credits": {
+          "title": "Credits",
+          "type": "string"
+        },
+        "usd": {
+          "title": "Usd",
+          "type": "number"
+        },
+        "credits_used": {
+          "description": "Provider credits used so far",
+          "title": "Credits Used",
+          "type": "string"
+        },
+        "credit_cap": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Credit Cap"
+        }
+      },
+      "required": [
+        "stage",
+        "items",
+        "credits",
+        "usd",
+        "credits_used"
+      ],
+      "title": "StageQuote",
       "type": "object"
     },
     "StoryBeat": {
@@ -5674,6 +6176,7 @@
         "CANCELLED"
       ],
       "GENERATING": [
+        "AWAITING_APPROVAL",
         "ASSEMBLING",
         "PAUSED_BUDGET",
         "NEEDS_REVIEW",

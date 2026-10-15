@@ -7,6 +7,7 @@ from pathlib import Path
 
 import yaml
 
+from cineforge.contracts.character import CharacterProfile
 from cineforge.contracts.common import ProductionMode
 from cineforge.contracts.theme import ProductionModePolicy, ThemeProfile, ThemeSummary
 
@@ -50,6 +51,28 @@ def theme_summaries(configurations_dir: Path) -> list[ThemeSummary]:
         )
         for t in sorted(latest.values(), key=lambda t: t.id)
     ]
+
+
+class CharacterNotFoundError(LookupError):
+    pass
+
+
+@lru_cache(maxsize=8)
+def load_characters(configurations_dir: Path) -> dict[str, CharacterProfile]:
+    """Latest version per character id from ``characters/*.yaml``."""
+    latest: dict[str, CharacterProfile] = {}
+    for path in sorted((configurations_dir / "characters").glob("*.yaml")):
+        profile = CharacterProfile.model_validate(yaml.safe_load(path.read_text()))
+        if profile.id not in latest or profile.version > latest[profile.id].version:
+            latest[profile.id] = profile
+    return latest
+
+
+def get_character(configurations_dir: Path, character_id: str) -> CharacterProfile:
+    try:
+        return load_characters(configurations_dir)[character_id]
+    except KeyError:
+        raise CharacterNotFoundError(f"character {character_id!r} not found") from None
 
 
 @lru_cache(maxsize=8)

@@ -1,0 +1,13 @@
+# Higgsfield plan credits, second set: models for fully generative vlogs.
+# Same unit price as higgsfield-2026-10 ($0.043 per credit). Quantities are the
+# provider's credit quote per call (get_cost), so usage_units == credits.
+# Never edit after use; add a new versioned file instead.
+version: higgsfield-2026-10b
+currency: USD
+effective_from: 2026-10-14
+simulated: false
+entries:
+  - {provider: higgsfield, model: nano_banana_2, capability: image_generation, unit: credit, unit_price: 0.043, credits_per_unit: 1, notes: "Nano Banana 2 still, 2K 9:16 with references; 2 credits (quote 2026-10-14)"}
+  - {provider: higgsfield, model: wan2_7, capability: image_to_video, unit: credit, unit_price: 0.043, credits_per_unit: 1, notes: "Wan 2.7 start image + audio reference lip-sync; 20 credits per 8 s at 1080p (quote 2026-10-14)"}
+  - {provider: higgsfield, model: kling3_0, capability: image_to_video, unit: credit, unit_price: 0.043, credits_per_unit: 1, notes: "Kling 3.0 std with native sound; 16 credits per 8 s (quote 2026-10-14)"}
+  - {provider: higgsfield, model: seedance_2_0, capability: image_to_video, unit: credit, unit_price: 0.043, credits_per_unit: 1, notes: "Seedance 2.0 720p with audio; 36 credits per 8 s (quote 2026-10-14)"}

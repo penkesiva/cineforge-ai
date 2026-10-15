@@ -67,6 +67,8 @@ def _build_transitions() -> dict[ProductionState, frozenset[ProductionState]]:
             allowed[state] |= {S.PAUSED_BUDGET, S.NEEDS_REVIEW}
     # Targeted repair: QC sends failed shots back to generation.
     allowed[S.REVIEWING].add(S.GENERATING)
+    # Staged gates of fully generative productions (preview, pilot) stop mid-generation.
+    allowed[S.GENERATING].add(S.AWAITING_APPROVAL)
     # Resume after budget approval.
     allowed[S.PAUSED_BUDGET] |= {S.AWAITING_APPROVAL, S.GENERATING, S.ASSEMBLING}
     # Resume after human review, back to any working/gate state.

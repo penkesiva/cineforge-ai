@@ -225,6 +225,11 @@ class ScriptLine(ContractModel):
     text: str
     claim_ids: list[str] = Field(default_factory=list)
     dramatized: bool = False
+    kind: Literal["narration", "dialogue", "broll"] = Field(
+        default="narration",
+        description="dialogue = host on camera says text; broll = visual beat, text unspoken",
+    )
+    visual: str | None = Field(default=None, description="What the camera sees (vlog themes)")
 
 
 class Script(ContractModel):
@@ -250,17 +255,27 @@ class RenderedShotRef(ContractModel):
     attempt: int = Field(default=1, ge=1)
     cost: Money = money(0)
     ledger_event_id: str | None = None
+    stage: Literal["clip", "still"] = "clip"
+    output_url: str | None = Field(
+        default=None, description="Provider CDN URL; the orchestrator downloads and registers"
+    )
+    prompt: str | None = None
+    parameters: dict[str, Any] = Field(default_factory=dict)
 
 
 class AudioTrack(ContractModel):
     id: str
     kind: Literal["narration", "dialogue", "music", "sfx", "ambience"]
     scene_id: str | None = None
+    shot_id: str | None = None
     asset_id: str | None = None
     duration_sec: float = Field(gt=0)
     provider: str
     model: str
     cost: Money = money(0)
+    ledger_event_id: str | None = None
+    output_url: str | None = None
+    text: str | None = None
 
 
 class AlignmentRef(ContractModel):
@@ -352,17 +367,28 @@ class ShotProductionInput(ContractModel):
     shot: Shot
     attempt: int = Field(default=1, ge=1)
     retry_reason: str | None = None
+    stage: Literal["clip", "still"] = Field(
+        default="clip", description="still = storyboard frame; clip = moving shot"
+    )
+    note: str | None = Field(default=None, description="Reviewer note for a regeneration")
 
 
 class AudioInput(ContractModel):
     """The orchestrator calls A8 once per scene (narration/lip-sync) and once for the
-    music bed, so a failed line retries alone instead of rerunning all audio."""
+    music bed, so a failed line retries alone instead of rerunning all audio.
+
+    ``dialogue_shot_id`` switches A8 to one host line (the shot's ``dialogue_text``) in
+    the character's fixed voice."""
 
     scenes: list[Scene]
     script: Script
     language: str = "en-US"
     include_narration: bool = True
     include_music: bool = True
+    dialogue_shot_id: str | None = None
+    voice: dict[str, Any] | None = Field(
+        default=None, description="CharacterVoice fields for dialogue lines"
+    )
 
 
 class ReviewInput(ContractModel):

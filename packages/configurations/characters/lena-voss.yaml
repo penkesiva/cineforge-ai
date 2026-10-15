@@ -1,0 +1,37 @@
+# Lena Voss - recurring AI host (tenant-owned character). Her face comes from the
+# Higgsfield reference element built from images the tenant owns; no image of her is
+# stored in Git. Change the voice by adding version 2, never by editing a used version.
+id: lena-voss
+version: 1
+name: Lena Voss
+look: >-
+  Lena Voss, a woman in her late twenties with warm olive skin, dark brown curly hair
+  worn up in a loose bun with a few loose curls, expressive brown eyes, natural makeup,
+  small gold hoop earrings
+wardrobe: >-
+  Fitted black tank top by default; adapts wardrobe to the era or place she visits
+  while keeping the gold hoops
+personality: >-
+  Curious, witty and warm. Talks to camera like a friend, reacts honestly, loves
+  surprising details, never lectures
+provider_refs:
+  higgsfield: 01288044-0746-4b24-8fa8-bea17c4a9233
+voice:
+  provider: higgsfield
+  model: seed_audio
+  voice_type: preset
+  voice_id: null
+  voice_name: null
+  candidates:
+    - {voice_id: 57ccb351-84d7-54ba-afd4-26b566ca6023, name: Celine}
+    - {voice_id: 8b95a259-62fd-545d-b0f0-7b521a972b6b, name: Elodie}
+    - {voice_id: 7367e919-3069-5a0b-939e-dfb1c0fd91b4, name: Isla}
+    - {voice_id: 64cf4f1a-61c8-5938-9aea-83d12b2e1d13, name: Maeve}
+    - {voice_id: 3c2b83c0-2e0a-5ae8-998a-a5fe71b7eccd, name: Helena}
+    - {voice_id: a3ce02fe-4d3e-55bc-b4d4-a4801b9acdb4, name: Juno}
+    - {voice_id: a00bc7f3-0236-5e76-ac65-90137ce0f5a4, name: Brielle}
+    - {voice_id: d198dc0b-c4e5-5198-aa1d-ecf5ca0927c4, name: Faye}
+    - {voice_id: 1550321e-7f5b-526e-b001-02328b03e9bc, name: Delia}
+    - {voice_id: 8d261e04-3a3a-5853-96fc-0d89cca28bb4, name: Ginger}
+    - {voice_id: 9d3128b8-dd25-5158-9bdb-2e69ac8998b9, name: Giselle}
+disclosure: AI-generated character

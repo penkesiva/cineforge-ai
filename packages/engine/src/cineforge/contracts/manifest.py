@@ -102,6 +102,9 @@ class PerformanceSpec(ContractModel):
 
 class AudioSpec(ContractModel):
     dialogue_ref: str | None = None
+    dialogue_text: str | None = Field(
+        default=None, description="What the on-camera host says in this shot (A-roll)"
+    )
     narration_text: str | None = None
     ambience: str | None = None
     music_cue: str | None = None
@@ -162,10 +165,26 @@ class Disclosure(ContractModel):
     label_text: str | None = None
 
 
+class ShotKind(StrEnum):
+    STANDARD = "standard"
+    A_ROLL = "a_roll"
+    B_ROLL = "b_roll"
+
+
+class ApprovalStage(StrEnum):
+    """Gates of a fully generative production, cheapest first."""
+
+    SCRIPT = "script"
+    PREVIEW = "preview"
+    PILOT = "pilot"
+    FINAL = "final"
+
+
 class Shot(ContractModel):
     id: str
     order: int = Field(ge=1)
     duration_sec: float = Field(gt=0)
+    kind: ShotKind = ShotKind.STANDARD
     description: str = ""
     visual: VisualSpec
     performance: PerformanceSpec = Field(default_factory=PerformanceSpec)
@@ -258,6 +277,10 @@ class ProductionManifest(ContractModel):
     output: OutputProfile = Field(default_factory=OutputProfile)
     budget: BudgetSnapshot
     approval: ApprovalPolicy = Field(default_factory=ApprovalPolicy)
+    approval_stage: ApprovalStage | None = Field(
+        default=None, description="Current gate of a fully generative production"
+    )
+    character_id: str | None = None
     character_bible_ref: str | None = None
     style_bible_ref: str | None = None
     research_brief_ref: str | None = None

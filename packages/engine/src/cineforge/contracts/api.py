@@ -88,6 +88,7 @@ class ProductionSummary(ContractModel):
     mode: ProductionMode
     state: ProductionState
     progress_pct: int = Field(ge=0, le=100)
+    approval_stage: str | None = None
     scene_count: int
     shot_count: int
     currency: str
@@ -287,3 +288,53 @@ class ExternalGenerationResponse(ContractModel):
 class RenderRequest(ContractModel):
     requested_by: str = "operator"
     reason: str | None = Field(default=None, max_length=500)
+
+
+# --------------------------------------------------------------------------- #
+# Fully generative productions (host-led vlogs): staged gates and per-shot redo
+# --------------------------------------------------------------------------- #
+class RegenerateShotRequest(ContractModel):
+    target: Literal["still", "voice", "clip"]
+    note: str | None = Field(
+        default=None, max_length=1000, description="What to change, added to the prompt"
+    )
+    dialogue_text: str | None = Field(
+        default=None, max_length=600, description="New line for voice redo (A-roll only)"
+    )
+    requested_by: str = "operator"
+
+
+class StageQuote(ContractModel):
+    """Credits the next gate will spend, before the operator approves it."""
+
+    stage: str
+    items: int = Field(ge=0)
+    credits: Decimal = Field(ge=0)
+    usd: Money
+    credits_used: Decimal = Field(ge=0, description="Provider credits used so far")
+    credit_cap: Decimal | None = None
+
+
+class OAuthStartResponse(ContractModel):
+    provider: str
+    authorize_url: str
+
+
+class ConnectorStatus(ContractModel):
+    provider: str
+    connected: bool
+    balance_credits: Decimal | None = None
+    detail: str = ""
+
+
+class CharacterSummary(ContractModel):
+    id: str
+    version: int
+    name: str
+    look: str
+    wardrobe: str | None = None
+    personality: str = ""
+    elements: dict[str, str] = Field(default_factory=dict)
+    voice_id: str | None = None
+    voice_name: str | None = None
+    voice_candidates: list[dict[str, str]] = Field(default_factory=list)

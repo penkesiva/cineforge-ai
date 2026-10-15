@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import Field
 
@@ -19,10 +19,34 @@ class NarrativeRules(ContractModel):
 
 class PerformanceRules(ContractModel):
     recurring_character: str | None = None
+    character_id: str | None = Field(
+        default=None, description="CharacterProfile id of the on-camera host, if any"
+    )
     voice: str
     language: str = "en-US"
     accent: str | None = None
     camera_relationship: str = "narrator off-camera"
+
+
+class GenerativeModel(ContractModel):
+    model: str
+    parameters: dict[str, Any] = Field(default_factory=dict)
+    min_sec: float | None = Field(default=None, gt=0)
+    max_sec: float | None = Field(default=None, gt=0)
+
+
+class GenerativeRules(ContractModel):
+    """Fully generative productions: every frame is generated; licensed or public media
+    only steer the generator as context references and never appear on screen."""
+
+    provider: str = "higgsfield"
+    still: GenerativeModel = Field(description="Storyboard frame (start image) per shot")
+    a_roll: GenerativeModel = Field(description="Host talking to camera, lip-synced")
+    b_roll: GenerativeModel = Field(description="POV / cutaway footage with ambience")
+    words_per_sec: float = Field(default=2.4, gt=0, le=5)
+    pilot_shots: int = Field(default=2, ge=0, le=4)
+    credit_cap: int = Field(default=300, gt=0, description="Provider credits per production")
+    max_context_refs: int = Field(default=2, ge=0, le=6)
 
 
 class DirectionRules(ContractModel):
@@ -44,6 +68,13 @@ class ProductionRules(ContractModel):
     resolution: str = "1080x1920"
     default_mode: ProductionMode = ProductionMode.BALANCED
     qc_thresholds: dict[str, float] = Field(default_factory=dict)
+    generative: GenerativeRules | None = Field(
+        default=None, description="Set for fully generative themes (host-led vlogs)"
+    )
+
+    @property
+    def fully_generative(self) -> bool:
+        return self.generative is not None
 
 
 class ConstraintRules(ContractModel):

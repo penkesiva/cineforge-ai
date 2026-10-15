@@ -30,6 +30,18 @@ export type ProductionState =
   | "FAILED"
   | "CANCELLED";
 /**
+ * Gates of a fully generative production, cheapest first.
+ *
+ * This interface was referenced by `CineForgeContracts`'s JSON-Schema
+ * via the `definition` "ApprovalStage".
+ */
+export type ApprovalStage = "script" | "preview" | "pilot" | "final";
+/**
+ * This interface was referenced by `CineForgeContracts`'s JSON-Schema
+ * via the `definition` "ShotKind".
+ */
+export type ShotKind = "standard" | "a_roll" | "b_roll";
+/**
  * This interface was referenced by `CineForgeContracts`'s JSON-Schema
  * via the `definition` "AssetRole".
  */
@@ -188,6 +200,10 @@ export interface CineForgeContracts {
   ProviderTestResult?: ProviderTestResult;
   GenerationPack?: GenerationPack;
   ExternalGenerationResponse?: ExternalGenerationResponse;
+  StageQuote?: StageQuote;
+  OAuthStartResponse?: OAuthStartResponse;
+  ConnectorStatus?: ConnectorStatus;
+  CharacterSummary?: CharacterSummary;
   ProductionEvent?: ProductionEvent;
   CreateProductionRequest?: CreateProductionRequest;
   ApproveProductionRequest?: ApproveProductionRequest;
@@ -199,6 +215,7 @@ export interface CineForgeContracts {
   ExternalGenerationComplete?: ExternalGenerationComplete;
   ExternalGenerationRelease?: ExternalGenerationRelease;
   RenderRequest?: RenderRequest;
+  RegenerateShotRequest?: RegenerateShotRequest;
 }
 /**
  * This interface was referenced by `CineForgeContracts`'s JSON-Schema
@@ -236,6 +253,7 @@ export interface ProductionSummary {
   mode: ProductionMode;
   state: ProductionState;
   progress_pct: number;
+  approval_stage?: string | null;
   scene_count: number;
   shot_count: number;
   currency: string;
@@ -275,6 +293,11 @@ export interface ProductionManifest {
   output?: OutputProfile;
   budget: BudgetSnapshot;
   approval?: ApprovalPolicy;
+  /**
+   * Current gate of a fully generative production
+   */
+  approval_stage?: ApprovalStage | null;
+  character_id?: string | null;
   character_bible_ref?: string | null;
   style_bible_ref?: string | null;
   research_brief_ref?: string | null;
@@ -384,6 +407,7 @@ export interface Shot {
   id: string;
   order: number;
   duration_sec: number;
+  kind?: ShotKind;
   description?: string;
   visual: VisualSpec;
   performance?: PerformanceSpec;
@@ -442,6 +466,10 @@ export interface PerformanceSpec {
  */
 export interface AudioSpec {
   dialogue_ref?: string | null;
+  /**
+   * What the on-camera host says in this shot (A-roll)
+   */
+  dialogue_text?: string | null;
   narration_text?: string | null;
   ambience?: string | null;
   music_cue?: string | null;
@@ -859,6 +887,14 @@ export interface ScriptLine {
   text: string;
   claim_ids?: string[];
   dramatized?: boolean;
+  /**
+   * dialogue = host on camera says text; broll = visual beat, text unspoken
+   */
+  kind?: "narration" | "dialogue" | "broll";
+  /**
+   * What the camera sees (vlog themes)
+   */
+  visual?: string | null;
 }
 /**
  * This interface was referenced by `CineForgeContracts`'s JSON-Schema
@@ -1176,6 +1212,10 @@ export interface NarrativeRules {
  */
 export interface PerformanceRules {
   recurring_character?: string | null;
+  /**
+   * CharacterProfile id of the on-camera host, if any
+   */
+  character_id?: string | null;
   voice: string;
   language?: string;
   accent?: string | null;
@@ -1212,6 +1252,42 @@ export interface ProductionRules {
   qc_thresholds?: {
     [k: string]: number;
   };
+  /**
+   * Set for fully generative themes (host-led vlogs)
+   */
+  generative?: GenerativeRules | null;
+}
+/**
+ * Fully generative productions: every frame is generated; licensed or public media
+ * only steer the generator as context references and never appear on screen.
+ *
+ * This interface was referenced by `CineForgeContracts`'s JSON-Schema
+ * via the `definition` "GenerativeRules".
+ */
+export interface GenerativeRules {
+  provider?: string;
+  still: GenerativeModel;
+  a_roll: GenerativeModel;
+  b_roll: GenerativeModel;
+  words_per_sec?: number;
+  pilot_shots?: number;
+  /**
+   * Provider credits per production
+   */
+  credit_cap?: number;
+  max_context_refs?: number;
+}
+/**
+ * This interface was referenced by `CineForgeContracts`'s JSON-Schema
+ * via the `definition` "GenerativeModel".
+ */
+export interface GenerativeModel {
+  model: string;
+  parameters?: {
+    [k: string]: unknown;
+  };
+  min_sec?: number | null;
+  max_sec?: number | null;
 }
 /**
  * This interface was referenced by `CineForgeContracts`'s JSON-Schema
@@ -1265,6 +1341,10 @@ export interface ProviderInfo {
   requires_key?: boolean;
   key_env_var?: string | null;
   docs_url?: string | null;
+  /**
+   * oauth: the stored 'key' is a token set from sign-in
+   */
+  auth_method?: "api_key" | "oauth";
 }
 /**
  * This interface was referenced by `CineForgeContracts`'s JSON-Schema
@@ -1281,6 +1361,7 @@ export interface ProviderCatalogEntry {
   requires_key?: boolean;
   key_env_var?: string | null;
   docs_url?: string | null;
+  auth_method?: "api_key" | "oauth";
   /**
    * Set for providers listed but not implemented yet
    */
@@ -1414,6 +1495,61 @@ export interface ExternalGenerationResponse {
   production_id: string;
   ledger_event: LedgerEvent;
   asset?: AssetRecord | null;
+}
+/**
+ * Credits the next gate will spend, before the operator approves it.
+ *
+ * This interface was referenced by `CineForgeContracts`'s JSON-Schema
+ * via the `definition` "StageQuote".
+ */
+export interface StageQuote {
+  stage: string;
+  items: number;
+  credits: string;
+  usd: number;
+  /**
+   * Provider credits used so far
+   */
+  credits_used: string;
+  credit_cap?: string | null;
+}
+/**
+ * This interface was referenced by `CineForgeContracts`'s JSON-Schema
+ * via the `definition` "OAuthStartResponse".
+ */
+export interface OAuthStartResponse {
+  provider: string;
+  authorize_url: string;
+}
+/**
+ * This interface was referenced by `CineForgeContracts`'s JSON-Schema
+ * via the `definition` "ConnectorStatus".
+ */
+export interface ConnectorStatus {
+  provider: string;
+  connected: boolean;
+  balance_credits?: string | null;
+  detail?: string;
+}
+/**
+ * This interface was referenced by `CineForgeContracts`'s JSON-Schema
+ * via the `definition` "CharacterSummary".
+ */
+export interface CharacterSummary {
+  id: string;
+  version: number;
+  name: string;
+  look: string;
+  wardrobe?: string | null;
+  personality?: string;
+  elements?: {
+    [k: string]: string;
+  };
+  voice_id?: string | null;
+  voice_name?: string | null;
+  voice_candidates?: {
+    [k: string]: string;
+  }[];
 }
 /**
  * This interface was referenced by `CineForgeContracts`'s JSON-Schema
@@ -1558,6 +1694,22 @@ export interface RenderRequest {
   requested_by?: string;
   reason?: string | null;
 }
+/**
+ * This interface was referenced by `CineForgeContracts`'s JSON-Schema
+ * via the `definition` "RegenerateShotRequest".
+ */
+export interface RegenerateShotRequest {
+  target: "still" | "voice" | "clip";
+  /**
+   * What to change, added to the prompt
+   */
+  note?: string | null;
+  /**
+   * New line for voice redo (A-roll only)
+   */
+  dialogue_text?: string | null;
+  requested_by?: string;
+}
 
 export const PRODUCTION_STATES = ["DRAFT","RESEARCHING","SCRIPTING","STORYBOARDING","AWAITING_APPROVAL","GENERATING","ASSEMBLING","REVIEWING","READY","DELIVERED","PAUSED_BUDGET","NEEDS_REVIEW","FAILED","CANCELLED"] as const;
 export const HAPPY_PATH = ["DRAFT","RESEARCHING","SCRIPTING","STORYBOARDING","AWAITING_APPROVAL","GENERATING","ASSEMBLING","REVIEWING","READY","DELIVERED"] as const;
@@ -1601,6 +1753,7 @@ export const ALLOWED_TRANSITIONS: Record<ProductionState, readonly ProductionSta
     "CANCELLED"
   ],
   "GENERATING": [
+    "AWAITING_APPROVAL",
     "ASSEMBLING",
     "PAUSED_BUDGET",
     "NEEDS_REVIEW",
