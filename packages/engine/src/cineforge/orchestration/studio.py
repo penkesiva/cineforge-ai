@@ -158,11 +158,15 @@ class VlogStudio:
 
     def live(self, m: ProductionManifest, rules: GenerativeRules) -> bool:
         """True when the theme's provider is signed in and paid calls are allowed."""
+        return self._provider_status(m, rules)[0] == ProviderStatus.READY
+
+    def _provider_status(
+        self, m: ProductionManifest, rules: GenerativeRules
+    ) -> tuple[ProviderStatus | None, str]:
         try:
-            status, _ = self.rt.providers.status(rules.provider, m.tenant_id)
+            return self.rt.providers.status(rules.provider, m.tenant_id)
         except LookupError:
-            return False
-        return status == ProviderStatus.READY
+            return None, "not installed"
 
     def voice(self, m: ProductionManifest, live: bool) -> dict[str, Any]:
         persona = self.persona(m)
@@ -186,8 +190,11 @@ class VlogStudio:
             out.append("a shot is still regenerating")
         if self.rt.settings.provider_mode != "live":
             return out
-        if not self.live(m, rules):
-            out.append(f"sign in to {rules.provider} on the Sources page")
+        status, detail = self._provider_status(m, rules)
+        if status == ProviderStatus.DISABLED:
+            out.append(f"enable {rules.provider} on the Sources page")
+        elif status != ProviderStatus.READY:
+            out.append(f"{rules.provider} is not ready ({detail}): sign in on the Sources page")
         persona = self.persona(m)
         if persona is not None and not persona.voice.voice_id:
             out.append(f"choose a voice for {persona.name}")

@@ -37,6 +37,7 @@ from cineforge.contracts.providers import (
     ProviderInfo,
     ProviderRequest,
     ProviderResponse,
+    ProviderStatus,
     ProviderUsage,
 )
 from cineforge.contracts.workflow import ProductionState
@@ -291,9 +292,20 @@ def test_live_mode_blocks_approval_without_sign_in() -> None:
     wf.start(m.production_id, TENANT)
     with pytest.raises(ApprovalBlockedError) as exc:
         _approve(wf, m.production_id)
-    assert "sign in to higgsfield" in str(exc.value)
+    assert "higgsfield is not ready" in str(exc.value)
+    assert "sign in on the Sources page" in str(exc.value)
     assert "choose a voice" not in str(exc.value)
     assert rt.productions.get(m.production_id, TENANT).approval_stage == ApprovalStage.SCRIPT
+
+
+def test_live_mode_names_a_disabled_provider(monkeypatch) -> None:
+    _, fx, wf = _engine(provider_mode="live")
+    disabled = (ProviderStatus.DISABLED, "Disabled on the Sources page")
+    monkeypatch.setattr(type(fx.providers), "status", lambda self, name, tenant: disabled)
+    m = _create(wf)
+    wf.start(m.production_id, TENANT)
+    with pytest.raises(ApprovalBlockedError, match="enable higgsfield on the Sources page"):
+        _approve(wf, m.production_id)
 
 
 def test_live_mode_blocks_approval_without_a_voice(monkeypatch) -> None:
