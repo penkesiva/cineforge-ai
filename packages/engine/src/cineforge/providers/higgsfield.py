@@ -105,6 +105,17 @@ def parse_credits(text: str) -> Decimal | None:
         return None
 
 
+def quote_credits(result: ToolResult) -> Decimal | None:
+    """Credits from a ``get_cost`` reply: structured ``cost.credits`` first, then the text."""
+    cost = result.structured.get("cost") if isinstance(result.structured, dict) else None
+    if isinstance(cost, dict) and isinstance(cost.get("credits"), int | float | str):
+        try:
+            return Decimal(str(cost["credits"]))
+        except InvalidOperation:
+            pass
+    return parse_credits(result.text)
+
+
 def find_job_id(result: ToolResult, exclude: set[str]) -> str | None:
     found = _job_from_structured(result.structured, exclude)
     if found:
@@ -321,10 +332,18 @@ class HiggsfieldProvider:
             params = self._params(request, get_cost=True)
             params.pop("medias", None)
             params.pop("declined_preset_id", None)
-            result = self.call(request.tenant_id, tool, {"params": params, "context": CONTEXT})
-            cached = parse_credits(result.text)
+            args = {"params": params, "context": CONTEXT}
+            result = self.call(request.tenant_id, tool, args)
+            cached = quote_credits(result)
             if cached is None:
-                raise ProviderError("higgsfield: quote returned no credit amount")
+                log.warning("higgsfield quote without credits, retrying: %s", result.text[:300])
+                result = self.call(request.tenant_id, tool, args)
+                cached = quote_credits(result)
+            if cached is None:
+                raise ProviderError(
+                    f"higgsfield: quote returned no credit amount: {result.text[:200]!r}",
+                    retryable=True,
+                )
             self._quotes[request.idempotency_key] = cached
         return ProviderUsage(units=cached, unit=PriceUnit.CREDIT, credits=cached)
 

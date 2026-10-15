@@ -34,6 +34,7 @@ from cineforge.contracts.media import (
 from cineforge.contracts.providers import (
     PriceUnit,
     ProviderCapability,
+    ProviderError,
     ProviderInfo,
     ProviderRequest,
     ProviderResponse,
@@ -43,7 +44,7 @@ from cineforge.contracts.providers import (
 from cineforge.contracts.workflow import ProductionState
 from cineforge.cost.factory import load_price_catalog
 from cineforge.orchestration import external, studio
-from cineforge.orchestration.studio import stage_state
+from cineforge.orchestration.studio import pilot_shots, stage_state
 from cineforge.orchestration.workflow import (
     ApprovalBlockedError,
     InvalidProductionInputError,
@@ -71,6 +72,10 @@ def _create(wf: WorkflowEngine, **kw: Any):
         topic=TOPIC, theme_id="lena-vlog", mode=ProductionMode.PREMIUM, duration_target_sec=75, **kw
     )
     return wf.create_production(req, TENANT)
+
+
+def m_rules(wf: WorkflowEngine, m):
+    return wf.theme_for(m).production.generative
 
 
 def _approve(wf: WorkflowEngine, pid: str):
@@ -490,3 +495,38 @@ def test_create_rejects_unapproved_or_unknown_references_and_long_lines() -> Non
     )
     with pytest.raises(InvalidProductionInputError, match="not fully generative"):
         wf.create_production(req, TENANT)
+
+
+def test_failed_clip_returns_to_the_gate_and_keeps_finished_work(monkeypatch) -> None:
+    rt, fx, wf = _engine()
+    higgs = FakeHiggsfield()
+    real_invoke = higgs.invoke
+    fail = {"b_roll_clip": True}
+
+    def flaky(request: ProviderRequest) -> ProviderResponse:
+        if request.model == "kling3_0" and fail["b_roll_clip"]:
+            fail["b_roll_clip"] = False
+            raise ProviderError("higgsfield: quote returned no credit amount")
+        return real_invoke(request)
+
+    higgs.invoke = flaky  # type: ignore[method-assign]
+    fx.providers.register(higgs)
+    monkeypatch.setattr(external, "store_result", _fake_store(rt))
+    m = _create(wf)
+    pid = m.production_id
+    wf.start(pid, TENANT)
+    _approve(wf, pid)  # preview
+    _approve(wf, pid)  # pilot: the A-roll clip works, the B-roll clip fails
+    m = rt.productions.get(pid, TENANT)
+    assert m.state == S.AWAITING_APPROVAL and m.approval_stage == ApprovalStage.PREVIEW
+    event = rt.productions.events(pid, TENANT)[-1]
+    assert event.event_type == "stage_failed" and "Approve again to retry" in event.message
+    a_roll, b_roll = pilot_shots(m, m_rules(wf, m))
+    assert stage_state(a_roll, "clip").get("done") and not stage_state(b_roll, "clip").get("done")
+    assert wf.stage_quote(pid, TENANT).items == 1
+
+    _approve(wf, pid)  # retry: only the missing clip runs
+    m = rt.productions.get(pid, TENANT)
+    assert m.approval_stage == ApprovalStage.PILOT
+    clips = [r for r in higgs.invocations if r.capability == C.IMAGE_TO_VIDEO]
+    assert [r.model for r in clips] == ["wan2_7", "kling3_0"]

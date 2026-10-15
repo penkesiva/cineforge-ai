@@ -3,14 +3,16 @@
 Gates, cheapest first; each one is a human approval and its quote is shown up front:
 
 - ``script``: script + shot list + credit estimate (LLM only).
-- ``preview``: one storyboard still per shot and one voice line per A-roll shot.
+- ``preview``: one storyboard still per shot and one voice line per spoken shot.
 - ``pilot``: the first A-roll and B-roll clips, to judge motion, lip-sync and sound.
 - ``final``: every remaining clip, then assembly.
 
 Clips animate their approved still (``start_image``); A-roll clips lip-sync to the
 approved voice line (``audio_references``). A redo touches one shot and one stage, and
-invalidates only what was built on it. Approved public images are passed to the image
-model as context references only; they never appear on screen.
+invalidates only what was built on it. A failed provider call returns the production to
+the previous gate with finished work kept; approving again retries what is missing.
+Approved public images are passed to the image model as context references only; they
+never appear on screen.
 """
 
 from __future__ import annotations
@@ -266,7 +268,11 @@ class VlogStudio:
             for shot, call in stage_work(m, rules, stage):
                 self.e._ensure_still(m, S.GENERATING)
                 scene = self._scene_of(m, shot)
-                self.run(m, theme, policy, scene, shot, call)
+                try:
+                    self.run(m, theme, policy, scene, shot, call)
+                except ProviderError as exc:
+                    self.e._sync_costs(m)
+                    return self._back_to_gate(m, stage, shot, call, exc)
                 self.e._sync_costs(m)
                 self.rt.productions.save(m)
         except Exception:
@@ -283,6 +289,20 @@ class VlogStudio:
         message = f"{label} ready for review"
         return StepOutcome(
             m, S.AWAITING_APPROVAL, message, payload, [("stage_ready", message, payload)]
+        )
+
+    @staticmethod
+    def _back_to_gate(
+        m: ProductionManifest, stage: ApprovalStage, shot: Shot, call: str, exc: ProviderError
+    ) -> StepOutcome:
+        """A failed paid call keeps finished work: back to the previous gate, approve to retry."""
+        from cineforge.orchestration.workflow import StepOutcome
+
+        m.approval_stage = STAGE_ORDER[STAGE_ORDER.index(stage) - 1]
+        message = f"{shot.id} {call} failed: {exc}"[:300] + ". Approve again to retry."
+        payload = {"stage": stage.value, "shot_id": shot.id, "call": call, "error": str(exc)[:500]}
+        return StepOutcome(
+            m, S.AWAITING_APPROVAL, message, payload, [("stage_failed", message, payload)]
         )
 
     def run(

@@ -373,6 +373,9 @@ When the provider is not signed in, calls route to the mock providers. In
 `PROVIDER_MODE=live`, approval is refused (409 `approval_blocked`) until the provider is
 signed in, the persona has a voice and the next stage fits the credit cap. A call that
 would pass `credit_cap` pauses the production (`PAUSED_BUDGET`).
+A provider error during a stage keeps the finished work and returns the production to the
+previous gate (`AWAITING_APPROVAL`, event `stage_failed`); approving again retries only the
+missing calls.
 
 ### Redo
 

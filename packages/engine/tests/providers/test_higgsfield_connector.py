@@ -20,6 +20,7 @@ from cineforge.providers.higgsfield import (
     HiggsfieldProvider,
     find_job_id,
     parse_credits,
+    quote_credits,
     result_link,
 )
 from cineforge.providers.mcp import McpClient, ProviderAuthError, ToolResult
@@ -235,6 +236,27 @@ def test_context_urls_are_imported_as_reference_media() -> None:
     )
     assert submit["params"]["medias"][0]["role"] == "image_references"
     assert submit["params"]["medias"][0]["value"].startswith("aaaaaaaa")
+
+
+def test_quote_reads_structured_cost_and_retries_once() -> None:
+    structured = ToolResult({"content": [], "structuredContent": {"cost": {"credits": 12}}})
+    assert quote_credits(structured) == Decimal(12)
+    replies = ["Working on it...", "Cost preflight for kling3_0: 12 credits (12 exact)."]
+    fake = FakeMcp()
+    fake.submit_reply = None
+    original = fake._tool
+
+    def tool(name: str, args: dict) -> dict:
+        if name == "generate_video" and args["params"].get("get_cost"):
+            return _text(replies.pop(0) if replies else "still nothing")
+        return original(name, args)
+
+    fake._tool = tool  # type: ignore[method-assign]
+    provider = _provider(fake)
+    assert provider.estimate_usage(_request()).credits == Decimal(12)
+    with pytest.raises(ProviderError, match="still nothing") as exc:
+        provider.estimate_usage(_request().model_copy(update={"idempotency_key": "other"}))
+    assert exc.value.retryable
 
 
 def test_upload_media_puts_bytes_then_confirms() -> None:
