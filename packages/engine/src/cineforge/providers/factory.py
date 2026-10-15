@@ -15,8 +15,11 @@ from cineforge.contracts.providers import (
 from cineforge.providers.anthropic import AnthropicProvider
 from cineforge.providers.commons import CommonsMediaProvider
 from cineforge.providers.guard import DefaultPaidCallGuard
+from cineforge.providers.higgsfield import NAME as HIGGSFIELD
+from cineforge.providers.higgsfield import HiggsfieldProvider
 from cineforge.providers.http import build_http_client
 from cineforge.providers.mock import build_mock_providers
+from cineforge.providers.oauth import McpOAuth
 from cineforge.providers.openverse import OpenverseMediaProvider
 from cineforge.providers.planned import PLANNED_PROVIDERS
 from cineforge.providers.registry import InMemoryProviderRegistry
@@ -80,7 +83,43 @@ def build_provider_registry(
     registry.register(WikipediaResearchProvider(settings, client=client))
     registry.register(CommonsMediaProvider(settings, client=client))
     registry.register(OpenverseMediaProvider(settings, client=client))
+    auth = build_higgsfield_auth(settings, secrets, client) if secrets is not None else None
+    registry.register(
+        HiggsfieldProvider(
+            settings,
+            token_for=(lambda t, force: auth.token(t, force)) if auth else (lambda t, f: None),
+            http=build_mcp_http_client(settings, transport=_transport(http_client)),
+        )
+    )
     return registry
+
+
+def build_higgsfield_auth(
+    settings: Settings, secrets: SecretStore, http: httpx.Client | None = None
+) -> McpOAuth:
+    return McpOAuth(
+        provider=HIGGSFIELD,
+        resource_url=settings.higgsfield_mcp_url,
+        redirect_uri=f"{settings.api_public_url}/api/v1/providers/{HIGGSFIELD}/oauth/callback",
+        secrets=secrets,
+        http=http or build_http_client(settings),
+    )
+
+
+def build_mcp_http_client(
+    settings: Settings, *, transport: httpx.BaseTransport | None = None
+) -> httpx.Client:
+    """MCP tool calls can hold the connection while a job runs (``sync`` polling)."""
+    return httpx.Client(
+        timeout=httpx.Timeout(90.0, connect=settings.http_timeout_sec),
+        headers={"User-Agent": settings.http_user_agent},
+        transport=transport,
+        follow_redirects=False,
+    )
+
+
+def _transport(client: httpx.Client | None) -> httpx.BaseTransport | None:
+    return client._transport if client is not None else None
 
 
 def build_paid_call_guard(

@@ -157,6 +157,7 @@ def test_registry_routing() -> None:
         "wikipedia",
         "wikimedia-commons",
         "openverse",
+        "higgsfield",
     }
     with pytest.raises(UnsupportedCapabilityError):
         registry.for_capability(C.TRANSCRIPTION)

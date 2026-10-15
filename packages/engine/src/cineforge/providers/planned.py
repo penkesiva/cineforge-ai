@@ -44,14 +44,6 @@ PLANNED_PROVIDERS: tuple[PlannedProvider, ...] = (
         docs_url="https://platform.stability.ai/docs",
     ),
     PlannedProvider(
-        "higgsfield", "Higgsfield", (C.IMAGE_TO_VIDEO, C.VOICE_TTS), is_paid=True,
-        requires_key=False,
-        description="Kling / Seedance image-to-video and Seed Audio voices on your plan "
-        "credits (MCP sign-in, no API key). Today: operator-run external generations.",
-        docs_url="https://higgsfield.ai/creator-hub/help-center/integrations/what-is-higgsfield-mcp",
-        planned_phase="Phase 2",
-    ),
-    PlannedProvider(
         "runway", "Runway", (C.VIDEO_GENERATION, C.IMAGE_TO_VIDEO), is_paid=True,
         requires_key=True, description="Text- and image-to-video generation.",
         docs_url="https://docs.dev.runwayml.com",

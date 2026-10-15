@@ -186,12 +186,15 @@ class InMemoryProviderRegistry:
                     requires_key=info.requires_key,
                     key_env_var=info.key_env_var,
                     docs_url=info.docs_url,
+                    auth_method=info.auth_method,
                     enabled=setting.enabled,
                     priority=setting.priority,
                     status=status,
                     status_detail=detail,
                     key_source=source,
-                    key_hint=key_hint(key),
+                    key_hint=("connected" if key else None)
+                    if info.auth_method == "oauth"
+                    else key_hint(key),
                 )
             )
         for planned in self.planned:
@@ -248,6 +251,8 @@ class InMemoryProviderRegistry:
         if info.is_paid and not allow_paid:
             return ProviderStatus.BLOCKED_PAID_OFF, "ALLOW_PAID_PROVIDERS=false"
         if info.requires_key and self.resolve_key(info.name, tenant_id)[0] is None:
+            if info.auth_method == "oauth":
+                return ProviderStatus.MISSING_KEY, f"Sign in to {info.display_name}"
             hint = f" or set {info.key_env_var}" if info.key_env_var else ""
             return ProviderStatus.MISSING_KEY, f"Add an API key{hint}"
         return ProviderStatus.READY, "Ready"
