@@ -57,13 +57,22 @@ TOOLS: dict[ProviderCapability, str] = {
     C.VIDEO_GENERATION: "generate_video",
     C.VOICE_TTS: "generate_audio",
 }
-MODELS = ("nano_banana_2", "wan2_7", "kling3_0", "seedance_2_0", "kling2_6", "seed_audio")
+MODELS = (
+    "nano_banana_2",
+    "wan2_7",
+    "kling3_0",
+    "seedance_2_0",
+    "kling2_6",
+    "seed_audio",
+    "text2speech_v2",
+)
 # Request parameters forwarded to the tool (everything else stays engine-side).
 PASSTHROUGH = frozenset(
     {
         "resolution",
         "aspect_ratio",
         "mode",
+        "variant",
         "sound",
         "generate_audio",
         "voice_type",

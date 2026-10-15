@@ -179,6 +179,7 @@ class VlogStudio:
         return {
             "provider": v.provider,
             "model": v.model,
+            "variant": v.variant,
             "voice_type": v.voice_type,
             "voice_id": v.voice_id,
             "voice_name": v.voice_name,

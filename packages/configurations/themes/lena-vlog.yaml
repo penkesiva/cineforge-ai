@@ -68,8 +68,8 @@ production:
     pilot_shots: 2
     credit_cap: 300
     max_context_refs: 2
-    voice_model: seed_audio
-    voice_credits: 0.6
+    voice_model: text2speech_v2
+    voice_credits: 0.45
 constraints:
   prohibited_claims: [unsourced dates, invented quotes attributed to real people]
   rights_policy: fail_closed

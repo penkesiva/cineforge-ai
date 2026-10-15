@@ -22,6 +22,9 @@ class VoiceOption(ContractModel):
 class CharacterVoice(ContractModel):
     provider: str = "higgsfield"
     model: str = "seed_audio"
+    variant: str | None = Field(
+        default=None, description="Speech engine for text2speech_v2, e.g. elevenlabs"
+    )
     voice_type: Literal["preset", "element"] = "preset"
     voice_id: str | None = Field(default=None, description="None until a voice is chosen")
     voice_name: str | None = None

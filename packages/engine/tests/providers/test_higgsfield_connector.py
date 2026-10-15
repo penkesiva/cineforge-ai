@@ -193,6 +193,22 @@ def test_quote_is_free_and_cached_then_invoke_submits_and_polls() -> None:
     assert "secret_engine_key" not in submit
 
 
+def test_voice_line_passes_speech_engine_and_voice() -> None:
+    fake = FakeMcp()
+    provider = _provider(fake)
+    voice = {"variant": "elevenlabs", "voice_type": "preset", "voice_id": "juno-id"}
+    request = _request(**voice).model_copy(
+        update={"capability": ProviderCapability.VOICE_TTS, "model": "text2speech_v2"}
+    )
+    provider.invoke(request)
+    submit = next(
+        a for n, a in fake.calls if n == "generate_audio" and "get_cost" not in a["params"]
+    )["params"]
+    assert submit["model"] == "text2speech_v2"
+    assert {k: submit[k] for k in voice} == voice
+    assert "duration" not in submit
+
+
 def test_context_urls_are_imported_as_reference_media() -> None:
     fake = FakeMcp()
     provider = _provider(fake)

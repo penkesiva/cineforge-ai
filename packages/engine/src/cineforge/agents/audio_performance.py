@@ -149,6 +149,8 @@ class AudioPerformanceAgent(BaseAgent):
                 "voice_type": voice.get("voice_type", "preset"),
                 "voice_id": voice["voice_id"],
             }
+            if voice.get("variant"):
+                params["variant"] = voice["variant"]
         response, event = self.call_provider(
             ctx,
             C.VOICE_TTS,
