@@ -157,7 +157,13 @@ def test_vlog_theme_and_character_load() -> None:
     )
     lena = get_character(cfg, theme.performance.character_id or "")
     assert lena.element_for("higgsfield") == "01288044-0746-4b24-8fa8-bea17c4a9233"
-    assert len(lena.voice.candidates) == 11
+    assert lena.version == 2
+    assert (lena.voice.model, lena.voice.variant, lena.voice.voice_name) == (
+        "text2speech_v2",
+        "elevenlabs",
+        "Juno",
+    )
+    assert [v.name for v in lena.voice.candidates] == ["Juno", "Gia"]
     with pytest.raises(CharacterNotFoundError):
         get_character(cfg, "nobody")
 

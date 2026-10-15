@@ -1,0 +1,30 @@
+# Lena Voss v2: same look as v1, voice chosen from samples on 2026-10-14 (ElevenLabs Juno).
+# Her face comes from the Higgsfield reference element built from images the tenant owns;
+# no image of her is stored in Git. Change anything by adding a new version.
+id: lena-voss
+version: 2
+name: Lena Voss
+look: >-
+  Lena Voss, a 23-year-old woman with warm olive skin, dark brown curly hair worn up in
+  a loose bun with a few loose curls, expressive brown eyes, natural makeup, small gold
+  hoop earrings
+wardrobe: >-
+  Fitted black tank top by default; adapts wardrobe to the era or place she visits
+  while keeping the gold hoops
+personality: >-
+  Curious, witty and warm. Talks to camera like a friend, reacts honestly, loves
+  surprising details, never lectures
+provider_refs:
+  higgsfield: 01288044-0746-4b24-8fa8-bea17c4a9233
+voice:
+  provider: higgsfield
+  model: text2speech_v2
+  variant: elevenlabs
+  voice_type: preset
+  voice_id: a3ce02fe-4d3e-55bc-b4d4-a4801b9acdb4
+  voice_name: Juno
+  candidates:
+    - {voice_id: a3ce02fe-4d3e-55bc-b4d4-a4801b9acdb4, name: Juno}
+    # Saved for later use (ElevenLabs engine); liked in the same tie-break.
+    - {voice_id: 530df032-c311-483b-a750-cb3c9e1bcdfd, name: Gia}
+disclosure: AI-generated character

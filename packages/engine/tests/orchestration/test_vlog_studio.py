@@ -275,12 +275,41 @@ def test_still_redo_adds_note_to_prompt() -> None:
 
 
 # --------------------------------------------------------------------------- live blockers
-def test_live_mode_blocks_approval_without_sign_in_and_voice() -> None:
+def test_live_mode_blocks_approval_without_sign_in() -> None:
     rt, _, wf = _engine(provider_mode="live")
     m = _create(wf)
     wf.start(m.production_id, TENANT)
     with pytest.raises(ApprovalBlockedError) as exc:
         _approve(wf, m.production_id)
     assert "sign in to higgsfield" in str(exc.value)
-    assert "choose a voice" in str(exc.value)
+    assert "choose a voice" not in str(exc.value)
     assert rt.productions.get(m.production_id, TENANT).approval_stage == ApprovalStage.SCRIPT
+
+
+def test_live_mode_blocks_approval_without_a_voice(monkeypatch) -> None:
+    _, _, wf = _engine(provider_mode="live")
+    m = _create(wf)
+    wf.start(m.production_id, TENANT)
+    voiceless = wf.character_for(m)
+    voiceless = voiceless.model_copy(
+        update={"voice": voiceless.voice.model_copy(update={"voice_id": None})}
+    )
+    monkeypatch.setattr(studio.VlogStudio, "character", lambda self, m: voiceless)
+    with pytest.raises(ApprovalBlockedError, match="choose a voice for Lena Voss"):
+        _approve(wf, m.production_id)
+
+
+def test_lena_speaks_with_juno_on_elevenlabs(monkeypatch) -> None:
+    rt, fx, wf = _engine()
+    higgs = FakeHiggsfield()
+    fx.providers.register(higgs)
+    monkeypatch.setattr(external, "store_result", _fake_store(rt))
+    m = _create(wf)
+    wf.start(m.production_id, TENANT)
+    _approve(wf, m.production_id)
+    lines = [r for r in higgs.invocations if r.capability == C.VOICE_TTS]
+    assert lines
+    for r in lines:
+        assert r.model == "text2speech_v2"
+        assert r.parameters["variant"] == "elevenlabs"
+        assert r.parameters["voice_id"] == "a3ce02fe-4d3e-55bc-b4d4-a4801b9acdb4"
