@@ -1,7 +1,8 @@
 import type { AssetRecord, Scene, Shot } from "@cineforge/schemas";
 import { formatDuration, formatUsd, humanize } from "@/lib/format";
 import { aiDisclosureBadge, assetIndex, generatedBy } from "@/lib/generation";
-import { Badge, Card, EmptyState, StatusBadge } from "../ui";
+import { Badge, Card, EmptyState } from "../ui";
+import { ProgressLegend, SceneProgressBadge, ShotProgressDots } from "./ProgressDots";
 
 function ShotRow({ shot, assets }: { shot: Shot; assets: ReadonlyMap<string, AssetRecord> }) {
   const attempts = shot.attempts ?? [];
@@ -48,7 +49,7 @@ function ShotRow({ shot, assets }: { shot: Shot; assets: ReadonlyMap<string, Ass
         <span className="block text-zinc-200">{formatUsd(shot.actual_cost ?? 0)}</span>
       </td>
       <td className="py-2 text-right">
-        <StatusBadge status={shot.status} />
+        <ShotProgressDots shot={shot} compact />
       </td>
     </tr>
   );
@@ -80,22 +81,36 @@ function SceneCard({ scene, assets }: { scene: Scene; assets: ReadonlyMap<string
           <span className="text-zinc-500">
             actual <span className="tabular-nums text-zinc-100">{formatUsd(scene.actual_cost ?? 0)}</span>
           </span>
-          <StatusBadge status={scene.status} />
+          <SceneProgressBadge shots={scene.shots} />
         </div>
       </header>
       {scene.narration && <p className="mt-3 text-sm italic text-zinc-400">&ldquo;{scene.narration}&rdquo;</p>}
       <div className="mt-3 overflow-x-auto">
-        <table className="w-full min-w-[640px] text-left text-sm">
+        <table className="w-full min-w-[720px] text-left text-sm">
           <caption className="sr-only">Shots in scene {scene.order}</caption>
           <thead className="text-[11px] uppercase tracking-wider text-zinc-500">
             <tr>
-              <th scope="col" className="pb-1.5 pr-3 font-medium">#</th>
-              <th scope="col" className="pb-1.5 pr-3 font-medium">Shot / camera</th>
-              <th scope="col" className="pb-1.5 pr-3 font-medium">Strategy / provider</th>
-              <th scope="col" className="pb-1.5 pr-3 font-medium">Attempts</th>
-              <th scope="col" className="pb-1.5 pr-3 font-medium">Flags</th>
-              <th scope="col" className="pb-1.5 pr-3 text-right font-medium">Est / actual</th>
-              <th scope="col" className="pb-1.5 text-right font-medium">Status</th>
+              <th scope="col" className="pb-1.5 pr-3 font-medium">
+                #
+              </th>
+              <th scope="col" className="pb-1.5 pr-3 font-medium">
+                Shot / camera
+              </th>
+              <th scope="col" className="pb-1.5 pr-3 font-medium">
+                Strategy / provider
+              </th>
+              <th scope="col" className="pb-1.5 pr-3 font-medium">
+                Attempts
+              </th>
+              <th scope="col" className="pb-1.5 pr-3 font-medium">
+                Flags
+              </th>
+              <th scope="col" className="pb-1.5 pr-3 text-right font-medium">
+                Est / actual
+              </th>
+              <th scope="col" className="pb-1.5 text-right font-medium">
+                Status
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -118,9 +133,10 @@ export function ScenesPanel({ scenes, assets }: { scenes: readonly Scene[]; asse
       title="Scenes & shots"
       description={
         scenes.length
-          ? `${scenes.length} scenes, ${scenes.reduce((n, s) => n + s.shots.length, 0)} shots`
+          ? `${scenes.length} scenes, ${scenes.reduce((n, s) => n + s.shots.length, 0)} shots. Blinking = in progress; steady = complete or not started.`
           : undefined
       }
+      actions={<ProgressLegend />}
     >
       {sorted.length === 0 ? (
         <EmptyState title="No scenes yet">The Scene Director (A6) builds the scene graph during storyboarding.</EmptyState>
