@@ -3,8 +3,15 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { api, errorMessage } from "@/lib/api";
-import { buildDebugLog, type DebugIssue, type DebugLogBundle } from "@/lib/debugLog";
+import {
+  buildDebugLog,
+  readClearedAt,
+  writeClearedAt,
+  type DebugIssue,
+  type DebugLogBundle,
+} from "@/lib/debugLog";
 import { formatDateTime } from "@/lib/format";
+import { AppConfirmDialog } from "../dialogs/AppConfirmDialog";
 import { AppNoticeDialog, type NoticeState } from "../dialogs/AppNoticeDialog";
 import { IconAlert, IconRefresh } from "../icons";
 import { Badge, Button, Card, EmptyState, ErrorState, Loading, Mono, PageHeader } from "../ui";
@@ -59,6 +66,7 @@ export function DebugPage() {
   const [error, setError] = useState<Error | undefined>();
   const [loading, setLoading] = useState(true);
   const [copying, setCopying] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
   const [notice, setNotice] = useState<NoticeState | null>(null);
 
   const reload = useCallback(async () => {
@@ -68,6 +76,7 @@ export function DebugPage() {
       const next = await buildDebugLog(
         () => api.listProductions(),
         (id) => api.getProduction(id),
+        { activeOnly: true, since: readClearedAt() },
       );
       setBundle(next);
     } catch (err) {
@@ -90,8 +99,8 @@ export function DebugPage() {
       setNotice({
         variant: "success",
         title: "Debug log copied",
-        message: "Paste it into chat so we can see the exact failures.",
-        note: `${bundle.issue_count} issue(s) from ${bundle.inspected} inspected production(s)`,
+        message: "Paste it into chat so we can see the exact open failures.",
+        note: `${bundle.issue_count} open issue(s) from ${bundle.inspected} inspected production(s)`,
       });
     } catch (err) {
       setNotice({
@@ -105,16 +114,47 @@ export function DebugPage() {
     }
   }, [bundle]);
 
+  const onClear = useCallback(() => {
+    const now = new Date().toISOString();
+    writeClearedAt(now);
+    setConfirmClear(false);
+    setNotice({
+      variant: "info",
+      title: "Debug log cleared",
+      message: "Older issues are hidden on this browser. New failures after this moment still show.",
+      note: now,
+    });
+    void reload();
+  }, [reload]);
+
+  const onShowAll = useCallback(() => {
+    writeClearedAt(null);
+    setNotice({
+      variant: "info",
+      title: "Showing full history again",
+      message: "The clear watermark was removed. Refresh loads every open issue again.",
+    });
+    void reload();
+  }, [reload]);
+
   return (
     <>
       <PageHeader
         title="Debug"
-        description="Project-wide failures, pauses and blocked approvals. Copy the log and paste it into chat."
+        description="Open failures only (stuck productions). Cleared history stays hidden on this browser."
         actions={
           <div className="flex flex-wrap gap-2">
             <Button variant="ghost" onClick={() => void reload()} disabled={loading}>
               <IconRefresh size={15} /> Refresh
             </Button>
+            <Button variant="ghost" onClick={() => setConfirmClear(true)} disabled={loading}>
+              Clear log
+            </Button>
+            {bundle?.cleared_at && (
+              <Button variant="ghost" onClick={onShowAll} disabled={loading}>
+                Show all
+              </Button>
+            )}
             <Button onClick={() => void onCopy()} disabled={!bundle || copying} busy={copying}>
               Copy debug log
             </Button>
@@ -127,12 +167,19 @@ export function DebugPage() {
           title="Debug log"
           description={
             bundle
-              ? `${bundle.issue_count} issue(s) · inspected ${bundle.inspected} of ${bundle.production_count} productions · ${formatDateTime(bundle.generated_at)}`
-              : "Loads recent and stuck productions"
+              ? `${bundle.issue_count} open issue(s) · inspected ${bundle.inspected} of ${bundle.production_count} · ${formatDateTime(bundle.generated_at)}${
+                  bundle.cleared_at ? ` · cleared ${formatDateTime(bundle.cleared_at)}` : ""
+                }`
+              : "Loads stuck productions; skips resolved retries and E2E demos"
           }
           actions={
             bundle ? (
-              <Button variant="ghost" className="!px-2.5 !py-1 text-xs" onClick={() => void onCopy()} busy={copying}>
+              <Button
+                variant="ghost"
+                className="!px-2.5 !py-1 text-xs"
+                onClick={() => void onCopy()}
+                busy={copying}
+              >
                 Copy
               </Button>
             ) : undefined
@@ -153,17 +200,14 @@ export function DebugPage() {
           )}
         </Card>
 
-        <Card
-          title="Error sections"
-          description="Same issues, one card each. Open a production to act on it."
-        >
+        <Card title="Error sections" description="Same open issues, one card each.">
           {loading ? (
             <Loading rows={4} />
           ) : error || !bundle ? (
             <ErrorState error={error} onRetry={() => void reload()} />
           ) : bundle.issues.length === 0 ? (
-            <EmptyState title="No errors right now">
-              Approvals that fail later in the worker still land here after you refresh.
+            <EmptyState title="No open errors">
+              Resolved retries and finished demos are hidden. If a new clip fails, refresh this page.
             </EmptyState>
           ) : (
             <ul className="space-y-2" aria-label="Error sections">
@@ -176,11 +220,21 @@ export function DebugPage() {
 
         <p className="flex items-start gap-2 text-xs text-zinc-500">
           <IconAlert size={14} className="mt-0.5 shrink-0 text-zinc-600" />
-          Approve can return success while the worker is still generating. If a clip fails later, the
-          production comes back to an approval gate and the failure shows up here (and on the
-          production Events card).
+          Approve can return success while the worker is still generating. A later clip failure comes
+          back to an approval gate and shows here until the shot succeeds.
         </p>
       </div>
+
+      <AppConfirmDialog
+        open={confirmClear}
+        variant="warning"
+        title="Clear the debug log?"
+        message="Hides issues up to now on this browser only. It does not delete database events. New failures still appear."
+        confirmLabel="Clear log"
+        busy={false}
+        onConfirm={onClear}
+        onCancel={() => setConfirmClear(false)}
+      />
 
       <AppNoticeDialog
         open={notice !== null}

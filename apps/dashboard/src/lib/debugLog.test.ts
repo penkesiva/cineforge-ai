@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   collectProductionIssues,
+  filterOpenIssues,
   formatDebugLog,
   selectProductionsToInspect,
 } from "./debugLog";
@@ -30,41 +31,41 @@ function summary(partial: Partial<ProductionSummary> & Pick<ProductionSummary, "
 describe("debugLog", () => {
   it("prefers failed and awaiting productions over delivered demos", () => {
     const rows = [
-      summary({ id: "prod_old", state: "DELIVERED", updated_at: "2026-10-14T00:00:00Z", title: "E2E" }),
+      summary({ id: "prod_old", state: "DELIVERED", updated_at: "2026-10-14T00:00:00Z", title: "E2E Eiffel" }),
       summary({ id: "prod_fail", state: "FAILED", updated_at: "2026-10-15T10:00:00Z", title: "Lepakshi" }),
       summary({
         id: "prod_wait",
         state: "AWAITING_APPROVAL",
         updated_at: "2026-10-15T11:00:00Z",
         approval_stage: "preview",
+        title: "Lepakshi",
       }),
     ];
     expect(selectProductionsToInspect(rows, 2).map((r) => r.id)).toEqual(["prod_wait", "prod_fail"]);
   });
 
-  it("collects stage_failed events, failed agent runs and shot attempts", () => {
+  it("hides resolved shot failures after stage_ready", () => {
     const detail = {
       summary: summary({
         id: "prod_a",
         state: "AWAITING_APPROVAL",
         title: "Lena at Lepakshi",
-        approval_stage: "preview",
+        approval_stage: "pilot",
       }),
       events: [
         {
           production_id: "prod_a",
           tenant_id: "tenant_demo",
           event_type: "stage_failed",
-          message: "scene_01_shot_02 clip failed: quote returned no credit amount. Approve again to retry.",
-          created_at: "2026-10-15T16:37:36Z",
+          message: "scene_01_shot_02 clip failed: preset notice",
+          created_at: "2026-10-16T04:07:00Z",
         },
         {
           production_id: "prod_a",
           tenant_id: "tenant_demo",
-          event_type: "state_changed",
-          to_state: "AWAITING_APPROVAL",
-          message: "ok",
-          created_at: "2026-10-15T16:30:00Z",
+          event_type: "stage_ready",
+          message: "Pilot clips ready for review",
+          created_at: "2026-10-16T04:15:00Z",
         },
       ],
       agent_runs: [
@@ -75,10 +76,10 @@ describe("debugLog", () => {
           agent_id: "a7_visual_production",
           step: "GENERATING",
           status: "failed",
-          attempt: 1,
+          attempt: 4,
           idempotency_key: "k",
-          error: "higgsfield: quote returned no credit amount",
-          finished_at: "2026-10-15T16:37:36Z",
+          error: "scene_01_shot_02 clip failed: preset",
+          finished_at: "2026-10-16T04:07:00Z",
         },
       ],
       manifest: {
@@ -101,13 +102,18 @@ describe("debugLog", () => {
                 duration_sec: 6,
                 kind: "b_roll",
                 description: "scarf",
+                provider_plan: {
+                  strategy: "generative",
+                  capability: "image_to_video",
+                  parameters: { stages: { clip: { done: true } } },
+                },
                 attempts: [
                   {
-                    attempt: 1,
+                    attempt: 4,
                     provider: "higgsfield",
                     model: "kling3_0",
                     status: "failed",
-                    error: "clip: quote returned no credit amount",
+                    error: "clip: preset",
                   },
                 ],
               },
@@ -119,12 +125,46 @@ describe("debugLog", () => {
       artifacts: {},
     } as unknown as ProductionDetail;
 
-    const issues = collectProductionIssues(detail);
-    expect(issues.map((i) => i.kind).sort()).toEqual(["agent_run", "event", "shot_attempt"]);
-    const log = formatDebugLog({ production_count: 3, inspected: 1, issues });
-    expect(log.text).toContain("prod_a");
-    expect(log.text).toContain("quote returned no credit amount");
-    expect(log.text).toContain("stage preview");
-    expect(log.issue_count).toBe(3);
+    const raw = collectProductionIssues(detail);
+    expect(raw.length).toBeGreaterThan(0);
+    const open = filterOpenIssues([detail], raw);
+    expect(open).toEqual([]);
+  });
+
+  it("honors a clear watermark", () => {
+    const issues = [
+      {
+        production_id: "prod_a",
+        title: "x",
+        state: "FAILED",
+        kind: "event" as const,
+        when: "2026-10-16T04:00:00Z",
+        summary: "old",
+      },
+      {
+        production_id: "prod_a",
+        title: "x",
+        state: "FAILED",
+        kind: "event" as const,
+        when: "2026-10-16T05:00:00Z",
+        summary: "new",
+      },
+    ];
+    const detail = {
+      summary: summary({ id: "prod_a", state: "FAILED", title: "x" }),
+      events: [],
+      agent_runs: [],
+      manifest: { scenes: [] },
+      cost: {},
+      artifacts: {},
+    } as unknown as ProductionDetail;
+    const open = filterOpenIssues([detail], issues, { since: "2026-10-16T04:30:00Z" });
+    expect(open.map((i) => i.summary)).toEqual(["new"]);
+  });
+
+  it("formats an empty open log", () => {
+    const log = formatDebugLog({ production_count: 40, inspected: 1, issues: [] });
+    expect(log.text).toContain("No open failures");
+    expect(log.issue_count).toBe(0);
   });
 });
