@@ -142,7 +142,7 @@ export function SimulatedBadge({ className }: { className?: string }) {
     <Badge
       tone="violet"
       className={className}
-      title="Phase 0 uses mock providers only. Costs are simulated but go through the real budget ledger."
+      title="These ledger rows came from mock providers only. Real paid spend is tracked separately once a live provider runs."
     >
       <span aria-hidden="true">◆</span> Simulated costs
     </Badge>
