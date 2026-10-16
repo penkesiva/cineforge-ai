@@ -2,7 +2,8 @@ import type { AssetCandidate, AssetRecord, AssetSelection, Scene, Shot } from "@
 import { formatDuration, humanize } from "@/lib/format";
 import { aiDisclosureBadge, assetIndex, generatedBy, type DisclosureBadge } from "@/lib/generation";
 import { attributionText, candidateIndex } from "@/lib/review";
-import { Badge, Card, EmptyState } from "../../ui";
+import { shotProgress, type StageProgress } from "@/lib/shotProgress";
+import { Badge, Card, EmptyState, cx } from "../../ui";
 import { AssetThumb } from "./AssetThumb";
 import { RightsBadge } from "./badges";
 
@@ -13,6 +14,69 @@ function disclosureBadge(shot: Shot): DisclosureBadge | null {
   if (d?.label_text) return { text: d.label_text, title: "AI disclosure shown on screen" };
   if (d?.reconstruction) return { text: "Reconstruction", title: "AI disclosure shown on screen" };
   return null;
+}
+
+const DOT: Record<Exclude<StageProgress, "skipped">, string> = {
+  complete: "bg-emerald-400",
+  active: "animate-[status-blink_1.1s_ease-in-out_infinite] bg-sky-400",
+  pending: "bg-zinc-600 ring-1 ring-inset ring-zinc-500/50",
+  failed: "bg-rose-400",
+};
+
+function StatusDot({
+  state,
+  label,
+  title,
+}: {
+  state: StageProgress;
+  label?: string;
+  title?: string;
+}) {
+  if (state === "skipped") return null;
+  return (
+    <span
+      data-testid="storyboard-status-dot"
+      data-state={state}
+      title={title ?? label}
+      aria-label={title ?? label}
+      className="inline-flex items-center gap-1"
+    >
+      <span aria-hidden="true" className={cx("inline-block h-2 w-2 shrink-0 rounded-full", DOT[state])} />
+      {label && <span className="text-[11px] text-zinc-500">{label}</span>}
+    </span>
+  );
+}
+
+function ShotStatus({ shot }: { shot: Shot }) {
+  const progress = shotProgress(shot);
+  return (
+    <div
+      data-testid="storyboard-shot-status"
+      data-overall={progress.overall}
+      className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1"
+      aria-label={`Shot status: ${progress.label}`}
+    >
+      <StatusDot
+        state={progress.overall}
+        label={progress.label}
+        title={`Shot ${progress.label.toLowerCase()}`}
+      />
+      {progress.stages.length > 0 && (
+        <span className="flex flex-wrap items-center gap-2 border-l border-white/[0.06] pl-3">
+          {progress.stages
+            .filter((s) => s.state !== "skipped")
+            .map((stage) => (
+              <StatusDot
+                key={stage.id}
+                state={stage.state}
+                label={stage.label}
+                title={`${stage.label}: ${stage.state}`}
+              />
+            ))}
+        </span>
+      )}
+    </div>
+  );
 }
 
 function BoundAsset({ candidate, blockedReason }: { candidate: AssetCandidate; blockedReason?: string }) {
@@ -66,6 +130,7 @@ function ShotCard({
         )}
       </div>
       {shot.description && <p className="mt-1 text-xs text-zinc-400">{shot.description}</p>}
+      <ShotStatus shot={shot} />
       {bound.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-3">
           {bound.map((c) => (
@@ -74,6 +139,34 @@ function ShotCard({
         </div>
       )}
     </li>
+  );
+}
+
+function Legend() {
+  return (
+    <ul
+      data-testid="storyboard-legend"
+      className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-zinc-500"
+      aria-label="Storyboard status legend"
+    >
+      <li className="inline-flex items-center gap-1.5">
+        <span aria-hidden="true" className="h-2 w-2 rounded-full bg-emerald-400" /> Complete
+      </li>
+      <li className="inline-flex items-center gap-1.5">
+        <span
+          aria-hidden="true"
+          className="h-2 w-2 animate-[status-blink_1.1s_ease-in-out_infinite] rounded-full bg-sky-400"
+        />{" "}
+        In progress
+      </li>
+      <li className="inline-flex items-center gap-1.5">
+        <span aria-hidden="true" className="h-2 w-2 rounded-full bg-zinc-600 ring-1 ring-inset ring-zinc-500/50" />{" "}
+        Not started
+      </li>
+      <li className="inline-flex items-center gap-1.5">
+        <span aria-hidden="true" className="h-2 w-2 rounded-full bg-rose-400" /> Failed
+      </li>
+    </ul>
   );
 }
 
@@ -91,7 +184,12 @@ export function StoryboardPanel({
   const records = assetIndex(assets);
   const blocked = media?.blocked ?? {};
   return (
-    <Card id="storyboard" title="Storyboard" description="Scenes, shots and the licensed stills bound to them">
+    <Card
+      id="storyboard"
+      title="Storyboard"
+      description="Scenes, shots and progress. Blinking = work in progress; steady dots = complete or not started."
+      actions={<Legend />}
+    >
       {sorted.length === 0 ? (
         <EmptyState title="No storyboard yet">The Scene Director (A6) builds it during storyboarding.</EmptyState>
       ) : (

@@ -173,6 +173,8 @@ describe("StoryboardPanel", () => {
   it("renders scene cards with bound licensed stills, rights badges and attribution", () => {
     const detail = buildReviewDetail();
     render(<StoryboardPanel scenes={detail.manifest.scenes ?? []} media={detail.artifacts.media} />);
+    expect(screen.getByTestId("storyboard-legend")).toHaveTextContent("In progress");
+    expect(screen.getAllByTestId("storyboard-shot-status").length).toBeGreaterThan(0);
     expect(screen.getAllByTestId("storyboard-scene")).toHaveLength(5);
     const hook = screen.getByRole("article", { name: "Storyboard scene 1: Hook" });
     expect(hook).toHaveTextContent("Opening hook");

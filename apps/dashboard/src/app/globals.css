@@ -65,6 +65,23 @@
       transform: translateY(0);
     }
   }
+
+  /* Storyboard / agent “work in progress” blink (stationary when complete or pending). */
+  @keyframes status-blink {
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+      box-shadow: 0 0 0 0 rgb(56 189 248 / 0.55);
+    }
+    50% {
+      opacity: 0.45;
+      transform: scale(0.92);
+      box-shadow: 0 0 0 6px rgb(56 189 248 / 0);
+    }
+  }
+
+  --animate-status-blink: status-blink 1.1s ease-in-out infinite;
 }
 
 :root {
