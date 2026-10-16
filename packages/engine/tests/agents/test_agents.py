@@ -489,6 +489,23 @@ def test_a9_flags_mismatched_master_as_critical(chain: Chain) -> None:
     assert long.status == ReviewStatus.FAILED
 
 
+def test_a9_accepts_authored_timeline_plus_end_card(chain: Chain) -> None:
+    """A vlog's shots need not hit the original duration request. QC checks the plan."""
+    m = _review_manifest(chain)
+    for scene in m.scenes:
+        for shot in scene.shots:
+            shot.duration_sec = 1.0
+        scene.duration_sec = sum(shot.duration_sec for shot in scene.shots)
+    planned = sum(shot.duration_sec for scene in m.scenes for shot in scene.shots)
+    m = m.model_copy(
+        update={"output": m.output.model_copy(update={"duration_target_sec": planned + 10})}
+    )
+    master = _master(duration_sec=planned + 3.0, probe={"end_card_sec": 3.0})
+    report = _review(chain, m, master)
+    blocking = [f for f in report.findings if f.gate == ReviewGate.MASTER and f.blocking]
+    assert blocking == []
+
+
 def test_a9_flags_missing_master_incomplete_shots_labels_claims_budget(chain: Chain) -> None:
     m = _review_manifest(chain)
     m.scenes[1].shots[0].status = WorkStatus.FAILED

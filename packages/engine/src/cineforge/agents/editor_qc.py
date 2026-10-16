@@ -110,11 +110,15 @@ class EditorQCAgent(BaseAgent):
             )
         if not _codec_matches(m.output.codec, master.codec):
             problems.append(f"codec {master.codec} != {m.output.codec}")
-        target = m.output.duration_target_sec
+        # Authored shots set the timeline. The brief's duration target is only a fallback
+        # when there are no shots yet (classic plans already sum to that target).
+        planned = sum(sh.duration_sec for sh in m.iter_shots())
+        target = planned if planned > 0 else m.output.duration_target_sec
         end_card = float(master.probe.get("end_card_sec") or 0)
-        if abs(master.duration_sec - end_card - target) > DURATION_TOLERANCE_SEC:
+        content = master.duration_sec - end_card
+        if abs(content - target) > DURATION_TOLERANCE_SEC:
             problems.append(
-                f"duration {master.duration_sec:.2f}s != {target:.2f}s "
+                f"duration {content:.2f}s != planned {target:.2f}s "
                 f"(tolerance {DURATION_TOLERANCE_SEC}s)"
             )
         if not problems:
