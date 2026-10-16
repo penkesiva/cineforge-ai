@@ -219,6 +219,8 @@ class HiggsfieldProvider:
         self.clock = clock
         self._clients: dict[str, McpClient] = {}
         self._quotes: dict[str, Decimal] = {}
+        # Preset ids we declined during quote; submit must send the same decline.
+        self._declined_presets: dict[str, str] = {}
         self._lock = threading.Lock()
         self.info = ProviderInfo(
             name=NAME,
@@ -329,16 +331,29 @@ class HiggsfieldProvider:
             if tool is None:
                 raise ProviderError(f"higgsfield does not support {request.capability}")
             # Price depends on model, duration and resolution, not on the media ids.
+            # Authored prompts must stay literal: if Higgsfield suggests a preset, decline it.
             params = self._params(request, get_cost=True)
             params.pop("medias", None)
-            params.pop("declined_preset_id", None)
-            args = {"params": params, "context": CONTEXT}
-            result = self.call(request.tenant_id, tool, args)
+            result = self.call(request.tenant_id, tool, {"params": params, "context": CONTEXT})
             cached = quote_credits(result)
             if cached is None:
-                log.warning("higgsfield quote without credits, retrying: %s", result.text[:300])
-                result = self.call(request.tenant_id, tool, args)
-                cached = quote_credits(result)
+                preset = _PRESET_RE.search(result.text)
+                if preset:
+                    params["declined_preset_id"] = preset.group(1)
+                    self._declined_presets[request.idempotency_key] = preset.group(1)
+                    log.info("higgsfield quote: declining preset %s", preset.group(1))
+                    result = self.call(
+                        request.tenant_id, tool, {"params": params, "context": CONTEXT}
+                    )
+                    cached = quote_credits(result)
+                else:
+                    log.warning(
+                        "higgsfield quote without credits, retrying: %s", result.text[:300]
+                    )
+                    result = self.call(
+                        request.tenant_id, tool, {"params": params, "context": CONTEXT}
+                    )
+                    cached = quote_credits(result)
             if cached is None:
                 raise ProviderError(
                     f"higgsfield: quote returned no credit amount: {result.text[:200]!r}",
@@ -356,6 +371,7 @@ class HiggsfieldProvider:
         job_id = self._submit(request, tool, exclude)
         url, mime = self._wait(request.tenant_id, job_id)
         self._quotes.pop(request.idempotency_key, None)
+        self._declined_presets.pop(request.idempotency_key, None)
         return ProviderResponse(
             provider=NAME,
             model=request.model,
@@ -368,6 +384,9 @@ class HiggsfieldProvider:
 
     def _submit(self, request: ProviderRequest, tool: str, exclude: set[str]) -> str:
         params = self._params(request, get_cost=False)
+        declined = self._declined_presets.get(request.idempotency_key)
+        if declined and "declined_preset_id" not in params:
+            params["declined_preset_id"] = declined
         for _ in range(2):
             try:
                 result = self.call(request.tenant_id, tool, {"params": params, "context": CONTEXT})
@@ -387,6 +406,7 @@ class HiggsfieldProvider:
             preset = _PRESET_RE.search(result.text)
             if preset and "declined_preset_id" not in params:
                 params["declined_preset_id"] = preset.group(1)
+                self._declined_presets[request.idempotency_key] = preset.group(1)
                 continue
             break
         raise ProviderError(f"higgsfield {tool}: no job created ({result.text[:200]})")

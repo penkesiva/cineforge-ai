@@ -290,6 +290,38 @@ def test_preset_recommendation_retries_once_with_declined_preset() -> None:
     assert len(submits) == 2 and submits[1]["declined_preset_id"] == "cinematic-pov"
 
 
+def test_quote_declines_preset_then_submit_reuses_the_decline() -> None:
+    """Higgsfield may recommend a preset on get_cost; we always generate literally."""
+    preset = "24bae836-2c4a-48e0-89b6-49fcc0b21612"
+    notice = (
+        f'Notice: This prompt looks like the Higgsfield preset "IN THE DARK".\n'
+        f"Preset id: {preset}\n"
+        f'To generate literally, retry with declined_preset_id: "{preset}".'
+    )
+    fake = FakeMcp()
+    original = fake._tool
+
+    def tool(name: str, args: dict) -> dict:
+        if name == "generate_video" and args["params"].get("get_cost"):
+            if args["params"].get("declined_preset_id") == preset:
+                return _text("Cost preflight for wan2_7: 20 credits (20 exact).")
+            return _text(notice)
+        return original(name, args)
+
+    fake._tool = tool  # type: ignore[method-assign]
+    provider = _provider(fake)
+    request = _request()
+    assert provider.estimate_usage(request).credits == Decimal(20)
+    assert provider._declined_presets[request.idempotency_key] == preset
+    provider.invoke(request)
+    submit = next(
+        a["params"]
+        for n, a in fake.calls
+        if n == "generate_video" and "get_cost" not in a["params"]
+    )
+    assert submit["declined_preset_id"] == preset
+
+
 def test_failed_job_raises_and_timeout_is_not_resubmitted() -> None:
     fake = FakeMcp(status_sequence=["failed"])
     with pytest.raises(ProviderError, match="failed"):
