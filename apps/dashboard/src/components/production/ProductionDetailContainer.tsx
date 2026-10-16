@@ -23,6 +23,7 @@ type ConfirmAction = Exclude<ProductionAction, "run"> | "rewrite";
 
 interface DetailNotice extends NoticeState {
   offerRewrite?: boolean;
+  offerDebug?: boolean;
 }
 
 /** Suggested cap when resuming from PAUSED_BUDGET: 25% headroom over the larger of estimate and limit. */
@@ -142,6 +143,7 @@ export function ProductionDetailContainer({ id }: { id: string }) {
           message: errorMessage(err),
           note: isApiError(err) && err.status ? `HTTP ${err.status}${err.body ? ` · ${err.body.error}` : ""}` : undefined,
           offerRewrite: blockedByClaims,
+          offerDebug: !blockedByClaims,
         });
         void reload();
       } finally {
@@ -348,10 +350,20 @@ export function ProductionDetailContainer({ id }: { id: string }) {
         title={notice?.title ?? ""}
         message={notice?.message}
         note={notice?.note}
-        secondaryLabel={notice?.offerRewrite && canRewriteScript(data.summary.state) ? "Rewrite script" : undefined}
+        secondaryLabel={
+          notice?.offerRewrite && canRewriteScript(data.summary.state)
+            ? "Rewrite script"
+            : notice?.offerDebug
+              ? "Open Debug"
+              : undefined
+        }
         onSecondary={() => {
           setNotice(null);
-          setConfirming("rewrite");
+          if (notice?.offerRewrite && canRewriteScript(data.summary.state)) {
+            setConfirming("rewrite");
+            return;
+          }
+          if (notice?.offerDebug) window.location.assign("/debug");
         }}
         onClose={() => setNotice(null)}
       />

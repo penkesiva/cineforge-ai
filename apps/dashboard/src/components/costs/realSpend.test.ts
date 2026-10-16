@@ -35,7 +35,7 @@ describe("realSpendOverview", () => {
     const view = realSpendOverview(base);
     expect(view.total_actual).toBeCloseTo(4.6, 5);
     expect(view.total_estimated).toBeCloseTo(5.2, 5);
-    expect(view.by_provider.map((r) => r.key)).toEqual(["higgsfield", "anthropic"]);
+    expect(view.by_provider?.map((r) => r.key)).toEqual(["higgsfield", "anthropic"]);
     expect(view.by_production).toEqual([]);
     expect(view.by_agent).toEqual([]);
     expect(view.credit_balances?.map((b) => b.provider)).toEqual(["higgsfield"]);

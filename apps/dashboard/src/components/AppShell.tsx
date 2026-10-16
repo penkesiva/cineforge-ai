@@ -4,7 +4,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { HealthIndicator } from "./HealthIndicator";
-import { IconAgents, IconCoins, IconFilm, IconOverview, IconPalette, IconPlug, Logo } from "./icons";
+import {
+  IconAgents,
+  IconBug,
+  IconCoins,
+  IconFilm,
+  IconOverview,
+  IconPalette,
+  IconPlug,
+  Logo,
+} from "./icons";
 import { cx } from "./ui";
 
 const NAV = [
@@ -14,6 +23,7 @@ const NAV = [
   { href: "/sources", label: "Sources", icon: IconPlug },
   { href: "/agents", label: "Agents", icon: IconAgents },
   { href: "/costs", label: "Costs", icon: IconCoins },
+  { href: "/debug", label: "Debug", icon: IconBug },
 ] as const;
 
 function isActive(pathname: string, href: string): boolean {

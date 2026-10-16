@@ -203,7 +203,12 @@ export function CostsPage() {
         actions={view?.simulated === true ? <SimulatedBadge /> : undefined}
       />
       <div className="space-y-6">
-        <OverviewCard view={view} error={error} loading={loading} reload={() => void reload()} />
+        <OverviewCard
+          view={view}
+          error={error instanceof Error ? error : error ? new Error(String(error)) : undefined}
+          loading={loading}
+          reload={() => void reload()}
+        />
         <ModesCard />
         <PricingCard />
       </div>

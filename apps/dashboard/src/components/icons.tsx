@@ -160,6 +160,13 @@ export const IconKey = (p: IconProps) => (
   </Svg>
 );
 
+export const IconBug = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 7a4 4 0 014 4v5a4 4 0 01-8 0v-5a4 4 0 014-4z" />
+    <path d="M9 9V6.5M15 9V6.5M8 12H4.5M19.5 12H16M8 16H5M19 16h-3M12 7V4" />
+  </Svg>
+);
+
 export function Logo({ size = 30 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true" focusable="false">
