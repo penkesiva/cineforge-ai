@@ -165,7 +165,7 @@ def test_vlog_runs_script_preview_pilot_final_gates_in_mock_mode() -> None:
     assert all(s.audio.dialogue_text for s in a_roll)
     assert all(s.disclosure.synthetic_media for s in shots)
     assert all(s.estimated_cost > 0 for s in shots)
-    assert m.captions and m.captions[0].cues
+    assert m.captions and m.captions[0].cues and m.captions[0].burn_in is False
     assert all(len(c.text.split()) <= 6 for c in m.captions[0].cues)
     quote = wf.stage_quote(pid, TENANT)
     assert quote.stage == "preview"

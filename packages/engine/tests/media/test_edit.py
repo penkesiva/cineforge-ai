@@ -9,7 +9,13 @@ import pytest
 from cineforge.config import Settings
 from cineforge.contracts.agents import AgentRun, AgentRunStatus, AssetCandidate, AssetSelection
 from cineforge.contracts.common import AgentId
-from cineforge.contracts.manifest import AssetRef, AssetRole, ProductionManifest
+from cineforge.contracts.manifest import (
+    AssetRef,
+    AssetRole,
+    ProductionLook,
+    ProductionManifest,
+    Soundtrack,
+)
 from cineforge.contracts.media import (
     AssetKind,
     AssetOrigin,
@@ -21,6 +27,7 @@ from cineforge.contracts.media import (
 )
 from cineforge.contracts.workflow import ProductionState
 from cineforge.media import edit, jobs
+from cineforge.media.music import write_theme_bed
 from cineforge.media.render import RenderError, probe, probe_summary, validate_master
 from cineforge.runtime import Runtime, set_runtime
 from fakes_d import fake_runtime, small_manifest
@@ -301,3 +308,73 @@ def test_fit_narration_shortens_pauses_then_speeds_up(tmp_path: Path, require_ff
     faster = edit.fit_narration(speech, 1.5, tmp_path, name="c")
     assert faster.name == "c_tempo.wav"
     assert seconds(faster) == pytest.approx(seconds(squeezed) / edit.NARRATION_MAX_TEMPO, abs=0.1)
+
+
+@pytest.mark.ffmpeg
+def test_lip_sync_keeps_the_clip_audio(rt: Runtime, tmp_path: Path) -> None:
+    talk = tmp_path / "talk.mp4"
+    other = tmp_path / "other.wav"
+    _ffmpeg(
+        "-f", "lavfi", "-i", "testsrc=s=160x90:r=24:d=0.8",
+        "-f", "lavfi", "-i", "sine=f=440:d=0.8",
+        "-shortest", "-pix_fmt", "yuv420p", str(talk),
+    )  # fmt: skip
+    _ffmpeg("-f", "lavfi", "-i", "sine=f=880:d=0.4", str(other))
+    clip = _register(
+        rt, talk, AssetKind.VIDEO, "video/mp4", name="talk.mp4", duration_sec=0.8,
+        generation={"provider": "higgsfield", "model": "wan2_7"},
+    )  # fmt: skip
+    voice = _register(
+        rt, other, AssetKind.AUDIO, "audio/wav", name="other.wav",
+        generation={"provider": "higgsfield", "model": "text2speech_v2"},
+    )  # fmt: skip
+    m = small_manifest()
+    shot = m.scenes[0].shots[0]
+    shot.duration_sec = 1.0
+    shot.performance.lip_sync_required = True
+    shot.audio.dialogue_text = "Hello from the clip"
+    shot.assets = [
+        AssetRef(asset_id=clip.id, role=AssetRole.GENERATED),
+        AssetRef(asset_id=voice.id, role=AssetRole.AUDIO),
+    ]
+    plan = _plan(rt, m)
+    (track,) = [n for n in plan.narration if n.start == 0.0]
+    assert track.picture_sync
+    assert track.path == rt.storage.local_path(clip.storage_key)
+    assert track.tempo == pytest.approx(0.8)
+    assert all(n.path != rt.storage.local_path(voice.storage_key) for n in plan.narration)
+
+
+def test_theme_bed_is_deterministic_and_place_aware(tmp_path: Path) -> None:
+    temple = tmp_path / "temple.wav"
+    again = tmp_path / "again.wav"
+    write_theme_bed(temple, 1.2, "upbeat light, Lepakshi temple pillar")
+    write_theme_bed(again, 1.2, "upbeat light, Lepakshi temple pillar")
+    assert temple.read_bytes() == again.read_bytes()
+    assert temple.stat().st_size > 1000
+
+
+def test_plan_requests_theme_bed_from_cue_and_place() -> None:
+    m = small_manifest()
+    m.soundtrack = Soundtrack(music_cue="upbeat_light_music", ambience="temple courtyard")
+    m.look = ProductionLook(location="Lepakshi temple, the hanging pillar")
+    plan = edit.build_edit_plan(m, {}, local_path=lambda _asset: None)
+    assert plan.music is None
+    assert plan.music_cue and "Lepakshi" in plan.music_cue
+    assert plan.music_gain == edit.THEME_BED_GAIN
+    assert edit.THEME_BED_CREDIT in plan.credits
+    assert plan.summary()["music"] is True
+
+
+@pytest.mark.ffmpeg
+def test_render_mixes_theme_bed_under_voice(
+    rt: Runtime, media: dict[str, Path], tmp_path: Path
+) -> None:
+    m = _wire(rt, media)
+    m.soundtrack = Soundtrack(music_cue="upbeat_light_music", ambience="stone temple")
+    m.look = ProductionLook(location="Lepakshi temple")
+    plan = _plan(rt, m)
+    out, _text = edit.render_master_edit(plan, m.output, tmp_path / "master.mp4")
+    info = probe(out)
+    assert validate_master(info, m.output, plan.total_sec) == []
+    assert probe_summary(info)["audio_codec"] == "aac"

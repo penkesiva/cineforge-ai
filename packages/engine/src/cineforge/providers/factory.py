@@ -14,6 +14,7 @@ from cineforge.contracts.providers import (
 )
 from cineforge.providers.anthropic import AnthropicProvider
 from cineforge.providers.commons import CommonsMediaProvider
+from cineforge.providers.gemini import GeminiProvider
 from cineforge.providers.guard import DefaultPaidCallGuard
 from cineforge.providers.higgsfield import NAME as HIGGSFIELD
 from cineforge.providers.higgsfield import HiggsfieldProvider
@@ -89,6 +90,13 @@ def build_provider_registry(
             settings,
             token_for=(lambda t, force: auth.token(t, force)) if auth else (lambda t, f: None),
             http=build_mcp_http_client(settings, transport=_transport(http_client)),
+        )
+    )
+    registry.register(
+        GeminiProvider(
+            settings,
+            key_resolver=lambda tenant_id: registry.resolve_key("gemini", tenant_id)[0],
+            client=client,
         )
     )
     return registry

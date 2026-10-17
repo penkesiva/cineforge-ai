@@ -1343,7 +1343,7 @@ class WorkflowEngine:
                 if shot.audio.dialogue_text:
                     cues += _spoken_cues(shot.audio.dialogue_text, start, shot.duration_sec)
                 start = round(start + shot.duration_sec, 2)
-            return CaptionTrack(language=m.creative_brief.language, burn_in=True, cues=cues)
+            return CaptionTrack(language=m.creative_brief.language, burn_in=False, cues=cues)
         for scene in m.scenes:
             end = round(start + scene.duration_sec, 2)
             if scene.narration:

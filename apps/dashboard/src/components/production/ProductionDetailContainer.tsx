@@ -6,7 +6,7 @@ import { useCallback, useState } from "react";
 import { api, errorMessage, isApiError } from "@/lib/api";
 import { formatUsd } from "@/lib/format";
 import { usePolling, useResource } from "@/lib/hooks";
-import { claimCitations, rejectedCitedClaimIds, type ClaimDecisionValue } from "@/lib/review";
+import { claimCitations, openFactCount, rejectedCitedClaimIds, type ClaimDecisionValue } from "@/lib/review";
 import { canRewriteScript, isWorkingState } from "@/lib/workflow";
 import { AppConfirmDialog } from "../dialogs/AppConfirmDialog";
 import { AppNoticeDialog, type NoticeState } from "../dialogs/AppNoticeDialog";
@@ -19,7 +19,7 @@ export const DETAIL_POLL_MS = 2_000;
 export const OPERATOR = "operator";
 export const CLAIM_REVIEWER = OPERATOR;
 
-type ConfirmAction = Exclude<ProductionAction, "run"> | "rewrite";
+type ConfirmAction = Exclude<ProductionAction, "run"> | "rewrite" | "script";
 
 interface DetailNotice extends NoticeState {
   offerRewrite?: boolean;
@@ -192,6 +192,14 @@ export function ProductionDetailContainer({ id }: { id: string }) {
       if (action === "approve" && data.summary.state === "PAUSED_BUDGET") {
         setRaiseTo(suggestedBudget(data).toFixed(2));
       }
+      if (
+        action === "approve" &&
+        data.manifest.approval_stage === "script" &&
+        (data.artifacts.script?.lines.length ?? 0) > 0
+      ) {
+        setConfirming("script");
+        return;
+      }
       setConfirming(action);
     },
     [data, execute],
@@ -213,6 +221,9 @@ export function ProductionDetailContainer({ id }: { id: string }) {
   }
 
   const paused = data.summary.state === "PAUSED_BUDGET";
+  const scriptLines = data.artifacts.script?.lines ?? [];
+  const openFacts = openFactCount(data.artifacts.research?.claims, data.manifest.claim_reviews);
+  const factCount = data.artifacts.research?.claims.length ?? 0;
   const estimated = data.cost.estimated ?? data.manifest.budget.estimated ?? 0;
   const raiseValue = Number(raiseTo);
   const raiseError =
@@ -243,6 +254,37 @@ export function ProductionDetailContainer({ id }: { id: string }) {
           rewriting: busyAction === "rewrite",
         }}
       />
+
+      <AppConfirmDialog
+        open={confirming === "script"}
+        title="Confirm the script"
+        message={
+          openFacts > 0
+            ? "Review every open fact first. The script stays here until each one is approved or rejected."
+            : "Facts are reviewed. Read every line. This is what she will say."
+        }
+        noteLabel="Facts"
+        note={
+          factCount === 0
+            ? "No fact sheet on this production."
+            : openFacts === 0
+              ? `${factCount} facts reviewed.`
+              : `${openFacts} of ${factCount} facts still need a decision.`
+        }
+        confirmLabel="Script looks right"
+        confirmDisabled={openFacts > 0}
+        onConfirm={() => setConfirming("approve")}
+        onCancel={() => setConfirming(null)}
+      >
+        <ol className="max-h-64 space-y-2 overflow-y-auto pr-1" aria-label="Script lines">
+          {scriptLines.map((line, i) => (
+            <li key={i} className="text-sm text-zinc-200">
+              <span className="mr-2 font-mono text-[11px] text-zinc-500">S{line.scene_order}</span>
+              {line.text}
+            </li>
+          ))}
+        </ol>
+      </AppConfirmDialog>
 
       <AppConfirmDialog
         open={confirming === "approve"}

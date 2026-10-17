@@ -232,11 +232,16 @@ class InMemoryProviderRegistry:
     ) -> ProviderSetting:
         if info.name in stored:
             return stored[info.name]
+        priority = MOCK_DEFAULT_PRIORITY if info.is_mock else REAL_DEFAULT_PRIORITY
+        provider = self._providers.get(info.name)
+        custom = getattr(provider, "default_priority", None) if provider is not None else None
+        if custom is not None:
+            priority = int(custom)
         return ProviderSetting(
             tenant_id=tenant_id or DEMO_TENANT_ID,
             provider=info.name,
             enabled=not info.is_paid,
-            priority=MOCK_DEFAULT_PRIORITY if info.is_mock else REAL_DEFAULT_PRIORITY,
+            priority=priority,
         )
 
     def _status(

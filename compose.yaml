@@ -40,6 +40,8 @@ x-python-service: &python-service
     # Optional: an env key wins over a Vault key. Empty = use the Sources page.
     ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-4-5}
+    GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    GEMINI_BASE_URL: ${GEMINI_BASE_URL:-https://generativelanguage.googleapis.com}
     HTTP_USER_AGENT: "${HTTP_USER_AGENT:-CineForgeAI/0.2 (https://github.com/penkesiva/cineforge-ai)}"
     MOCK_STEP_DELAY_SEC: ${MOCK_STEP_DELAY_SEC:-1.0}
     # Simulated transient media-provider failures (exercises bounded retries).

@@ -141,6 +141,8 @@ def test_script_prompt_carries_persona_voice_and_canon() -> None:
     assert "Never cover: graphic violence" in prompt
     assert "She lives in Los Angeles." in prompt and "She always gets lost." in prompt
     assert "Earlier trips (may reference, never repeat): Pompeii, the day before" in prompt
+    assert "hearing each fact for the first time" in prompt
+    assert "Do not joke about meals" in prompt
 
 
 def test_still_prompt_locks_look_and_lists_avoid() -> None:

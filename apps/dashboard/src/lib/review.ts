@@ -25,6 +25,15 @@ export function latestClaimReviews(reviews: readonly ClaimReview[] | undefined):
   return latest;
 }
 
+/** Open facts that still need a human decision before the script can be confirmed. */
+export function openFactCount(
+  claims: readonly FactClaim[] | undefined,
+  reviews: readonly ClaimReview[] | undefined,
+): number {
+  const decided = latestClaimReviews(reviews);
+  return (claims ?? []).filter((claim) => claimNeedsAttention(claim.status) && !decided.has(claim.id)).length;
+}
+
 /** claim id -> scene orders of the script lines citing it. */
 export function claimCitations(script: Script | null | undefined): Map<string, number[]> {
   const cited = new Map<string, number[]>();

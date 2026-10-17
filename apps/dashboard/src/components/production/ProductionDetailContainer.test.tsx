@@ -142,6 +142,54 @@ describe("re-render", () => {
   });
 });
 
+describe("script confirmation", () => {
+  beforeEach(() => {
+    vi.spyOn(api, "getProductionLedger").mockResolvedValue([]);
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function scriptGate() {
+    const detail = buildDetail("AWAITING_APPROVAL");
+    detail.manifest.approval_stage = "script";
+    return detail;
+  }
+
+  it("shows the script and waits until open facts are decided", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api, "getProduction").mockResolvedValue(scriptGate());
+    render(<ProductionDetailContainer id="prod_1" />);
+    const group = await screen.findByRole("group", { name: "Production actions" });
+    await user.click(within(group).getByRole("button", { name: /^Approve/ }));
+    const dialog = await screen.findByRole("alertdialog", { name: "Confirm the script" });
+    expect(dialog).toHaveTextContent("You are standing in Paris, May 1889.");
+    expect(dialog).toHaveTextContent("still need a decision");
+    expect(within(dialog).getByRole("button", { name: "Script looks right" })).toBeDisabled();
+  });
+
+  it("opens spend approval after the script is confirmed", async () => {
+    const user = userEvent.setup();
+    const detail = scriptGate();
+    detail.manifest.claim_reviews = [
+      {
+        claim_id: "claim_02",
+        decision: "approved",
+        reviewed_by: "operator",
+        reviewed_at: "2026-10-15T00:00:00Z",
+      },
+    ];
+    vi.spyOn(api, "getProduction").mockResolvedValue(detail);
+    render(<ProductionDetailContainer id="prod_1" />);
+    const group = await screen.findByRole("group", { name: "Production actions" });
+    await user.click(within(group).getByRole("button", { name: /^Approve/ }));
+    const dialog = await screen.findByRole("alertdialog", { name: "Confirm the script" });
+    expect(within(dialog).getByRole("button", { name: "Script looks right" })).toBeEnabled();
+    await user.click(within(dialog).getByRole("button", { name: "Script looks right" }));
+    expect(screen.getByRole("alertdialog", { name: "Approve generation spend?" })).toBeInTheDocument();
+  });
+});
+
 describe("usePolling", () => {
   beforeEach(() => {
     vi.useFakeTimers();

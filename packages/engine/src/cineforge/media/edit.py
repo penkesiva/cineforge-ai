@@ -8,10 +8,14 @@ Per shot (first match wins):
 2. an ingested still (``SOURCE``/``REFERENCE`` ref -> image asset): Ken Burns zoompan;
 3. a colour slate with the scene title.
 
-Audio: each scene's latest real narration (``AssetRole.AUDIO`` on any of its shots) is
-placed at the scene start, fitted to the scene (long pauses shortened, then at most 1.2x
-faster) and trimmed to it; an optional real music bed sits
-under it; silence otherwise; loudness-normalized to the soundtrack target.
+Audio: a talking clip that already has sound (lip-sync) keeps that sound, slowed by the
+same factor as the picture. Other spoken lines play on their own shot. A single scene
+narration with no per-shot lines still covers the whole scene. A real music file on the
+soundtrack is mixed under the voice.
+If the soundtrack only has a cue, a short original theme bed is written at render time
+(temple places get a drone and a slow line; lighter cues get a quicker one) and ducked
+under speech. Silence only when there is no cue. The mix is loudness-normalized to the
+soundtrack target.
 
 Text (needs drawtext + a font): burned-in captions, the disclosure label on synthetic
 shots, and an end card with attributions (always rendered, counted in the duration).
@@ -36,6 +40,7 @@ from cineforge.contracts.manifest import (
     Shot,
 )
 from cineforge.contracts.media import AssetKind, AssetRecord
+from cineforge.media.music import write_theme_bed
 from cineforge.media.render import (
     PALETTE,
     RENDER_TIMEOUT_SEC,
@@ -58,6 +63,8 @@ NARRATION_PAUSE_SEC = 0.3
 NARRATION_MAX_TEMPO = 1.2
 NARRATION_HEADROOM_SEC = 0.2
 MUSIC_VOLUME = 0.12
+THEME_BED_GAIN = 0.55
+THEME_BED_CREDIT = "Music: original theme bed"
 DEFAULT_AI_LABEL = "AI-generated"
 END_CARD_TITLE = "Made with CineForge AI"
 
@@ -91,6 +98,8 @@ class EditAudio:
     start: float
     duration: float
     asset_id: str
+    tempo: float = 1.0
+    picture_sync: bool = False
 
 
 @dataclass(frozen=True)
@@ -109,6 +118,8 @@ class EditPlan:
     credits: list[str] = field(default_factory=list)
     end_card_sec: float = END_CARD_SEC
     loudness_lufs: float = -14.0
+    music_cue: str | None = None
+    music_gain: float = MUSIC_VOLUME
 
     @property
     def timeline_sec(self) -> float:
@@ -125,7 +136,7 @@ class EditPlan:
             "stills": kinds.count("still"),
             "slates": kinds.count("slate"),
             "narration_tracks": len(self.narration),
-            "music": self.music is not None,
+            "music": self.music is not None or bool(self.music_cue),
             "captions": len(self.captions),
             "labeled_shots": sum(1 for s in self.shots if s.label),
             "credits": list(self.credits),
@@ -188,6 +199,45 @@ def _shot_source(
                 pan=pan if pan in ("left", "right") else "center",
             )
     return ShotSource("slate")
+
+
+def _has_audio(path: Path) -> bool:
+    try:
+        info = probe(path)
+    except (RenderError, OSError):
+        return False
+    return any(s.get("codec_type") == "audio" for s in info.get("streams", []))
+
+
+def _picture_audio(shot: Shot, source: ShotSource) -> bool:
+    """Talking clip whose own soundtrack is what the mouth was synced to."""
+    return bool(
+        shot.performance.lip_sync_required
+        and source.kind == "clip"
+        and source.path is not None
+        and _has_audio(source.path)
+    )
+
+
+def _sync_tempo(source: ShotSource, duration: float) -> float:
+    """Match the picture slow-down so the embedded voice stays on the lips."""
+    clip = source.clip_duration
+    if clip and 0 < clip < duration <= clip * MAX_SLOWDOWN:
+        return clip / duration
+    return 1.0
+
+
+def _shot_voice(
+    shot: Shot, assets: dict[str, AssetRecord], local: LocalPath
+) -> tuple[Path, str] | None:
+    for ref in reversed(shot.assets):
+        if ref.role != AssetRole.AUDIO:
+            continue
+        asset = assets.get(ref.asset_id)
+        path = _real(asset, AssetKind.AUDIO, "audio/", local)
+        if asset is not None and path is not None:
+            return path, asset.id
+    return None
 
 
 def _narration(
@@ -281,13 +331,15 @@ def build_edit_plan(
     for scene in scenes:
         scene_start = t
         ordered = sorted(scene.shots, key=lambda s: s.order)
+        spoken: list[tuple[float, Shot, tuple[Path, str]]] = []
         for shot in ordered:
             source = _shot_source(shot, assets, stills, local_path)
+            start = round(t, 3)
             shots.append(
                 EditShot(
                     scene_id=scene.id,
                     shot_id=shot.id,
-                    start=round(t, 3),
+                    start=start,
                     duration=shot.duration_sec,
                     source=source,
                     title=scene.title or f"Scene {scene.order}",
@@ -296,17 +348,44 @@ def build_edit_plan(
             )
             if source.asset_id:
                 credits += _credit_for(by_id[source.asset_id])
+            if source.path is not None and _picture_audio(shot, source):
+                narration.append(
+                    EditAudio(
+                        source.path,
+                        start,
+                        shot.duration_sec,
+                        source.asset_id or "",
+                        tempo=_sync_tempo(source, shot.duration_sec),
+                        picture_sync=True,
+                    )
+                )
+            else:
+                voice = _shot_voice(shot, assets, local_path)
+                if voice is not None:
+                    spoken.append((start, shot, voice))
             t += shot.duration_sec
-        found = _narration(ordered, assets, local_path)
-        if found is not None:
-            path, asset_id = found
-            narration.append(EditAudio(path, round(scene_start, 3), scene.duration_sec, asset_id))
-            credits += _credit_for(assets[asset_id])
+        if any(sh.audio.dialogue_text for sh in ordered):
+            for start, shot, (path, asset_id) in spoken:
+                narration.append(EditAudio(path, start, shot.duration_sec, asset_id))
+                credits += _credit_for(assets[asset_id])
+        else:
+            found = _narration(ordered, assets, local_path)
+            if found is not None:
+                path, asset_id = found
+                narration.append(
+                    EditAudio(path, round(scene_start, 3), scene.duration_sec, asset_id)
+                )
+                credits += _credit_for(assets[asset_id])
     music = None
+    cue = _music_cue(manifest)
+    gain = MUSIC_VOLUME
     if manifest.soundtrack is not None and manifest.soundtrack.music_asset_id:
         music = _real(
             assets.get(manifest.soundtrack.music_asset_id), AssetKind.AUDIO, "audio/", local_path
         )
+    if music is None and cue:
+        gain = THEME_BED_GAIN
+        credits.append(THEME_BED_CREDIT)
     return EditPlan(
         shots=shots,
         narration=narration,
@@ -314,7 +393,23 @@ def build_edit_plan(
         captions=_captions(manifest),
         credits=list(dict.fromkeys(credits)),
         loudness_lufs=manifest.soundtrack.loudness_target_lufs if manifest.soundtrack else -14.0,
+        music_cue=cue,
+        music_gain=gain,
     )
+
+
+def _music_cue(manifest: ProductionManifest) -> str | None:
+    """Cue plus place, so a temple visit does not get a generic pop bed."""
+    track = manifest.soundtrack
+    if track is None:
+        return None
+    bits = [track.music_cue, track.ambience]
+    if manifest.look is not None and manifest.look.location:
+        bits.append(manifest.look.location[:240])
+    if manifest.creative_brief.topic:
+        bits.append(manifest.creative_brief.topic)
+    text = ", ".join(bit.strip() for bit in bits if bit and bit.strip())
+    return text or None
 
 
 # -------------------------------------------------------------------------- ffmpeg
@@ -458,20 +553,36 @@ def build_edit_command(
         k = add_input("-i", str(track.path))
         delay = round(track.start * 1000)
         fade_at = max(0.0, track.duration - NARRATION_FADE_SEC)
+        tempo = f"atempo={track.tempo:.4f}," if abs(track.tempo - 1) > 0.001 else ""
         chains.append(
             f"[{k}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,"
-            f"atrim=duration={track.duration:.3f},"
+            f"{tempo}atrim=duration={track.duration:.3f},"
             f"afade=t=out:st={fade_at:.3f}:d={NARRATION_FADE_SEC},"
             f"adelay={delay}|{delay}[n{j}]"
         )
         mix.append(f"[n{j}]")
     if plan.music is not None:
         k = add_input("-i", str(plan.music))
+        fade_out = max(0.0, total - 1.8)
         chains.append(
             f"[{k}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,"
-            f"volume={MUSIC_VOLUME},atrim=duration={total:.3f}[mus]"
+            f"volume={plan.music_gain},atrim=duration={total:.3f},"
+            f"afade=t=in:st=0:d=0.8,afade=t=out:st={fade_out:.3f}:d=1.6[mus]"
         )
-        mix.append("[mus]")
+        if plan.narration:
+            mix = [label for label in mix if not label.startswith("[n")]
+            chains.append(
+                "".join(f"[n{j}]" for j in range(len(plan.narration)))
+                + f"amix=inputs={len(plan.narration)}:duration=longest:dropout_transition=0"
+                f":normalize=0,apad=whole_dur={total:.3f},asplit=2[voice][sc]"
+            )
+            chains.append(
+                "[mus][sc]sidechaincompress=threshold=0.05:ratio=2:attack=25"
+                ":release=400:makeup=2[bed]"
+            )
+            mix.extend(("[voice]", "[bed]"))
+        else:
+            mix.append("[mus]")
     if len(mix) == 1:
         chains.append(f"{mix[0]}atrim=duration={total:.3f}[aout]")
     else:
@@ -550,9 +661,12 @@ def render_master_edit(
     text = font is not None and has_drawtext()
     with tempfile.TemporaryDirectory(prefix="cineforge-edit-") as workdir:
         work = Path(workdir)
-        plan = replace(
-            plan,
-            narration=[
+        fitted: list[EditAudio] = []
+        for j, track in enumerate(plan.narration):
+            if track.picture_sync:
+                fitted.append(track)
+                continue
+            fitted.append(
                 replace(
                     track,
                     path=fit_narration(
@@ -563,9 +677,12 @@ def render_master_edit(
                         timeout=timeout,
                     ),
                 )
-                for j, track in enumerate(plan.narration)
-            ],
-        )
+            )
+        plan = replace(plan, narration=fitted)
+        if plan.music is None and plan.music_cue:
+            bed = work / "theme-bed.wav"
+            write_theme_bed(bed, plan.total_sec, plan.music_cue)
+            plan = replace(plan, music=bed)
         if text:
             os.symlink(font, work / "font.ttf")
             for name, content in text_files(plan, output).items():
