@@ -24,6 +24,7 @@ from cineforge.contracts.common import (
     rename_legacy_key,
     utcnow,
 )
+from cineforge.contracts.discovery import InspirationReference
 from cineforge.contracts.providers import ProviderCapability
 from cineforge.contracts.review import ReviewFinding, ReviewScore, ReviewStatus
 from cineforge.contracts.workflow import ProductionState
@@ -343,6 +344,10 @@ class ProductionManifest(ContractModel):
     persona_id: str | None = None
     look: ProductionLook | None = None
     authored_script: AuthoredScript | None = None
+    inspiration: InspirationReference | None = Field(
+        default=None,
+        description="YouTube video identity used as inspiration. No cached title or statistics.",
+    )
     persona_version: int | None = Field(
         default=None, description="Persona version pinned at creation (like the theme)"
     )

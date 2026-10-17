@@ -15,7 +15,17 @@ import json
 import sys
 from pathlib import Path
 
-from cineforge.contracts import agents, api, cost, manifest, media, providers, review, theme
+from cineforge.contracts import (
+    agents,
+    api,
+    cost,
+    discovery,
+    manifest,
+    media,
+    providers,
+    review,
+    theme,
+)
 from cineforge.contracts import workflow as wf
 from cineforge.testing import sample_manifest
 from pydantic import BaseModel
@@ -58,11 +68,14 @@ RESPONSE_MODELS: list[type[BaseModel]] = [
     api.PersonaSummary,
     api.PersonaDetail,
     wf.ProductionEvent,
+    discovery.DiscoveryRun,
 ]
 
 # Models the dashboard sends (validation mode).
 REQUEST_MODELS: list[type[BaseModel]] = [
     api.CreateProductionRequest,
+    discovery.StartDiscoveryRequest,
+    discovery.DiscoveryPageRequest,
     api.ApproveProductionRequest,
     api.ReviewClaimsRequest,
     api.UpdateProviderRequest,

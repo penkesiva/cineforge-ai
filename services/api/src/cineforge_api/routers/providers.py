@@ -41,6 +41,7 @@ CAPABILITY_LABELS: dict[ProviderCapability, str] = {
     ProviderCapability.MUSIC_GENERATION: "Music",
     ProviderCapability.SFX_GENERATION: "Sound effects",
     ProviderCapability.LIP_SYNC: "Lip sync",
+    ProviderCapability.VIDEO_DISCOVERY: "Video discovery",
     ProviderCapability.TRANSCRIPTION: "Transcription",
     ProviderCapability.EMBEDDING: "Embeddings",
 }

@@ -61,6 +61,13 @@ class Settings(BaseSettings):
     # Gemini video (Veo). Same rule as Anthropic: env wins over a Sources-page key.
     gemini_api_key: str = ""
     gemini_base_url: str = "https://generativelanguage.googleapis.com"
+    # YouTube Data API. Env wins over a Sources-page key. Quota is not USD spend.
+    youtube_api_key: str = ""
+    youtube_search_daily_allowance: int = Field(default=20, ge=0, le=100000)
+    youtube_videos_daily_allowance: int = Field(default=200, ge=0, le=1000000)
+    youtube_retention_hours: int = Field(default=24, ge=1, le=24 * 30)
+    youtube_cache_ttl_sec: int = Field(default=900, ge=60, le=3600)
+    discovery_cursor_secret: str = "cineforge-discovery-dev"
     http_timeout_sec: float = Field(default=20.0, gt=0, le=120)
     # Wikimedia APIs require a descriptive User-Agent with contact info.
     http_user_agent: str = "CineForgeAI/0.2 (https://github.com/penkesiva/cineforge-ai)"

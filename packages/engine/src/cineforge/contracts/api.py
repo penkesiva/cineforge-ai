@@ -25,6 +25,7 @@ from cineforge.contracts.agents import (
 )
 from cineforge.contracts.common import ContractModel, Money, ProductionMode
 from cineforge.contracts.cost import CostSummary, LedgerEvent
+from cineforge.contracts.discovery import InspirationReference
 from cineforge.contracts.manifest import AuthoredScript, ProductionLook, ProductionManifest
 from cineforge.contracts.media import AssetRecord, LicenseInfo, RightsStatus
 from cineforge.contracts.persona import PersonaCanon, PersonaProfile
@@ -74,6 +75,10 @@ class CreateProductionRequest(ContractModel):
     )
     script: AuthoredScript | None = Field(
         default=None, description="Fully generative themes: approved script used as-is"
+    )
+    reference: InspirationReference | None = Field(
+        default=None,
+        description="Optional YouTube inspiration. Identity only: no title or statistics.",
     )
 
 

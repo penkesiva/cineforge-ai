@@ -6,6 +6,9 @@ import type {
   CostSummary,
   CreateProductionRequest,
   CreateThemeVersionRequest,
+  DiscoveryPageRequest,
+  DiscoveryRun,
+  StartDiscoveryRequest,
   ErrorResponse,
   HealthResponse,
   LedgerEvent,
@@ -190,6 +193,11 @@ export function createApiClient(options: ApiClientOptions = {}) {
     listModes: () => request<ProductionModePolicy[]>("/modes"),
     listPricing: () => request<PriceCatalogEntry[]>("/pricing"),
     getCostOverview: () => request<CostOverview>("/costs/overview"),
+    startDiscovery: (payload: StartDiscoveryRequest) =>
+      request<DiscoveryRun>("/discovery/runs", "POST", payload),
+    getDiscovery: (id: string) => request<DiscoveryRun>(`/discovery/runs/${enc(id)}`),
+    discoveryPage: (id: string, payload: DiscoveryPageRequest) =>
+      request<DiscoveryRun>(`/discovery/runs/${enc(id)}/pages`, "POST", payload),
     listProductions: () => request<ProductionSummary[]>("/productions"),
     createProduction: (payload: CreateProductionRequest) =>
       request<ProductionDetail>("/productions", "POST", payload),

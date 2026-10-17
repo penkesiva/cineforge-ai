@@ -146,6 +146,13 @@ class Runtime:
         )
 
     @cached_property
+    def discovery(self):
+        from cineforge.discovery.service import DiscoveryService
+        from cineforge.discovery.store import build_discovery_store
+
+        return DiscoveryService(self, build_discovery_store(self.settings))
+
+    @cached_property
     def paid_calls(self) -> PaidCallGuard:
         from cineforge.providers.factory import build_paid_call_guard
 

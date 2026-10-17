@@ -160,6 +160,13 @@ export const IconKey = (p: IconProps) => (
   </Svg>
 );
 
+export const IconSearch = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="11" cy="11" r="6" />
+    <path d="M20 20l-3.5-3.5" />
+  </Svg>
+);
+
 export const IconBug = (p: IconProps) => (
   <Svg {...p}>
     <path d="M12 7a4 4 0 014 4v5a4 4 0 01-8 0v-5a4 4 0 014-4z" />

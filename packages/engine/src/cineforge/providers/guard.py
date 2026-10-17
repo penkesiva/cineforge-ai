@@ -31,6 +31,7 @@ from cineforge.contracts.cost import (
 from cineforge.contracts.providers import (
     PaidProviderNotAllowedError,
     Provider,
+    ProviderCapability,
     ProviderError,
     ProviderRequest,
     ProviderResponse,
@@ -122,6 +123,27 @@ class DefaultPaidCallGuard:
             credits_used=response.usage.credits,
         )
         return response, committed
+
+    def preproduction(
+        self, provider: Provider, request: ProviderRequest
+    ) -> tuple[ProviderResponse, Decimal]:
+        """Zero-USD discovery. No production id is charged and no budget is reserved."""
+        info = provider.info
+        if request.capability != ProviderCapability.VIDEO_DISCOVERY:
+            raise UnsupportedCapabilityError("preproduction only allows video discovery")
+        if request.capability not in info.capabilities:
+            raise UnsupportedCapabilityError(f"{info.name} does not support {request.capability}")
+        if info.is_paid:
+            raise PaidProviderNotAllowedError(
+                f"provider {info.name!r} is paid and cannot run as pre-production discovery"
+            )
+        usage = provider.estimate_usage(request)
+        _version, cost = self._price(info.name, request.model, usage)
+        if cost != 0:
+            raise UnknownPriceError(
+                f"{info.name}/{request.model} discovery price must be 0, got {cost}"
+            )
+        return provider.invoke(request), cost
 
     def _price(self, provider: str, model: str, usage: ProviderUsage) -> tuple[str, Decimal]:
         """(price version, cost). With a breakdown every line must be priced; the aggregate

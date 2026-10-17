@@ -49,6 +49,21 @@ describe("validateCreateProduction", () => {
     });
   });
 
+  it("keeps a YouTube inspiration as identity only", () => {
+    const { request } = validateCreateProduction({
+      ...valid,
+      inspirationVideoId: "abcdefghijk",
+      inspirationRetrievedAt: "2026-10-17T00:00:00Z",
+    });
+    expect(request?.auto_approve).toBe(false);
+    expect(request?.reference).toEqual({
+      platform: "youtube",
+      video_id: "abcdefghijk",
+      watch_url: "https://www.youtube.com/watch?v=abcdefghijk",
+      retrieved_at: "2026-10-17T00:00:00Z",
+    });
+  });
+
   it("enforces topic length 3..500 after trimming", () => {
     expect(validateCreateProduction({ ...valid, topic: "  ab  " }).errors.topic).toMatch(/at least 3/);
     expect(validateCreateProduction({ ...valid, topic: "x".repeat(501) }).errors.topic).toMatch(/at most 500/);

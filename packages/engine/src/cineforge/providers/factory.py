@@ -29,6 +29,7 @@ from cineforge.providers.settings_store import (
     MemorySecretStore,
 )
 from cineforge.providers.wikipedia import WikipediaResearchProvider
+from cineforge.providers.youtube import MockYouTubeProvider, YouTubeProvider
 
 
 def build_secret_store(settings: Settings) -> SecretStore:
@@ -66,7 +67,7 @@ def build_provider_registry(
     """Mocks first (so ``for_capability`` stays offline), then real providers; routing
     decides readiness per tenant. ``http_client`` lets tests inject a MockTransport."""
     registry = InMemoryProviderRegistry(
-        build_mock_providers(failure_rate=settings.mock_failure_rate),
+        [*build_mock_providers(failure_rate=settings.mock_failure_rate), MockYouTubeProvider()],
         settings=settings,
         secrets=secrets,
         provider_settings=provider_settings,
@@ -96,6 +97,13 @@ def build_provider_registry(
         GeminiProvider(
             settings,
             key_resolver=lambda tenant_id: registry.resolve_key("gemini", tenant_id)[0],
+            client=client,
+        )
+    )
+    registry.register(
+        YouTubeProvider(
+            settings,
+            key_resolver=lambda tenant_id: registry.resolve_key("youtube", tenant_id)[0],
             client=client,
         )
     )

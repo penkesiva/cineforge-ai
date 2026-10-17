@@ -389,6 +389,7 @@ class WorkflowEngine:
             persona_version=self._persona_version(theme),
             look=req.look,
             authored_script=req.script,
+            inspiration=req.reference,
             audit=[
                 AuditEntry(
                     actor="system",
@@ -398,6 +399,14 @@ class WorkflowEngine:
                         "mode": req.mode.value,
                         "budget_limit": float(limit),
                         "auto_approve": req.auto_approve,
+                        **(
+                            {
+                                "inspiration_platform": req.reference.platform,
+                                "inspiration_video_id": req.reference.video_id,
+                            }
+                            if req.reference is not None
+                            else {}
+                        ),
                     },
                 )
             ],

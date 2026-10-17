@@ -44,7 +44,9 @@ insert into public.price_catalog (version, provider, model, capability, unit, un
     ('open-sources-2026-10', 'wikimedia-commons', 'mediawiki-action-api', 'media_search', 'request', 0.000000, 'USD', null, '2026-10-01', null, false, 'Commons file search + extmetadata licenses (free, keyless)'),
     ('open-sources-2026-10', 'openverse', 'openverse-v1', 'media_search', 'request', 0.000000, 'USD', null, '2026-10-01', null, false, 'Openverse anonymous API (free, rate limited)'),
     ('open-sources-2026-10', 'wikimedia-commons', 'file-download', 'media_search', 'request', 0.000000, 'USD', null, '2026-10-01', null, false, 'Download of a rights-approved original file (free)'),
-    ('open-sources-2026-10', 'openverse', 'file-download', 'media_search', 'request', 0.000000, 'USD', null, '2026-10-01', null, false, 'Download of a rights-approved original file (free)')
+    ('open-sources-2026-10', 'openverse', 'file-download', 'media_search', 'request', 0.000000, 'USD', null, '2026-10-01', null, false, 'Download of a rights-approved original file (free)'),
+    ('open-sources-2026-10', 'youtube', 'youtube-data-v3', 'video_discovery', 'request', 0.000000, 'USD', null, '2026-10-01', null, false, 'YouTube Data API v3. USD cost is zero. Daily method quota is separate.'),
+    ('open-sources-2026-10', 'mock-youtube', 'mock-youtube-v1', 'video_discovery', 'request', 0.000000, 'USD', null, '2026-10-01', null, false, 'Offline discovery fixtures. No network.')
 on conflict (version, provider, model, unit) do update set
     capability = excluded.capability, unit_price = excluded.unit_price,
     currency = excluded.currency, credits_per_unit = excluded.credits_per_unit,

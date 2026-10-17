@@ -11,3 +11,5 @@ entries:
   - {provider: openverse, model: openverse-v1, capability: media_search, unit: request, unit_price: 0, notes: "Openverse anonymous API (free, rate limited)"}
   - {provider: wikimedia-commons, model: file-download, capability: media_search, unit: request, unit_price: 0, notes: "Download of a rights-approved original file (free)"}
   - {provider: openverse, model: file-download, capability: media_search, unit: request, unit_price: 0, notes: "Download of a rights-approved original file (free)"}
+  - {provider: youtube, model: youtube-data-v3, capability: video_discovery, unit: request, unit_price: 0, notes: "YouTube Data API v3. USD cost is zero. Daily method quota is separate."}
+  - {provider: mock-youtube, model: mock-youtube-v1, capability: video_discovery, unit: request, unit_price: 0, notes: "Offline discovery fixtures. No network."}

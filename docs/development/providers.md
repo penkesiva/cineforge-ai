@@ -8,6 +8,7 @@ happens until you opt in.
 |---|---|---|---|
 | Anthropic (Claude) | LLM (planning, research synthesis, script) | **paid** | API key, budget |
 | Google Gemini (Veo) | text-to-video | **paid** | API key. Starts off. Does not replace Higgsfield |
+| YouTube | video discovery | free USD, API quota | API key. Chart and recent search only. See [discovery](discovery.md) |
 | Wikipedia | research sources | free | internet |
 | Wikimedia Commons | media search | free | internet |
 | Openverse | media search | free | internet |

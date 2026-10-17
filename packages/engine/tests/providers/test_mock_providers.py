@@ -151,7 +151,7 @@ def test_registry_routing() -> None:
     assert registry.for_capability(C.LLM_TEXT).info.name == "mock-llm"
     assert registry.get("mock-voice").info.capabilities == [C.VOICE_TTS]
     infos = registry.list()
-    assert sum(1 for i in infos if i.is_mock) == 9
+    assert sum(1 for i in infos if i.is_mock) == 10
     assert {i.name for i in infos if not i.is_mock} == {
         "anthropic",
         "wikipedia",
@@ -159,6 +159,7 @@ def test_registry_routing() -> None:
         "openverse",
         "higgsfield",
         "gemini",
+        "youtube",
     }
     with pytest.raises(UnsupportedCapabilityError):
         registry.for_capability(C.TRANSCRIPTION)

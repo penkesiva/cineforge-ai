@@ -20,27 +20,40 @@ import {
 import { Field } from "../Field";
 import { Button, cx, inputClass } from "../ui";
 
+export interface InspirationSeed {
+  topic: string;
+  videoId: string;
+  retrievedAt: string;
+}
+
 export interface CreateProductionFormProps {
   themes: readonly ThemeSummary[];
   modes: readonly ProductionModePolicy[];
   onSubmit: (request: CreateProductionRequest) => void | Promise<void>;
   submitting?: boolean;
   onCancel?: () => void;
+  inspiration?: InspirationSeed | null;
 }
 
-function initialValues(themes: readonly ThemeSummary[], modes: readonly ProductionModePolicy[]): CreateProductionFormValues {
+function initialValues(
+  themes: readonly ThemeSummary[],
+  modes: readonly ProductionModePolicy[],
+  inspiration?: InspirationSeed | null,
+): CreateProductionFormValues {
   const theme = themes.find((t) => t.id === "time-traveler") ?? themes[0];
   const preferred: ProductionMode = theme?.default_mode ?? "balanced";
   const mode = modes.find((m) => m.mode === preferred)?.mode ?? modes[0]?.mode ?? "";
   return {
     themeId: theme?.id ?? "",
     themeVersion: "",
-    topic: "",
     title: "",
     mode,
     durationSec: String(DEFAULT_DURATION_SEC),
     budgetUsd: "",
     autoApprove: false,
+    topic: inspiration?.topic ?? "",
+    inspirationVideoId: inspiration?.videoId ?? "",
+    inspirationRetrievedAt: inspiration?.retrievedAt ?? "",
   };
 }
 
@@ -50,9 +63,16 @@ export function themeVersionOptions(theme: ThemeSummary | undefined): number[] {
   return Array.from({ length: Math.max(0, theme.version - 1) }, (_, i) => theme.version - 1 - i);
 }
 
-export function CreateProductionForm({ themes, modes, onSubmit, submitting = false, onCancel }: CreateProductionFormProps) {
+export function CreateProductionForm({
+  themes,
+  modes,
+  onSubmit,
+  submitting = false,
+  onCancel,
+  inspiration = null,
+}: CreateProductionFormProps) {
   const uid = useId();
-  const [values, setValues] = useState<CreateProductionFormValues>(() => initialValues(themes, modes));
+  const [values, setValues] = useState<CreateProductionFormValues>(() => initialValues(themes, modes, inspiration));
   const [errors, setErrors] = useState<CreateProductionFormErrors>({});
   const [submitted, setSubmitted] = useState(false);
 
@@ -84,6 +104,11 @@ export function CreateProductionForm({ themes, modes, onSubmit, submitting = fal
 
   return (
     <form noValidate onSubmit={handleSubmit} aria-label="New production" className="grid gap-4 md:grid-cols-2">
+      {values.inspirationVideoId ? (
+        <p className="md:col-span-2 rounded-md border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-zinc-300">
+          Inspired by a YouTube video. The topic is only a suggestion. Edit it before you create. This does not start a run.
+        </p>
+      ) : null}
       <Field id={fieldId("themeId")} label="Theme" error={errors.themeId} hint={selectedTheme?.purpose}>
         <select
           id={fieldId("themeId")}

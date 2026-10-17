@@ -12,6 +12,7 @@ import {
   IconOverview,
   IconPalette,
   IconPlug,
+  IconSearch,
   Logo,
 } from "./icons";
 import { cx } from "./ui";
@@ -21,6 +22,7 @@ const NAV = [
   { href: "/productions", label: "Productions", icon: IconFilm },
   { href: "/themes", label: "Themes", icon: IconPalette },
   { href: "/sources", label: "Sources", icon: IconPlug },
+  { href: "/discovery", label: "Discovery", icon: IconSearch },
   { href: "/agents", label: "Agents", icon: IconAgents },
   { href: "/costs", label: "Costs", icon: IconCoins },
   { href: "/debug", label: "Debug", icon: IconBug },

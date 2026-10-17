@@ -20,6 +20,9 @@ export interface CreateProductionFormValues {
   /** Empty = use the mode's default budget. */
   budgetUsd: string;
   autoApprove: boolean;
+  /** YouTube inspiration identity. Empty means none. */
+  inspirationVideoId?: string;
+  inspirationRetrievedAt?: string;
 }
 
 export type CreateProductionFormErrors = Partial<Record<keyof CreateProductionFormValues, string>>;
@@ -80,5 +83,19 @@ export function validateCreateProduction(values: CreateProductionFormValues): Va
   const title = values.title.trim();
   if (title) request.title = title;
   if (budget !== null) request.budget_limit_usd = budget;
+  const videoId = values.inspirationVideoId?.trim() ?? "";
+  const retrievedAt = values.inspirationRetrievedAt?.trim() ?? "";
+  if (videoId || retrievedAt) {
+    if (!/^[A-Za-z0-9_-]{6,32}$/.test(videoId) || !retrievedAt) {
+      errors.topic = errors.topic ?? "Inspiration reference is incomplete.";
+      return { errors, request: null };
+    }
+    request.reference = {
+      platform: "youtube",
+      video_id: videoId,
+      watch_url: `https://www.youtube.com/watch?v=${videoId}`,
+      retrieved_at: retrievedAt,
+    };
+  }
   return { errors, request };
 }

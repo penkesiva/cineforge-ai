@@ -41,6 +41,7 @@ class ProviderCapability(StrEnum):
     MUSIC_GENERATION = "music_generation"
     SFX_GENERATION = "sfx_generation"
     LIP_SYNC = "lip_sync"
+    VIDEO_DISCOVERY = "video_discovery"
     TRANSCRIPTION = "transcription"
     EMBEDDING = "embedding"
 
@@ -293,3 +294,9 @@ class PaidCallGuard(Protocol):
         attempt: int = 1,
         retry_reason: str | None = None,
     ) -> tuple[ProviderResponse, LedgerEvent]: ...
+
+    def preproduction(
+        self, provider: Provider, request: ProviderRequest
+    ) -> tuple[ProviderResponse, Decimal]:
+        """Invoke a zero-USD discovery call. Does not reserve a production budget."""
+        ...

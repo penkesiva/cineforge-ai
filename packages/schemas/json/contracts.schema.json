@@ -97,8 +97,17 @@
     "ProductionEvent": {
       "$ref": "#/$defs/ProductionEvent"
     },
+    "DiscoveryRun": {
+      "$ref": "#/$defs/DiscoveryRun"
+    },
     "CreateProductionRequest": {
       "$ref": "#/$defs/CreateProductionRequest"
+    },
+    "StartDiscoveryRequest": {
+      "$ref": "#/$defs/StartDiscoveryRequest"
+    },
+    "DiscoveryPageRequest": {
+      "$ref": "#/$defs/DiscoveryPageRequest"
     },
     "ApproveProductionRequest": {
       "$ref": "#/$defs/ApproveProductionRequest"
@@ -1821,6 +1830,18 @@
           ],
           "default": null,
           "description": "Fully generative themes: approved script used as-is"
+        },
+        "reference": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InspirationReference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional YouTube inspiration. Identity only: no title or statistics."
         }
       },
       "required": [
@@ -2106,6 +2127,201 @@
         }
       },
       "title": "Disclosure",
+      "type": "object"
+    },
+    "DiscoveryFilters": {
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "$ref": "#/$defs/DiscoveryMode",
+          "default": "popular"
+        },
+        "region_code": {
+          "default": "US",
+          "maxLength": 2,
+          "minLength": 2,
+          "pattern": "^[A-Z]{2}$",
+          "title": "Region Code",
+          "type": "string"
+        },
+        "video_category_id": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9]{1,4}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Video Category Id"
+        },
+        "query": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Query"
+        },
+        "lookback_days": {
+          "anyOf": [
+            {
+              "enum": [
+                1,
+                7,
+                30
+              ],
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lookback Days"
+        },
+        "relevance_language": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z]{2}(-[A-Za-z]{2})?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Relevance Language"
+        },
+        "page_size": {
+          "default": 25,
+          "maximum": 50,
+          "minimum": 1,
+          "title": "Page Size",
+          "type": "integer"
+        }
+      },
+      "title": "DiscoveryFilters",
+      "type": "object"
+    },
+    "DiscoveryMode": {
+      "enum": [
+        "popular",
+        "recent"
+      ],
+      "title": "DiscoveryMode",
+      "type": "string"
+    },
+    "DiscoveryPageRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "cursor": {
+          "maxLength": 2000,
+          "minLength": 8,
+          "title": "Cursor",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cursor"
+      ],
+      "title": "DiscoveryPageRequest",
+      "type": "object"
+    },
+    "DiscoveryRun": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "tenant_id": {
+          "title": "Tenant Id",
+          "type": "string"
+        },
+        "filters": {
+          "$ref": "#/$defs/DiscoveryFilters"
+        },
+        "provider": {
+          "title": "Provider",
+          "type": "string"
+        },
+        "is_mock": {
+          "title": "Is Mock",
+          "type": "boolean"
+        },
+        "freshness": {
+          "$ref": "#/$defs/Freshness"
+        },
+        "partial": {
+          "default": false,
+          "title": "Partial",
+          "type": "boolean"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
+        },
+        "candidates": {
+          "items": {
+            "$ref": "#/$defs/TrendCandidate"
+          },
+          "title": "Candidates",
+          "type": "array"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Next Cursor"
+        },
+        "retrieved_at": {
+          "format": "date-time",
+          "title": "Retrieved At",
+          "type": "string"
+        },
+        "idempotency_key": {
+          "title": "Idempotency Key",
+          "type": "string"
+        },
+        "search_pages": {
+          "default": 0,
+          "title": "Search Pages",
+          "type": "integer"
+        },
+        "seen_cursors": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Seen Cursors",
+          "type": "array"
+        }
+      },
+      "required": [
+        "tenant_id",
+        "filters",
+        "provider",
+        "is_mock",
+        "freshness",
+        "idempotency_key"
+      ],
+      "title": "DiscoveryRun",
       "type": "object"
     },
     "Episode": {
@@ -2461,6 +2677,14 @@
       ],
       "title": "FactClaim",
       "type": "object"
+    },
+    "Freshness": {
+      "enum": [
+        "fresh",
+        "cached"
+      ],
+      "title": "Freshness",
+      "type": "string"
     },
     "GenerationPack": {
       "additionalProperties": false,
@@ -2892,6 +3116,41 @@
       ],
       "title": "HealthStatus",
       "type": "string"
+    },
+    "InspirationReference": {
+      "additionalProperties": false,
+      "description": "Identity of a source video. No title, thumbnail, or statistics.",
+      "properties": {
+        "platform": {
+          "const": "youtube",
+          "default": "youtube",
+          "title": "Platform",
+          "type": "string"
+        },
+        "video_id": {
+          "maxLength": 32,
+          "minLength": 6,
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "title": "Video Id",
+          "type": "string"
+        },
+        "watch_url": {
+          "title": "Watch Url",
+          "type": "string"
+        },
+        "retrieved_at": {
+          "format": "date-time",
+          "title": "Retrieved At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "video_id",
+        "watch_url",
+        "retrieved_at"
+      ],
+      "title": "InspirationReference",
+      "type": "object"
     },
     "KeySource": {
       "enum": [
@@ -4741,6 +5000,18 @@
           ],
           "default": null
         },
+        "inspiration": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InspirationReference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "YouTube video identity used as inspiration. No cached title or statistics."
+        },
         "persona_version": {
           "anyOf": [
             {
@@ -5370,6 +5641,7 @@
         "music_generation",
         "sfx_generation",
         "lip_sync",
+        "video_discovery",
         "transcription",
         "embedding"
       ],
@@ -6840,6 +7112,91 @@
       "title": "StageQuote",
       "type": "object"
     },
+    "StartDiscoveryRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "$ref": "#/$defs/DiscoveryMode",
+          "default": "popular"
+        },
+        "region_code": {
+          "default": "US",
+          "title": "Region Code",
+          "type": "string"
+        },
+        "video_category_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Video Category Id"
+        },
+        "query": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Query"
+        },
+        "lookback_days": {
+          "anyOf": [
+            {
+              "enum": [
+                1,
+                7,
+                30
+              ],
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lookback Days"
+        },
+        "relevance_language": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Relevance Language"
+        },
+        "page_size": {
+          "default": 25,
+          "maximum": 50,
+          "minimum": 1,
+          "title": "Page Size",
+          "type": "integer"
+        },
+        "idempotency_key": {
+          "maxLength": 200,
+          "minLength": 8,
+          "title": "Idempotency Key",
+          "type": "string"
+        }
+      },
+      "required": [
+        "idempotency_key"
+      ],
+      "title": "StartDiscoveryRequest",
+      "type": "object"
+    },
     "StoryBeat": {
       "additionalProperties": false,
       "properties": {
@@ -7005,6 +7362,141 @@
         "default_mode"
       ],
       "title": "ThemeSummary",
+      "type": "object"
+    },
+    "TrendCandidate": {
+      "additionalProperties": false,
+      "properties": {
+        "platform": {
+          "const": "youtube",
+          "default": "youtube",
+          "title": "Platform",
+          "type": "string"
+        },
+        "video_id": {
+          "title": "Video Id",
+          "type": "string"
+        },
+        "watch_url": {
+          "title": "Watch Url",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "channel_id": {
+          "title": "Channel Id",
+          "type": "string"
+        },
+        "channel_name": {
+          "title": "Channel Name",
+          "type": "string"
+        },
+        "published_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Published At"
+        },
+        "duration_sec": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Duration Sec"
+        },
+        "category_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Category Id"
+        },
+        "thumbnail_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Thumbnail Url"
+        },
+        "view_count": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "View Count"
+        },
+        "like_count": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Like Count"
+        },
+        "comment_count": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Comment Count"
+        },
+        "retrieved_at": {
+          "format": "date-time",
+          "title": "Retrieved At",
+          "type": "string"
+        },
+        "source_mode": {
+          "$ref": "#/$defs/DiscoveryMode"
+        }
+      },
+      "required": [
+        "video_id",
+        "watch_url",
+        "title",
+        "channel_id",
+        "channel_name",
+        "retrieved_at",
+        "source_mode"
+      ],
+      "title": "TrendCandidate",
       "type": "object"
     },
     "UpdateProviderRequest": {

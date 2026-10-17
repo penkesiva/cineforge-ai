@@ -8,10 +8,10 @@ import { useResource } from "@/lib/hooks";
 import { AppNoticeDialog, type NoticeState } from "../dialogs/AppNoticeDialog";
 import { IconPlus, IconRefresh } from "../icons";
 import { Button, Card, EmptyState, ErrorState, Loading, PageHeader, SimulatedBadge } from "../ui";
-import { CreateProductionForm } from "./CreateProductionForm";
+import { CreateProductionForm, type InspirationSeed } from "./CreateProductionForm";
 import { ProductionsTable } from "./ProductionsTable";
 
-function NewProductionPanel({ onClose }: { onClose: () => void }) {
+function NewProductionPanel({ onClose, inspiration }: { onClose: () => void; inspiration?: InspirationSeed | null }) {
   const router = useRouter();
   const themes = useResource("themes", () => api.listThemes());
   const modes = useResource("modes", () => api.listModes());
@@ -49,6 +49,7 @@ function NewProductionPanel({ onClose }: { onClose: () => void }) {
           onSubmit={submit}
           submitting={submitting}
           onCancel={onClose}
+          inspiration={inspiration}
         />
       )}
       <AppNoticeDialog
@@ -62,9 +63,9 @@ function NewProductionPanel({ onClose }: { onClose: () => void }) {
   );
 }
 
-export function ProductionsPage() {
+export function ProductionsPage({ inspiration = null }: { inspiration?: InspirationSeed | null }) {
   const productions = useResource("productions", () => api.listProductions());
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(Boolean(inspiration));
 
   return (
     <>
@@ -85,7 +86,7 @@ export function ProductionsPage() {
           </>
         }
       />
-      {showForm && <NewProductionPanel onClose={() => setShowForm(false)} />}
+      {showForm && <NewProductionPanel onClose={() => setShowForm(false)} inspiration={inspiration} />}
       <Card>
         {productions.loading ? (
           <Loading label="Loading productions…" rows={5} />

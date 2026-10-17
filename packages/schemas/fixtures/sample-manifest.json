@@ -45,6 +45,7 @@
   "persona_id": null,
   "look": null,
   "authored_script": null,
+  "inspiration": null,
   "persona_version": null,
   "character_bible_ref": "asset://characters/host-v1",
   "style_bible_ref": null,

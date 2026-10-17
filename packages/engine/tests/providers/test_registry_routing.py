@@ -167,7 +167,7 @@ def test_catalog_includes_planned_entries() -> None:
     env = Env()
     catalog = env.registry.catalog(T)
     names = [e.name for e in catalog]
-    assert len(names) == len(set(names)) == 15 + len(PLANNED_PROVIDERS)
+    assert len(names) == len(set(names)) == 17 + len(PLANNED_PROVIDERS)
     planned = [e for e in catalog if e.status == ProviderStatus.PLANNED]
     assert {e.name for e in planned} == {p.name for p in PLANNED_PROVIDERS}
     assert all(not e.enabled and e.planned_phase for e in planned)
